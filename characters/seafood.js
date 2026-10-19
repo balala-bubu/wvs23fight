@@ -219,23 +219,32 @@ function updateSeafoodFinal(F, dt, t){
       if ((F.x - (edge - dir*4))*dir > 0){ F.riding = false; f.finalT = .01; f.vy = 18; f.vx = -dir*8; f.x = edge - dir*5; pop('衝浪成功！', f.x, f.y+7); }
     }
   }
-  if (!F.caught && v.hittable() && Math.abs(v.x - (F.x + dir*1.5)) < 4.6 && v.y < 12 && v.y > -6){
-    F.caught = true; F.hitT = 0; v.state = 'stuck'; v.move = null; v.vx = v.vy = 0; v.pct += 6;
-    SFX.splash(); SFX.boom(); G.shake = reduce ? .2 : 1; spark(v.x, v.y+3, 3); pop('被海鮮淹沒！', v.x, v.y+9, 'big');
-  }
-  if (F.caught && !F.done){
-    if (v.state==='dead'){ F.done = true; }
-    else {
-      F.hitT += dt;
-      v.x = F.x + dir*2.2; v.y = 3; v.vx = v.vy = 0; v.state = 'stuck';
-      if (F.hitT > .2*(F.n+1) && F.n < 4){ F.n++; v.pct += 3; v.meter = Math.min(100, v.meter+2); SFX.chomp(); spark(v.x, v.y+4, 1.4); pop(['魚！','蝦！','蛤蜊！','熊！？'][F.n-1], v.x, v.y+8); }
-      if (F.hitT > 1.0 || (F.x - edge)*dir > -1){
-        F.done = true; v.state = 'idle'; launch(v, 30 + v.pct*.11, 38, dir);
-        SFX.hit(40); G.shake = reduce ? .2 : 1.2; G.freeze = .15; G.flash = .3; spark(v.x, v.y+3, 4); pop('海鮮大滿貫！', v.x, v.y+9, 'big');
-      }
+  // the wave sweeps up EVERY fighter it reaches, not just the target
+  F.caught = F.caught || new Map();
+  for (const w of G.fighters){
+    if (w===f || F.caught.has(w) || !w.hittable()) continue;
+    if (Math.abs(w.x - (F.x + dir*1.5)) < 4.6 && w.y < 12 && w.y > -6){
+      F.caught.set(w, {hitT:0, n:0, done:false, slot:F.caught.size});
+      w.state = 'stuck'; w.move = null; w.vx = w.vy = 0; w.pct += 6;
+      SFX.splash(); SFX.boom(); G.shake = reduce ? .2 : 1; spark(w.x, w.y+3, 3); pop('被海鮮淹沒！', w.x, w.y+9, 'big');
     }
   }
-  return Math.abs(F.x) > 75;
+  for (const [w, C] of F.caught){
+    if (C.done) continue;
+    if (w.state==='dead'){ C.done = true; continue; }
+    C.hitT += dt;
+    w.x = F.x + dir*(2.2 - C.slot*.6); w.y = 3 + C.slot*1.6; w.vx = w.vy = 0; w.state = 'stuck';
+    if (C.hitT > .2*(C.n+1) && C.n < 4){ C.n++; w.pct += 3; w.meter = Math.min(100, w.meter+2); SFX.chomp(); spark(w.x, w.y+4, 1.4); pop(['魚！','蝦！','蛤蜊！','熊！？'][C.n-1], w.x, w.y+8); }
+    if (C.hitT > 1.0 || (F.x - edge)*dir > -1){
+      C.done = true; w.state = 'idle'; launch(w, 30 + w.pct*.11, 38, dir);
+      SFX.hit(40); G.shake = reduce ? .2 : 1.2; G.freeze = .15; G.flash = .3; spark(w.x, w.y+3, 4); pop('海鮮大滿貫！', w.x, w.y+9, 'big');
+    }
+  }
+  if (Math.abs(F.x) > 75){
+    for (const [w, C] of F.caught) if (!C.done && w.state==='stuck'){ C.done = true; w.state = 'idle'; launch(w, 30 + w.pct*.11, 38, dir); }
+    return true;
+  }
+  return false;
 }
 function seafoodFinal(f, opp){
     f.finalT = 99; banner('大海嘯！海鮮吃到飽！'); SFX.wave(); SFX.splash();

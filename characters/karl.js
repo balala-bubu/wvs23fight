@@ -184,9 +184,13 @@ function updateKarlFinal(F, dt){
   for (const R of F.rocks){
     if (R.done) continue;
     R.vy -= 70*dt; R.m.position.y += R.vy*dt; R.m.rotation.x += dt*5; R.m.rotation.z += dt*3;
-    if (!R.hit && v.hittable() && Math.abs(R.m.position.x - v.x) < 2.2 && R.m.position.y < v.y+6 && R.m.position.y > v.y-1){
-      R.hit = true; v.pct += 6; v.meter = Math.min(100, v.meter+3); launch(v, 0, 0, F.dir); v.vx = F.dir*3; v.vy = 6; v.hitstun = .5;
-      SFX.spike(); spark(v.x, v.y+5, 1.8); burst(R.m.position.x, R.m.position.y, 0x6d5844, 8, 8);
+    R.hitSet = R.hitSet || new Set();
+    for (const w of G.fighters){                                       // a rock hits anyone it falls on
+      if (w===f || R.hitSet.has(w) || !w.hittable()) continue;
+      if (Math.abs(R.m.position.x - w.x) < 2.2 && R.m.position.y < w.y+6 && R.m.position.y > w.y-1){
+        R.hitSet.add(w); w.pct += 6; w.meter = Math.min(100, w.meter+3); launch(w, 0, 0, F.dir); w.vx = F.dir*3; w.vy = 6; w.hitstun = .5;
+        SFX.spike(); spark(w.x, w.y+5, 1.8); burst(R.m.position.x, R.m.position.y, 0x6d5844, 8, 8);
+      }
     }
     if (R.m.position.y < -30){ R.done = true; R.m.visible = false; }
   }
@@ -197,9 +201,13 @@ function updateKarlFinal(F, dt){
   if (F.t > 2.1){
     if (!F.honk){ F.honk = true; SFX.horn(); pop('叭叭——！', v.x, v.y+8, 'big'); }
     F.car.position.x += F.dir*52*dt;
-    if (!F.carHit && v.hittable() && Math.abs(v.x - (F.car.position.x + F.dir*2)) < 3.4 && v.y < 6 && v.y > -4){
-      F.carHit = true; v.pct += 12; launch(v, 32 + v.pct*.11, 40, F.dir);
-      SFX.crash(); G.shake = reduce ? .2 : 1.2; G.freeze = .14; spark(v.x, v.y+3, 4); pop('活著真好！', v.x, v.y+9, 'big');
+    F.carHit = F.carHit || new Set();
+    for (const w of G.fighters){                                       // the car runs over everyone on its path
+      if (w===f || F.carHit.has(w) || !w.hittable()) continue;
+      if (Math.abs(w.x - (F.car.position.x + F.dir*2)) < 3.4 && w.y < 6 && w.y > -4){
+        F.carHit.add(w); w.pct += 12; launch(w, 32 + w.pct*.11, 40, F.dir);
+        SFX.crash(); G.shake = reduce ? .2 : 1.2; G.freeze = .14; spark(w.x, w.y+3, 4); pop('活著真好！', w.x, w.y+9, 'big');
+      }
     }
   }
   return F.t > 2.1 && Math.abs(F.car.position.x) > 70;

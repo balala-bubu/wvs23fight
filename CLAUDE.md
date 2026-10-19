@@ -34,5 +34,6 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 ## Rules of thumb
 - Characters never edit core; anything special goes through a hook in the registerChar object.
 - Moves with `sfx:'hit'` would crash (hit needs a number) — use another sound.
+- Finals that travel (wave, army, car, beam…) must hit **every** fighter on their path: loop `G.fighters`, skip the owner, track hits in a `Set` (see `_template.js`, `tommy.js`). Never check only `F.target`.
 - Temporary power-ups: set `f.buffT` (seconds) → +30% damage while > 0.
 - Things added to the scene in results go in `R.items`; things attached to a model go in `R.attach` — both are cleaned up automatically.

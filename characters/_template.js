@@ -39,13 +39,17 @@ function buildXx(parent){
 }
 
 // ---- ultimate (REQUIRED). Push one entry into G.finals; update returns true when finished ----
+// RULE: anything that travels (wave, army, car, beam…) must hit EVERY fighter it touches, not just `opp`.
+//       Loop over G.fighters, skip the owner, and remember who was already hit in a Set.
 function xxFinal(f, opp){
   f.finalT = 1.2; banner('大招名稱！'); SFX.boom(); pop('台詞', f.x, f.y+7.5, 'big');
   const mesh = new THREE.Group(); mesh.add(rbox(3,3,3,.5,L({color:0xffcc00}))); scene.add(mesh);
-  G.finals.push({owner:f, target:opp, t:0, mesh, x:f.x, update(F, dt){
+  G.finals.push({owner:f, target:opp, t:0, mesh, x:f.x, hit:new Set(), update(F, dt){
     F.x += f.face*20*dt; F.mesh.position.set(F.x, 2, 0);
-    const v = F.target;
-    if (!F.hit && v.hittable() && Math.abs(v.x - F.x) < 3 && v.y < 6){ F.hit = true; v.pct += 15; launch(v, 30 + v.pct*.11, 45, f.face); SFX.hit(40); spark(v.x, v.y+3, 4); }
+    for (const v of G.fighters){
+      if (v===f || F.hit.has(v) || !v.hittable()) continue;
+      if (Math.abs(v.x - F.x) < 3 && v.y < 6){ F.hit.add(v); v.pct += 15; launch(v, 30 + v.pct*.11, 45, f.face); SFX.hit(40); spark(v.x, v.y+3, 4); }
+    }
     return F.t > 2;                                                    // mesh is removed automatically (or give dispose(F))
   }});
 }
