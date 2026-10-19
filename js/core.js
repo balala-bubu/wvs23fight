@@ -992,6 +992,16 @@ const SFX2 = {
   cheer(){ for (let i=0;i<14;i++){ tone(900+Math.random()*700, .18, 'sine', .05, 1.4, i*.06); } noise(.9,.12,2800); },
   jet(){ noise(1.6,.25,500); },
   sigh(){ tone(330,.7,'sine',.12,.6); },
+  birthday(){   // "Happy Birthday to You", key of C
+    const notes = [
+      [7,.2],[7,.2],[9,.4],[7,.4],[12,.4],[11,.8],
+      [7,.2],[7,.2],[9,.4],[7,.4],[14,.4],[12,.8],
+      [7,.2],[7,.2],[19,.4],[16,.4],[12,.4],[11,.4],[9,.8],
+      [17,.2],[17,.2],[16,.4],[12,.4],[14,.4],[12,.8],
+    ];
+    let t = 0;
+    notes.forEach(([n,d])=>{ tone(NOTE(n), d*0.92, 'triangle', .12, 1, t); tone(NOTE(n-12), d*0.92, 'sine', .05, 1, t); t += d; });
+  },
 };
 let RES = null;
 const winTitle = document.getElementById('winTitle'), winName = document.getElementById('winName');
@@ -1018,8 +1028,8 @@ function startResults(){
     RES = { t:0, W, Lz, party:true, fighters:G.fighters.slice(), items:[cake], puffs:[], attach:[], fired:{}, cake, look:new THREE.Vector3(0, RS_Y+3.2, 1) };
     winTitle.style.setProperty('--wc', 'var(--gold)'); winName.textContent = '生日快樂'; document.querySelector('#winTitle span').textContent = '🎂 全員慶生！';
     winTitle.hidden = false;
-    SFX2.fanfare();
-    setTimeout(()=>{ if (G.mode==='result'){ overEl.hidden = false; } }, 5200);
+    SFX2.birthday();
+    setTimeout(()=>{ if (G.mode==='result'){ overEl.hidden = false; } }, 6800);
     return;
   }
   burstDisc.material = burstMats[W.slot < 2 ? W.slot : 's'+W.slot];
