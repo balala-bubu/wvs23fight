@@ -1131,8 +1131,10 @@ const post = new THREE.ShaderMaterial({
 const postScene = new THREE.Scene();
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), post));
 const postCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+let lastW = 0, lastH = 0;
 function resize(){
-  const w = innerWidth, h = innerHeight;
+  const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+  lastW = w; lastH = h;
   renderer.setSize(w,h,false);
   camera.aspect = w/h; camera.updateProjectionMatrix();
   const a = w/h; let lw, lh;
@@ -1141,6 +1143,9 @@ function resize(){
   post.uniforms.dpr.value = renderer.getPixelRatio();
 }
 addEventListener('resize', resize); resize();
+// phones (esp. iOS) report the new size late after rotating / toolbar changes: re-check
+addEventListener('orientationchange', ()=>{ setTimeout(resize, 120); setTimeout(resize, 500); });
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 
 /* =================== audio =================== */
 let AC = null, master = null;
@@ -2909,6 +2914,7 @@ const camPos = new THREE.Vector3(0, 5, 22), camLook = new THREE.Vector3(0, 3.4, 
 const clock = new THREE.Clock();
 function tick(){
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+  if (canvas.clientWidth && (canvas.clientWidth !== lastW || canvas.clientHeight !== lastH)) resize();
   if (G.mode==='pad'){ padTick(); requestAnimationFrame(tick); return; }
   partyHostTick();
   if (G.mode==='select'){
