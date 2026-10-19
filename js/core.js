@@ -1380,7 +1380,15 @@ function remoteCalls(pads){
   }
 }
 function padPeers(){ return party ? party.room.peers().filter(p=>!p.sameTab && p.presence && p.presence.pad) : []; }
+// remote host must hold the device sideways, or friends get a thin portrait strip
+const rotLockEl = document.getElementById('rotLock');
+function remoteRotCheck(){
+  const need = !!(party && party.role==='host' && party.remote && innerHeight > innerWidth && (G.mode==='select' || G.mode==='play' || G.mode==='result'));
+  if (rotLockEl.hidden === need) rotLockEl.hidden = !need;
+  if (need && !remoteRotCheck.tried){ remoteRotCheck.tried = true; try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); } catch(_){} }
+}
 function partyHostTick(){
+  remoteRotCheck();
   if (!party || party.role!=='host') return;
   const pads = padPeers(), ids = pads.map(p=>p.peer);
   let changed = false;

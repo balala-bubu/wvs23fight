@@ -163,6 +163,11 @@ body.remote .pTop .padWho span{color:#fff}
 #rvHud{position:absolute;left:50%;bottom:6px;transform:translateX(-50%) scale(.72);transform-origin:50% 100%;display:flex;gap:6px;pointer-events:none;white-space:nowrap}
 #rvBan{position:absolute;left:0;right:0;top:120px;text-align:center;font-weight:900;font-size:46px;color:var(--gold);text-shadow:3px 3px 0 #000,-3px 3px 0 #000,3px -3px 0 #000,-3px -3px 0 #000;pointer-events:none}
 #rvBan.show{animation:bann 1.7s ease-out forwards}
+#rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+#rotLock[hidden]{display:none}
+#rotLock div{display:grid;gap:10px}
+#rotLock b{font-size:26px;color:var(--gold)}
+#rotLock span{font-size:14px;color:var(--dim)}
 #rotHint{position:fixed;left:0;right:0;top:45%;text-align:center;font-weight:700;color:var(--ink);text-shadow:2px 2px 0 #000;pointer-events:none;padding-inline:16px}
 #menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding-top:calc(env(safe-area-inset-top,0px) + 18px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;gap:12px}
 .title{text-align:center;pointer-events:none}
@@ -359,6 +364,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
     <button class="tb atk" data-t="atk">攻擊</button>
   </div>
 </div>
+<div id="rotLock" hidden><div><b>📱↻ 請把手機轉成橫向</b><span>遠端開房時要橫著拿，朋友那邊的畫面才會是完整的</span></div></div>
 <div id="rotHint" hidden>把手機轉成橫向，玩起來更順</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
