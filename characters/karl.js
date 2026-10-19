@@ -135,7 +135,9 @@ function buildKarl(parent){
   const berries = berryBunch(1); berries.position.set(0,-0.45,0.15); c.R.hd.add(berries);
   const phone = new THREE.Group(); phone.position.set(0,-0.35,0.12); c.R.hd.add(phone);
   phone.add(new THREE.Mesh(new THREE.BoxGeometry(0.42,0.8,0.06), [black,black,black,black,L({color:0x7fc8ff, emissive:0x2a5a80}),black]));
-  c.props = {book, berries, phone};
+  const can = new THREE.Group(); can.position.set(0,-0.32,0.12); c.R.hd.add(can);
+  can.add(cyl(0.19,0.19,0.52,L({color:0xd8dde3}),10)); can.add(at(cyl(0.195,0.195,0.24,L({color:0xc8322a}),10),0,0,0)); can.add(at(cyl(0.15,0.19,0.05,L({color:0xd8dde3}),10),0,0.28,0));
+  c.props = {book, berries, phone, can};
   c.setOld = ()=>{};
   let faceNow = 'normal';
   c.setFace = (f)=>{ const k = kFaces[f] ? f : 'normal'; if (k!==faceNow){ faceNow = k; faceM.map = kFaces[k]; faceM.needsUpdate = true; } };
@@ -310,6 +312,46 @@ function karlLoseUpdate(R, dt, k){
     R.stars.forEach((s,i)=>{ const a = R.t*4 + i*2.09; s.position.set(hp.x + Math.cos(a)*1.1, hp.y + 1.2, hp.z - 4.2 + Math.sin(a)*1.1); });
   }
 }
+/* ---------- shield: slumped in an armchair, drinking, watching his own emo confession video ---------- */
+const kTvTex = tex(96,64,(g)=>{
+  const sky = g.createLinearGradient(0,0,0,64); sky.addColorStop(0,'#0b1030'); sky.addColorStop(1,'#1d2350'); g.fillStyle = sky; g.fillRect(0,0,96,64);
+  g.fillStyle = '#fbf3c8'; g.beginPath(); g.arc(80,11,6,0,7); g.fill(); g.fillStyle = '#0b1030'; g.beginPath(); g.arc(83,9,5,0,7); g.fill();   // crescent moon
+  g.fillStyle = '#fff'; [[10,6],[24,12],[56,5],[68,15],[40,9]].forEach(([x,y])=>g.fillRect(x,y,1,1));
+  g.fillStyle = '#0a1a14'; [[6,40,10],[20,36,12],[78,38,11],[90,42,9]].forEach(([x,y,r])=>{ g.beginPath(); g.arc(x,y,r,0,7); g.fill(); g.fillRect(x-1,y,3,24); });   // trees
+  g.fillStyle = '#16301f'; g.fillRect(0,52,96,12);                                                                  // grass
+  g.fillStyle = '#3a3a44'; g.fillRect(66,24,2,30); g.fillStyle = 'rgba(255,214,120,.25)'; g.beginPath(); g.arc(67,24,12,0,7); g.fill(); g.fillStyle = '#ffd678'; g.fillRect(64,22,7,4);   // street lamp
+  g.save(); g.translate(30,14); g.scale(.56,.56); karlFace(g,'cry'); g.restore();                                     // his face, crying
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(14,54,68,9);
+  g.fillStyle = '#fff'; g.font = '700 7px sans-serif'; g.textAlign = 'center'; g.fillText('「對不起…我喜歡你」', 48, 61);
+  g.fillStyle = '#ff3a3a'; g.beginPath(); g.arc(7,6,2.2,0,7); g.fill(); g.fillStyle = '#fff'; g.font = '700 5px sans-serif'; g.textAlign = 'left'; g.fillText('REC', 11, 8);
+});
+function karlShield(){
+  const g = new THREE.Group();
+  const fab = L({color:0x7a3b2e}), fabD = L({color:0x5e2c22}), wood = L({color:0x4a3020});
+  const sofa = new THREE.Group(); g.add(sofa);                                // built facing +x (he looks toward +x)
+  sofa.add(at(rbox(2.6,0.7,2.8,.3,fab),0,1.15,0));                           // seat cushion
+  sofa.add(at(rbox(2.7,1.0,2.9,.25,fabD),0,0.5,0));                           // base
+  sofa.add(at(rbox(0.8,3.2,2.9,.35,fab),-1.35,2.1,0));                        // backrest
+  [-1,1].forEach(z=>sofa.add(at(rbox(2.6,1.3,0.6,.3,fabD),0,1.5,z*1.45)));   // armrests
+  [[-1.1,-1.2],[-1.1,1.2],[1.1,-1.2],[1.1,1.2]].forEach(([x,z])=>sofa.add(at(cyl(0.12,0.09,0.3,wood,6),x,0.0,z)));
+  const tv = new THREE.Group(); g.add(tv);
+  tv.add(at(rbox(4.0,2.8,0.4,.12,L({color:0x1b1b20})),0,3.0,0));
+  const scrM = new THREE.MeshBasicMaterial({map:kTvTex, fog:false});
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.4), scrM); scr.position.set(0,3.0,0.21); tv.add(scr);
+  tv.add(at(rbox(2.4,1.4,1.4,.1,wood),0,0.7,0));                              // TV stand
+  tv.add(at(cyl(0.08,0.08,0.3,L({color:0x1b1b20}),6),0,1.55,0));
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(5,3.6), new THREE.MeshBasicMaterial({color:0x6f8bff, transparent:true, opacity:.14, depthWrite:false, fog:false})); glow.position.set(0,3.0,0.25); tv.add(glow);
+  g.sofa = sofa; g.tv = tv; g.scr = scrM; g.glow = glow;
+  return g;
+}
+function karlShieldAnim(f){
+  const g = f.shieldMesh, face = f.face || 1, hp = Math.max(0, f.shieldHP)/50, t = performance.now()/1000;
+  g.scale.setScalar(1); g.position.set(f.x, f.y, 0);                          // furniture keeps its size; strength shows on the TV
+  g.sofa.position.set(-face*0.35, 0, -0.2); g.sofa.rotation.y = face > 0 ? 0 : Math.PI;
+  g.tv.position.set(face*4.6, 0, 0.6); g.tv.rotation.y = Math.atan2(-face*0.6, 0.8);
+  const flick = hp < .35 && Math.sin(t*40) > 0 ? .35 : 1;                    // weak shield: the TV starts flickering
+  g.scr.color.setScalar(flick); g.glow.material.opacity = (.1 + Math.sin(t*6)*.04)*flick;
+}
 registerChar('karl', {
   stats: { name:'白狗', en:'Karl', tag:'樂天大笑・物理・跑步・活著真好', weight:1.0, run:15.5, air:11.5, jumpV:30, djV:26, jumps:2 },
   moves: {
@@ -347,7 +389,20 @@ registerChar('karl', {
     g.beginPath(); g.arc(22,40,7,0,7); g.stroke(); g.beginPath(); g.arc(42,40,7,0,7); g.stroke();
     g.beginPath(); g.moveTo(29,39); g.lineTo(35,39); g.stroke();
   },
-  breakText: '吃下去了！', shieldPose: 'ponder', shieldProp: 'berries', finalPose: 'cheer',
+  breakText: '看到哭出來了…', shieldPose: 'kSofa', shieldProp: 'can', finalPose: 'cheer',
+  shield: karlShield, shieldAnim: karlShieldAnim,
+  poses: {
+    kSofa: P({rHp:[-1.55,0,-0.1], lHp:[-1.55,0,0.1], rKn:[1.45], lKn:[1.5], chest:[0.15], head:[0.2,0,0.08], rSh:[-0.5,0,-0.15], rEl:[-1.1], lSh:[0,0,0.45], lEl:[-0.3], drop:-1.0}),
+    kSip:  P({rHp:[-1.55,0,-0.1], lHp:[-1.55,0,0.1], rKn:[1.45], lKn:[1.5], chest:[-0.05], head:[-0.55], rSh:[-2.2,0,0.45], rEl:[-1.95], lSh:[0,0,0.45], lEl:[-0.3], drop:-1.0}),
+  },
+  animate(f, m, s, t, dt){
+    if (s!=='shield'){ f.kSipT = 0; return; }
+    f.kSipT = (f.kSipT || 0) + dt;
+    const sip = (f.kSipT % 2.2) > 1.3;                                       // slump… sip… slump…
+    applyPose(m, sip ? POSE.kSip : POSE.kSofa, 1 - Math.exp(-dt*10));
+    m.setFace('cry');
+    if (sip && Math.random() < dt*3) burst(f.x + (f.face||1)*.3, f.y + 4.4, 0xfff6d0, 1, 1);
+  },
   readyPose: (t)=> Math.sin(t*14) > 0 ? POSE.laugh : POSE.cheer,
   selectSfx: ()=>SFX.bark(),
   winSub: '"Life is good!"',
