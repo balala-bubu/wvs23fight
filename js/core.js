@@ -1312,8 +1312,8 @@ async function openChannel(code, role, direct){
   };
   return ch;
 }
-const padC = {a:0, b:0, j:0, f:0, st:0};
-let padPick = null, padReady = false;
+const padC = {a:0, b:0, j:0, f:0, st:0, sel:0};
+let padPick = null, padReady = false, padSkin = 0;
 function padPress(k){
   if (G.mode !== 'pad') return;
   const map = {atk:'a', sp:'b', jump:'j', fin:'f'};
@@ -1400,11 +1400,19 @@ function partyHostTick(){
     const c = (p.presence.inp && p.presence.inp.c) || {};
     party.prev[free] = {j:c.j||0, a:c.a||0, b:c.b||0, f:c.f||0};
     party.startSeen[p.peer] = p.presence.st || 0;
+    (party.selSeen || (party.selSeen = {}))[p.peer] = p.presence.sel || 0;
   }
   for (const p of pads){
     const slot = party.slots.indexOf(p.peer); if (slot < 0) continue;
     const st = +p.presence.st || 0;
     if (st > (party.startSeen[p.peer]||0)){ party.startSeen[p.peer] = st; if (G.mode==='result' && RES && RES.t > 3) startGame(); }
+    const sq = +p.presence.sel || 0, ss = party.selSeen || (party.selSeen = {});
+    if (sq > (ss[p.peer]||0)){ ss[p.peer] = sq; if (G.mode==='result') party.pendSel = true; }
+  }
+  // a phone asked to change characters: go back to select once the results can be skipped
+  if (party.pendSel){
+    if (G.mode!=='result') party.pendSel = false;
+    else if (RES && RES.t > 3){ party.pendSel = false; enterSelect(); return; }
   }
   if (party.remote) remoteCalls(pads);
   if (changed || G.mode==='select'){
@@ -1487,7 +1495,7 @@ function padKeys(){
 function padTick(){
   if (!party) return;
   const K = padKeys();
-  const msg = { pad:1, pick:padPick, st:padC.st, rdy:padReady?1:0, view:party.remote?1:0,
+  const msg = { pad:1, pick:padPick, skin:padSkin, st:padC.st, sel:padC.sel, rdy:padReady?1:0, view:party.remote?1:0,
     inp:{ l:(TS.l||K.l)?1:0, r:(TS.r||K.r)?1:0, u:(TS.u||K.u)?1:0, d:(TS.d||K.d)?1:0, s:(TS.shield||K.shield)?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
   if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
@@ -1507,7 +1515,7 @@ function padTick(){
   }
   if (party.remote && hp) remoteHud(hp, slot);
   const ready = !!(hp && slot >= 0 && Array.isArray(hp.meter) && hp.meter[slot] >= 100);
-  const ui = who + '|' + state + '|' + ready + '|' + padPick + '|' + slot + '|' + (hp ? hp.st : '') + '|' + padReady;
+  const ui = who + '|' + state + '|' + ready + '|' + padPick + '|' + slot + '|' + (hp ? hp.st : '') + '|' + padReady + '|' + padSkin;
   if (ui !== party.lastUI){
     party.lastUI = ui;
     padSlotEl.textContent = who; padStateEl.textContent = state;
@@ -1517,7 +1525,15 @@ function padTick(){
     const ps = document.getElementById('padStart');
     ps.hidden = !(hp && slot >= 0 && (hp.st==='select' || hp.st==='over'));
     ps.textContent = hp && hp.st==='over' ? '再來一局' : (padReady ? '取消準備' : '準備好了');
+    document.getElementById('padSel').hidden = !(hp && slot >= 0 && hp.st==='over');
     document.querySelector('.pTop .seg').hidden = !(hp && slot >= 0 && hp.st==='select');
+    const sk = document.getElementById('padSkins'), n = padPick && CHARS[padPick] ? skinCount(padPick) : 0;
+    sk.hidden = !(hp && slot >= 0 && hp.st==='select' && !padReady && n > 1);
+    if (!sk.hidden){
+      if (sk.dataset.k !== padPick){ sk.dataset.k = padPick; sk.innerHTML = '';
+        for (let j=0;j<n;j++){ const b = document.createElement('button'); b.textContent = skinName(padPick, j); b.onclick = ()=>{ padSkin = j; if (party) party.lastUI = ''; }; sk.appendChild(b); } }
+      [...sk.children].forEach((b,j)=>b.setAttribute('aria-pressed', String(j===padSkin)));
+    }
   }
 }
 // remote player: draw the HUD / banners the host shows as HTML (they aren't part of the video)
@@ -1615,6 +1631,7 @@ document.getElementById('joinBtn').onclick = joinAsPad;
 codeIn.addEventListener('keydown', e=>{ if (e.key==='Enter') joinAsPad(); });
 document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr('scrOnline'); };
 document.getElementById('padLeave').onclick = leavePad;
+document.getElementById('padSel').onclick = ()=>{ padC.sel++; padReady = false; if (party) party.lastUI = ''; };
 document.getElementById('padStart').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; };
 function syncMenu(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===sel.mode)));
@@ -1795,6 +1812,8 @@ function updateSelect(dt, t){
       const p = party.room.peers().find(q=>q.peer===party.slots[i]); const pr = p && p.presence || {};
       const want = ROSTER.indexOf(pr.pick);
       if (want >= 0 && want !== SEL.cur[i] && !SEL.ready[i]) moveSel(i, want - SEL.cur[i]);
+      const ws = +pr.skin || 0;
+      if (want >= 0 && want === SEL.cur[i] && !SEL.ready[i] && ws !== (sel.skin[i]||0) && ws < skinCount(sel.p[i])){ sel.skin[i] = ws; rebuild(i); placeSel(i); SEL.anim[i] = 0; renderSel(); }
       const rdy = !!pr.rdy;
       if (rdy && !SEL.ready[i]) confirmSel(i);
       else if (!rdy && SEL.ready[i]){ SEL.ready[i] = false; SEL.countdown = 0; renderSel(); }
@@ -1976,7 +1995,7 @@ function boot(){
     b.onclick = ()=>{ sel.map = id; applyMap(id); syncMenu(); }; ms.appendChild(b); });
   const ps = document.getElementById('padPicks');
   CHAR_ORDER.forEach(k=>{ const b = document.createElement('button'); b.dataset.pick = k; b.textContent = CH[k].name; b.setAttribute('aria-pressed','false');
-    b.onclick = ()=>{ padPick = k; padReady = false; if (party) party.lastUI = ''; }; ps.appendChild(b); });
+    b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; }; ps.appendChild(b); });
   buildPortraits();
   applyMap(sel.map); rebuildAll(); syncMenu();
   tick();

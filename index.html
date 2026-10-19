@@ -163,6 +163,8 @@ body.remote .pTop .padWho span{color:#fff}
 #rvHud{position:absolute;left:50%;bottom:6px;transform:translateX(-50%) scale(.72);transform-origin:50% 100%;display:flex;gap:6px;pointer-events:none;white-space:nowrap}
 #rvBan{position:absolute;left:0;right:0;top:120px;text-align:center;font-weight:900;font-size:46px;color:var(--gold);text-shadow:3px 3px 0 #000,-3px 3px 0 #000,3px -3px 0 #000,-3px -3px 0 #000;pointer-events:none}
 #rvBan.show{animation:bann 1.7s ease-out forwards}
+#padSkins{position:absolute;left:50%;top:76px;transform:translateX(-50%);z-index:2;background:rgba(20,15,12,.85)}
+#padSkins button{font-size:15px}
 #rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
 #rotLock[hidden]{display:none}
 #rotLock div{display:grid;gap:10px}
@@ -343,8 +345,10 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
       <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
       <div class="seg" role="group" aria-label="選角" id="padPicks"></div>
       <button class="go" id="padStart">準備好了</button>
+      <button class="ghost" id="padSel" hidden>換角色</button>
       <button class="ghost" id="padLeave">離開</button>
     </div>
+    <div class="seg" role="group" aria-label="造型" id="padSkins" hidden></div>
     <div id="pZone"></div>
     <div class="pBase" id="pBase"><div class="pKnob" id="pKnob"></div></div>
     <button class="pb fin" data-p="fin" id="pFin" style="left:470px;top:150px">大招</button>
