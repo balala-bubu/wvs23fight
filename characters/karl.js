@@ -352,8 +352,85 @@ function karlShieldAnim(f){
   const flick = hp < .35 && Math.sin(t*40) > 0 ? .35 : 1;                    // weak shield: the TV starts flickering
   g.scr.color.setScalar(flick); g.glow.material.opacity = (.1 + Math.sin(t*6)*.04)*flick;
 }
+/* ---------- skin: 黃色玩偶服（額外造型；預設外觀完全不變。臉、眼鏡、劉海保留，其餘換成圓滾滾的黃色玩偶服） ---------- */
+function karlCostume(c){
+  const Y = L({color:0xf0b232}), TAN = L({color:0xdcb98a}), DK = L({color:0x6b5a36});
+  const EW = L({color:0xe6f0b8}), EG = L({color:0x4c9a2f}), EB = L({color:0x101010}), EH = L({color:0xffffff}), EM = L({color:0x3a2412}), YD = L({color:0xd99a1e});
+  // 1) 找出頭髮（頭上除了頭本身 [0] 以外的方塊；眼鏡是 Group 不會被選到），劉海是 z≈0.47 的那幾片
+  const hair = c.head.children.slice(1).filter(o=>o.isMesh);
+  const fringe = hair.filter(o=>Math.abs(o.position.z - 0.47) < 1e-3);
+  // 2) 隱藏原本的衣服：髖部底下除了頭（臉、眼鏡、劉海）和招式道具以外全部藏起來
+  const keep = new Set();
+  c.head.traverse(o=>keep.add(o));
+  Object.values(c.props).forEach(p=>p.traverse(o=>keep.add(o)));
+  c.hips.traverse(o=>{ if (o.isMesh && !keep.has(o)) o.visible = false; });
+  hair.forEach(o=>{ if (!fringe.includes(o)) o.visible = false; });                            // 只留劉海
+  const add = (parent, mesh, x, y, z)=>{ mesh.position.set(x,y,z); parent.add(mesh); return mesh; };
+  const ball = (r, mat, sx, sy, sz)=>{ const m = new THREE.Mesh(new THREE.SphereGeometry(r,12,8), mat); m.scale.set(sx,sy,sz); return m; };
+  // 3) 頭套：圓頂＋臉頰＋後腦，臉的前面是開的，劉海垂在帽緣下
+  add(c.head, rbox(1.3,0.62,1.32,.65,Y), 0, 0.77, -0.02);
+  add(c.head, rbox(1.02,0.34,1.04,.8,Y), 0, 1.16, -0.02);
+  [-1,1].forEach(s=>{
+    add(c.head, rbox(0.2,1.0,1.0,.5,Y), s*0.6, 0.05, -0.05);
+    add(c.head, ball(0.34,YD,.22,1,1), s*0.62, 0.78, 0.16);                               // 眼皮圈
+    add(c.head, ball(0.3,EW,.3,1,1), s*0.66, 0.78, 0.16);                                  // 兩側的大眼睛：眼白
+    add(c.head, ball(0.21,EG,.3,1,1), s*0.715, 0.78, 0.19);                                // 綠色眼珠
+    add(c.head, ball(0.12,EB,.5,1,1), s*0.745, 0.78, 0.22);                                // 黑瞳孔（比眼珠更突出才看得到）
+    add(c.head, ball(0.045,EH,.5,1,1), s*0.79, 0.84, 0.25);                                // 反光小白點
+    for (let i=0;i<=14;i++){ const t=i/14; add(c.head, ball(0.03,EM,1,1,1), s*0.705, 0.32 - 0.03*Math.sin(Math.PI*t) + 0.05*t*t*t, 0.44 - 0.45*t); }   // 頭套側邊的細細嘴線，尾端微微上揚
+  });
+  add(c.head, rbox(1.34,0.08,1.36,.4,YD), 0, 0.49, -0.02);                                    // 帽緣深黃滾邊
+  add(c.head, rbox(1.2,1.0,0.25,.5,Y), 0, 0.05, -0.58);
+  add(c.head, rbox(1.0,0.5,0.95,.5,Y), 0, -0.62, -0.04);                                      // 脖子
+  // 4) 梨形大肚子＋米色肚皮
+  add(c.chest, ball(1.25,Y,1.0,1.15,0.9), 0, 0.85, 0);                                        // 上緣停在下巴下面，才不會蓋住大笑的嘴
+  add(c.chest, ball(1.2,Y,1.0,.8,.95), 0, 0.05, 0);
+  add(c.chest, ball(0.95,TAN,1,1.2,.4), 0, 0.6, 0.85);
+  // 恐龍那種長尾巴：從屁股往後一路變細，中段微微上揚，尾端自然下垂
+  for (let i=0;i<=10;i++){ const t=i/10; add(c.chest, ball(0.62*(1-t)+0.14*t,Y,1,1,1.5), 0, 0.22 - 0.52*t*t, -1.2 - 2.6*t); }   // 一節節變細，連起來像一條平滑的尾巴
+  // 5) 手臂＋深色三指手
+  [c.R, c.Lf].forEach(a=>{
+    add(a.sh, rbox(0.74,1.35,0.74,.7,Y), 0, -0.6, 0);
+    add(a.el, rbox(0.64,1.15,0.64,.7,Y), 0, -0.5, 0);
+    add(a.hd, ball(0.36,DK,.95,1.05,.8), 0, -0.15, 0.05);
+    [-1,0,1].forEach(i=>add(a.hd, rbox(0.12,0.3,0.14,.4,DK), i*0.14, -0.45, 0.08));
+  });
+  // 6) 粗腿＋深色三趾腳
+  [c.joints.rHp, c.joints.lHp].forEach(h=>add(h, rbox(0.9,1.8,0.9,.7,Y), 0, -0.8, 0));
+  [c.joints.rKn, c.joints.lKn].forEach(k=>{
+    add(k, rbox(0.8,1.5,0.85,.7,Y), 0, -0.7, 0);
+    add(k, rbox(0.85,0.4,1.2,.6,DK), 0, -1.5, 0.22);
+    [-1,0,1].forEach(i=>add(k, rbox(0.22,0.24,0.3,.5,DK), i*0.27, -1.55, 0.88));
+  });
+}
+// 選造型畫面的頭像：core.js 對所有造型都畫生日帽，這裡讓造型可以自己提供 portrait(g) 來取代
+function karlCostumePortrait(g){
+  g.fillStyle = '#f0b232';
+  g.fillRect(0,59,64,5);                                                   // 玩偶服身體
+  g.fillRect(0,8,10,46); g.fillRect(54,8,10,46);                           // 頭套臉頰
+  g.fillRect(0,0,64,16);                                                   // 頭套圓頂（劉海和眼鏡是原本頭像畫的，保留）
+  g.fillStyle = '#d99a1e'; g.fillRect(0,15,64,3);                          // 帽緣滾邊
+  [14,50].forEach(x=>{                                                     // 兩側的綠色大眼睛
+    g.fillStyle = '#e6f0b8'; g.beginPath(); g.arc(x,11,5.5,0,7); g.fill();
+    g.fillStyle = '#4c9a2f'; g.beginPath(); g.arc(x,11,3.6,0,7); g.fill();
+    g.fillStyle = '#101010'; g.beginPath(); g.arc(x,11,2,0,7); g.fill();
+    g.fillStyle = '#ffffff'; g.fillRect(x+1,8,1.5,1.5);
+  });
+}
+(function(){
+  if (typeof portraitCanvas !== 'function' || portraitCanvas.skinHook) return;
+  const base = portraitCanvas;
+  const wrapped = function(kind, skin = 0){
+    const S = skin > 0 && CHARS[kind] && CHARS[kind].skins && CHARS[kind].skins[skin-1];
+    if (!S || !S.portrait) return base(kind, skin);                         // 其他造型照舊畫生日帽
+    const cv = base(kind, 0); S.portrait(cv.getContext('2d')); return cv;
+  };
+  wrapped.skinHook = true;
+  portraitCanvas = wrapped;
+})();
 registerChar('karl', {
   stats: { name:'白狗', en:'Karl', tag:'樂天大笑・物理・跑步・活著真好', weight:1.0, run:15.5, air:11.5, jumpV:30, djV:26, jumps:2 },
+  skins: [{ name:'黃色玩偶服', apply: karlCostume, portrait: karlCostumePortrait }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['laughIn','laugh'], box:[1.5,3.6,2.0], dmg:6, kb:8, sc:.7, ang:40, text:'哈哈！', sfx:'laughShort'},
