@@ -194,7 +194,7 @@ function buildSerene(parent){
 /* ---------- ultimate: "Hey Siri" — a giant phone locks onto the nearest foe and slams down ---------- */
 function serFinal(f, opp){
   const tgt = nearestFoe(f) || opp;
-  f.finalT = 2.3; banner('嘿 Siri！幫我找最近的人！'); SFX.siri(); pop('嘿 Siri～！！', f.x, f.y+7.5, 'big');
+  f.finalT = 3.0; banner('嘿 Siri！幫我找最近的人！'); SFX.siri(); pop('嘿 Siri～！！', f.x, f.y+7.5, 'big');
   const mesh = new THREE.Group();
   mesh.add(rbox(5.2,9.6,0.7,.4,serDarkM));
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(4.6,8.9), new THREE.MeshBasicMaterial({map:serSiriTex, fog:false})); scr.position.z = 0.37; mesh.add(scr);
@@ -206,14 +206,22 @@ function serFinal(f, opp){
   scene.add(ret);
   G.finals.push({owner:f, target:tgt, t:0, mesh, ret, x:tgt.x, y:11.5, landY:4.9, hit:new Set(), landed:false, update(F, dt){
     const T = F.target;
-    if (F.t < 1.0){
-      if (T.state!=='dead'){ F.x += (T.x - F.x)*(1 - Math.exp(-dt*8)); F.landY = Math.max(4.9, T.y + 4.9); }
-      F.y = (T.state!=='dead' ? Math.max(0, T.y) : 0) + 11.5 + Math.sin(F.t*6)*.4;
+    // 0~0.7s: follow the target · 0.7~1.7s: position locked, warning only (time to escape) · 1.7s+: slam down
+    const LOCK = .7, DROP = 1.7;
+    if (F.t < LOCK){
+      if (T.state!=='dead'){ F.x += (T.x - F.x)*(1 - Math.exp(-dt*8)); F.gy = Math.max(0, T.y); F.landY = Math.max(4.9, T.y + 4.9); }
+      F.y = (F.gy || 0) + 11.5 + Math.sin(F.t*6)*.4;
       F.mesh.scale.setScalar(Math.min(1, F.t*3)); F.mesh.rotation.z = Math.sin(F.t*9)*.08;
-      F.ret.visible = true; F.ret.position.set(F.x, (T.state!=='dead' ? T.y : 0) + 3, 1.2); F.ret.rotation.z += dt*4; F.ret.scale.setScalar(1.4 - Math.min(.4, F.t*.5));
-      if (F.t > .35 && !F.locked){ F.locked = true; pop('鎖定：' + (T.D ? T.D.name : '？') + '！', F.x, F.y - 6, 'red'); }
+      F.ret.visible = true; F.ret.position.set(F.x, (F.gy || 0) + 3, 1.2); F.ret.rotation.z += dt*4; F.ret.scale.setScalar(1.4 - Math.min(.4, F.t*.6));
+    } else if (F.t < DROP){
+      if (!F.locked){ F.locked = true; pop('鎖定：' + (T.D ? T.D.name : '？') + '！快逃！', F.x, F.y - 6, 'red'); SFX.siri(); }
+      const left = DROP - F.t;
+      F.y = (F.gy || 0) + 11.5 + Math.sin(F.t*30)*.15*(1 - left);            // shakes harder right before the drop
+      F.mesh.scale.setScalar(1); F.mesh.rotation.z = Math.sin(F.t*24)*.05;
+      F.ret.position.set(F.x, (F.gy || 0) + 3, 1.2); F.ret.scale.setScalar(1);
+      F.ret.visible = Math.floor(F.t*(left < .4 ? 16 : 6))%2===0;           // blinks faster when it's about to fall
     } else if (!F.landed){
-      F.y -= dt*55; F.mesh.rotation.z *= .8; F.ret.visible = Math.floor(F.t*20)%2===0;
+      F.y -= dt*48; F.mesh.rotation.z *= .8; F.ret.visible = Math.floor(F.t*20)%2===0;
       if (F.y <= F.landY){ F.y = F.landY; F.landed = true; F.landT = F.t; SFX.boom(); SFX.siri(); G.shake = reduce ? .2 : 1.4; G.flash = .3; burst(F.x, F.landY - 4.6, 0xffffff, 20, 12); pop('叮咚！找到你了！', F.x, F.landY + 6, 'big'); }
     } else {
       F.ret.visible = false;
@@ -221,7 +229,7 @@ function serFinal(f, opp){
     }
     F.mesh.position.set(F.x, F.y, 0);
     // anything under the falling phone gets smacked — every fighter, not just the target
-    if (F.t >= 1.0 && (!F.landed || F.t - F.landT < .15)){
+    if (F.t >= DROP && (!F.landed || F.t - F.landT < .15)){
       for (const v of G.fighters){
         if (v===F.owner || F.hit.has(v) || !v.hittable()) continue;
         if (Math.abs(v.x - F.x) < 3.4 && v.y + 5.3 > F.y - 4.8 && v.y < F.y + 4.8){
@@ -230,7 +238,7 @@ function serFinal(f, opp){
         }
       }
     }
-    return F.t > 2.3;
+    return F.t > 3.0;
   }, dispose(F){ scene.remove(F.mesh); scene.remove(F.ret); }});
 }
 
