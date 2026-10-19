@@ -485,7 +485,9 @@ function pop(text, x, y, cls){
   popsEl.appendChild(el); setTimeout(()=>el.remove(), 1000);
 }
 const banners = [];
+let banN = 0, banLast = '';
 function banner(text){
+  banN++; banLast = text;
   const el = document.createElement('div'); el.className = 'banner'; el.textContent = text;
   let row = 0; while (banners.some(b=>b.row===row)) row++;
   el.style.top = `calc(30% + ${row*1.25}em)`;
@@ -1087,7 +1089,7 @@ function updateResults(dt, t){
 const keys = {};
 const GAME_KEYS = new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','Comma','Period','Slash','Enter','NumpadEnter']);
 addEventListener('keydown', e=>{
-  if (G.mode==='play' && GAME_KEYS.has(e.code)) e.preventDefault();
+  if ((G.mode==='play' || G.mode==='pad') && GAME_KEYS.has(e.code) && !(e.target && e.target.tagName==='INPUT')) e.preventDefault();
   keys[e.code] = true;
   if (e.code==='Escape' && G.mode==='play'){ setPause(!G.paused); return; }
   if (G.mode==='select' && !e.repeat && !(e.target && e.target.tagName==='INPUT')){ if (selKey(e.code)) e.preventDefault(); }
@@ -1253,7 +1255,11 @@ function peerChannel(code, role){
       },
       leave(){ try { me.destroy(); } catch(_){} },
       connected(){ return !me.disconnected; },
+      // remote play: host sends its screen to one player; players receive it in onStream
+      call(id, stream){ try { return me.call(id, stream); } catch(_){ return null; } },
+      onStream:null,
     };
+    me.on('call', call=>{ try { call.answer(); } catch(_){ return; } call.on('stream', st=>{ if (ch.onStream) ch.onStream(st); }); });
     const wire = (c)=>{
       c.pres = {}; conns.set(c.peer, c);
       c.on('data', d=>{ if (d && typeof d==='object') c.pres = d; });
@@ -1284,7 +1290,11 @@ const PEER_MSG = {
   'browser-incompatible':'這個瀏覽器不支援直接連線，請改用 Safari 或 Chrome。',
 };
 // open a party channel: claude.ai's room when available, otherwise a direct PeerJS link
-async function openChannel(code, role){
+async function openChannel(code, role, direct){
+  if (direct){
+    try { return await peerChannel(code, role || 'pad'); }
+    catch(e){ if (e && e.code==='no-peerjs') throw {code:'browser-incompatible', peer:true}; throw e; }
+  }
   const api = await getRoom();
   if (!api){
     try { return await peerChannel(code, role || 'pad'); }
@@ -1324,11 +1334,13 @@ async function hostParty(){
   for (let attempt=0; attempt<3; attempt++){
     const code = String(1000 + Math.floor(Math.random()*9000));
     try {
-      const room = await openChannel(code, 'host');
+      const room = await openChannel(code, 'host', sel.remote);
       if (sel.mode !== 'party' || G.mode !== 'select'){ room.leave(); party = null; return; }
-      party = { role:'host', code, room, slots:[null,null,null,null], prev:[{},{},{},{}], startSeen:{}, lastSent:'' };
+      party = { role:'host', code, room, remote:!!sel.remote, calls:{}, slots:[null,null,null,null], prev:[{},{},{},{}], startSeen:{}, lastSent:'' };
       partyCodeEl.textContent = code;
-      partyMsg.textContent = '朋友用手機打開這個網址 → 連線 → 加入，輸入房號。最多四支手機（依選的人數），空位由電腦補上。';
+      partyMsg.textContent = party.remote
+        ? '朋友在自己的手機或電腦打開這個網址 → 連線 → 遠端加入，輸入房號。你是 P1，朋友依序當 P2～P4，空位由電腦補上；人滿之後加入的會變成觀戰。'
+        : '朋友用手機打開這個網址 → 連線 → 加入，輸入房號。最多四支手機（依選的人數），空位由電腦補上。';
       return;
     } catch(e){ lastErr = e; if (!(e && e.code==='unavailable-id')) break; }
   }
@@ -1336,7 +1348,37 @@ async function hostParty(){
   if (lastErr && lastErr.peer) partyMsg.textContent = (PEER_MSG[lastErr.code] || '連線失敗，請重新整理再試。') + `（${lastErr.code}）`;
   else { roomWhy = roomWhy || (lastErr && lastErr.code) || 'error'; partyMsg.textContent = await roomDiag(); }
 }
-function leaveParty(){ if (party){ try{ party.room.leave(); }catch(_){} party = null; } partyBox.hidden = true; }
+function leaveParty(){
+  if (party){ if (party.calls) for (const id in party.calls) try{ party.calls[id].close(); }catch(_){} try{ party.room.leave(); }catch(_){} party = null; }
+  partyBox.hidden = true;
+}
+// remote play: the game canvas (and game sound) as one live stream, made once
+let hostStream = null;
+function getHostStream(){
+  if (hostStream) return hostStream;
+  try {
+    hostStream = canvas.captureStream(30);
+    const v = hostStream.getVideoTracks()[0]; if (v && 'contentHint' in v) v.contentHint = 'motion';
+    audioOn();
+    if (AC && master && AC.createMediaStreamDestination){
+      const dest = AC.createMediaStreamDestination(); master.connect(dest);
+      const a = dest.stream.getAudioTracks()[0]; if (a) hostStream.addTrack(a);
+    }
+  } catch(_){ hostStream = null; }
+  return hostStream;
+}
+function remoteCalls(pads){
+  const ids = pads.map(p=>p.peer);
+  for (const id in party.calls) if (!ids.includes(id)){ try{ party.calls[id].close(); }catch(_){} delete party.calls[id]; }
+  for (const p of pads){
+    if (!p.presence.view || party.calls[p.peer]) continue;
+    const st = getHostStream(); if (!st || !party.room.call) return;
+    const c = party.room.call(p.peer, st); if (!c) continue;
+    party.calls[p.peer] = c;
+    c.on('close', ()=>{ if (party && party.calls && party.calls[p.peer]===c) delete party.calls[p.peer]; });
+    c.on('error', ()=>{ if (party && party.calls && party.calls[p.peer]===c) delete party.calls[p.peer]; });
+  }
+}
 function padPeers(){ return party ? party.room.peers().filter(p=>!p.sameTab && p.presence && p.presence.pad) : []; }
 function partyHostTick(){
   if (!party || party.role!=='host') return;
@@ -1345,7 +1387,7 @@ function partyHostTick(){
   for (let i=0;i<4;i++) if (party.slots[i] && !ids.includes(party.slots[i])){ party.slots[i] = null; changed = true; }
   for (const p of pads){
     if (party.slots.includes(p.peer)) continue;
-    const free = party.slots.findIndex((x,k)=>!x && k < sel.count); if (free < 0) break;
+    const free = party.slots.findIndex((x,k)=>!x && k < sel.count && !(party.remote && k===0)); if (free < 0) break;
     party.slots[free] = p.peer; changed = true;
     const c = (p.presence.inp && p.presence.inp.c) || {};
     party.prev[free] = {j:c.j||0, a:c.a||0, b:c.b||0, f:c.f||0};
@@ -1356,13 +1398,22 @@ function partyHostTick(){
     const st = +p.presence.st || 0;
     if (st > (party.startSeen[p.peer]||0)){ party.startSeen[p.peer] = st; if (G.mode==='result' && RES && RES.t > 3) startGame(); }
   }
+  if (party.remote) remoteCalls(pads);
   if (changed || G.mode==='select'){
     padListEl.innerHTML = '';
     [0,1,2,3].slice(0,sel.count).forEach(i=>{ const s = document.createElement('span'); const on = !!party.slots[i]; s.className = on ? 'on' : '';
-      s.textContent = `P${i+1}：${on ? '手機已連線（' + CH[sel.p[i]].name + '）' : (i===0 ? '鍵盤／觸控' : '電腦')}`; padListEl.appendChild(s); });
+      s.textContent = `P${i+1}：${on ? (party.remote ? '遠端已連線' : '手機已連線') + '（' + CH[sel.p[i]].name + '）' : (i===0 ? (party.remote ? '你（鍵盤／觸控）' : '鍵盤／觸控') : '電腦')}`; padListEl.appendChild(s); });
+    if (party.remote){ const w = pads.filter(p=>!party.slots.includes(p.peer)).length; if (w){ const s = document.createElement('span'); s.textContent = `觀戰 ${w} 人`; padListEl.appendChild(s); } }
   }
   const msg = { host:1, st:G.mode==='result' ? 'over' : G.mode, slots:party.slots, kinds:sel.p,
     meter:G.fighters.map(f=>Math.round(f.meter)), stocks:G.fighters.map(f=>f.stocks) };
+  if (party.remote){
+    msg.remote = 1;
+    msg.pct = G.fighters.map(f=>Math.round(f.pct));
+    msg.names = G.fighters.map(f=>f.D.name);
+    msg.ban = [banN, banLast];
+    msg.win = G.mode==='result' && G.winner ? G.winner.D.name : null;
+  }
   const s = JSON.stringify(msg);
   if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
 }
@@ -1377,7 +1428,10 @@ function readPad(slot){
 }
 
 /* phone side */
-function showJoin(){
+let joinRemote = false;
+function showJoin(remote){
+  joinRemote = remote===true;
+  document.getElementById('joinH').textContent = joinRemote ? '輸入朋友給你的房號' : '輸入大螢幕上的手把代碼';
   audioOn(); menuEl.hidden = true; joinUI.hidden = false; joinMsg.textContent = ''; codeIn.value = '';
   setTimeout(()=>{ try{ codeIn.focus(); }catch(_){} }, 50);
 }
@@ -1386,10 +1440,18 @@ async function joinAsPad(){
   if (code.length !== 4){ joinMsg.textContent = '代碼是 4 個數字。'; return; }
   joinMsg.textContent = '連線中…（最多等 10 秒）';
   try {
-    const room = await openChannel(code, 'pad');
-    party = { role:'pad', code, room, lastSent:'', lastUI:'', since:performance.now() };
+    const room = await openChannel(code, 'pad', joinRemote);
+    party = { role:'pad', code, room, remote:joinRemote, lastSent:'', lastUI:'', lastHud:'', banSeen:null, winSeen:null, since:performance.now() };
     joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
-    document.body.classList.add('pad'); G.mode = 'pad'; fitPad();
+    document.body.classList.add('pad'); document.body.classList.toggle('remote', joinRemote); G.mode = 'pad'; fitPad();
+    rvVid.hidden = !joinRemote; rvHud.hidden = true; rvBan.hidden = true;
+    if (joinRemote){
+      padStateEl.textContent = '等待畫面傳過來…';
+      room.onStream = (st)=>{
+        rvVid.srcObject = st; rvVid.muted = false;
+        rvVid.play().catch(()=>{ rvVid.muted = true; rvVid.play().catch(()=>{}); });
+      };
+    }
   } catch(e){
     if (e && e.peer){ joinMsg.textContent = (PEER_MSG[e.code] || '連線失敗，請重新整理再試。') + `（${e.code}）`; return; }
     roomWhy = roomWhy || (e && e.code) || 'error'; joinMsg.textContent = await roomDiag();
@@ -1397,13 +1459,28 @@ async function joinAsPad(){
 }
 function leavePad(){
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
-  document.body.classList.remove('pad'); for (const k in TS) TS[k] = false;
+  try { rvVid.pause(); rvVid.srcObject = null; } catch(_){}
+  rvVid.hidden = true; rvHud.hidden = true; rvBan.hidden = true;
+  document.body.classList.remove('pad'); document.body.classList.remove('remote'); for (const k in TS) TS[k] = false;
   padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr('scrOnline');
+}
+const padKPrev = {};
+function padKeys(){
+  const k = {};
+  for (const key in MAP[0]) k[key] = MAP[0][key].some(c=>keys[c]) || MAP[1][key].some(c=>keys[c]);
+  const edge = (n)=>k[n] && !padKPrev[n];
+  if (edge('u')) padC.j++;
+  if (edge('atk')) padC.a++;
+  if (edge('sp')) padC.b++;
+  if (edge('fin')) padC.f++;
+  Object.assign(padKPrev, k);
+  return k;
 }
 function padTick(){
   if (!party) return;
-  const msg = { pad:1, pick:padPick, st:padC.st, rdy:padReady?1:0,
-    inp:{ l:TS.l?1:0, r:TS.r?1:0, u:TS.u?1:0, d:TS.d?1:0, s:TS.shield?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
+  const K = padKeys();
+  const msg = { pad:1, pick:padPick, st:padC.st, rdy:padReady?1:0, view:party.remote?1:0,
+    inp:{ l:(TS.l||K.l)?1:0, r:(TS.r||K.r)?1:0, u:(TS.u||K.u)?1:0, d:(TS.d||K.d)?1:0, s:(TS.shield||K.shield)?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
   if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
   const peers = party.room.peers();
@@ -1411,7 +1488,7 @@ function padTick(){
   let who = '連線中…', state = '等待大螢幕開房', slot = -1, hp = host && host.presence;
   if (hp){
     slot = Array.isArray(hp.slots) && me ? hp.slots.indexOf(me.peer) : -1;
-    if (slot < 0){ who = '已滿或等待中'; state = '大螢幕已有兩支手把'; }
+    if (slot < 0){ who = party.remote ? '觀戰中' : '已滿或等待中'; state = party.remote ? '位置已滿，可以看比賽' : '大螢幕已有兩支手把'; }
     else {
       const kind = Array.isArray(hp.kinds) ? hp.kinds[slot] : null;
       who = `P${slot+1}${kind && CH[kind] ? ' · ' + CH[kind].name : ''}`;
@@ -1420,6 +1497,7 @@ function padTick(){
       if (!padPick && kind) padPick = kind;
     }
   }
+  if (party.remote && hp) remoteHud(hp, slot);
   const ready = !!(hp && slot >= 0 && Array.isArray(hp.meter) && hp.meter[slot] >= 100);
   const ui = who + '|' + state + '|' + ready + '|' + padPick + '|' + slot + '|' + (hp ? hp.st : '') + '|' + padReady;
   if (ui !== party.lastUI){
@@ -1434,6 +1512,35 @@ function padTick(){
     document.querySelector('.pTop .seg').hidden = !(hp && slot >= 0 && hp.st==='select');
   }
 }
+// remote player: draw the HUD / banners the host shows as HTML (they aren't part of the video)
+const rvVid = document.getElementById('rvVid'), rvHud = document.getElementById('rvHud'), rvBan = document.getElementById('rvBan');
+function rvBanner(text){
+  rvBan.textContent = text; rvBan.hidden = false;
+  rvBan.classList.remove('show'); void rvBan.offsetWidth; rvBan.classList.add('show');
+}
+function remoteHud(hp, slot){
+  const on = hp.st==='play' && Array.isArray(hp.names);
+  rvHud.hidden = !on;
+  if (on){
+    const key = JSON.stringify([hp.names, hp.pct, hp.stocks, hp.meter, hp.slots, slot]);
+    if (key !== party.lastHud){
+      party.lastHud = key;
+      rvHud.innerHTML = hp.names.map((nm,i)=>{
+        const p = (hp.pct||[])[i] || 0, k = Math.min(1, p/150), m = Math.min(100, (hp.meter||[])[i] || 0);
+        const tag = i===slot ? '你' : i===0 ? 'P1' : (hp.slots && hp.slots[i]) ? 'P'+(i+1) : 'CPU';
+        return `<div class="card" style="--pc:var(--p${i+1})"><div class="who"><div class="nm">${nm}<b>${tag}</b></div><div class="stk">${'<i></i>'.repeat(Math.max(0,(hp.stocks||[])[i]||0))}</div><div class="meter${m>=100?' full':''}"><b style="width:${m}%"></b></div></div><div class="pc" style="color:rgb(246,${Math.round(238-150*k)},${Math.round(223-190*k)})">${p}%</div></div>`;
+      }).join('');
+    }
+  }
+  if (Array.isArray(hp.ban)){
+    if (party.banSeen === null) party.banSeen = hp.ban[0];
+    else if (hp.ban[0] !== party.banSeen){ party.banSeen = hp.ban[0]; if (hp.ban[1]) rvBanner(hp.ban[1]); }
+  }
+  if (hp.win !== party.winSeen){ party.winSeen = hp.win; if (hp.win) rvBanner(hp.win + ' 獲勝！'); }
+}
+// unmute the stream on the first touch (browsers block sound until then)
+document.getElementById('padUI').addEventListener('pointerdown', ()=>{ if (party && party.remote && rvVid.muted && rvVid.srcObject){ rvVid.muted = false; rvVid.play().catch(()=>{ rvVid.muted = true; }); } });
+addEventListener('keydown', ()=>{ if (G.mode==='pad' && party && party.remote && rvVid.muted && rvVid.srcObject){ rvVid.muted = false; rvVid.play().catch(()=>{ rvVid.muted = true; }); } });
 function aiInput(f, o, dt){
   const I = {l:0,r:0,u:0,d:0,jump:0,atk:0,sp:0,shield:0,fin:0};
   const a = f.ai || (f.ai = {cd:.6, jcd:0, sh:0, think:0});
@@ -1474,7 +1581,7 @@ function aiInput(f, o, dt){
 }
 
 /* =================== menu / HUD =================== */
-const sel = { mode:'cpu', count:2, p:['waffle','tommy','karl','seafood'], skin:[0,0,0,0], map:'park', stocks:3 };
+const sel = { mode:'cpu', remote:false, count:2, p:['waffle','tommy','karl','seafood'], skin:[0,0,0,0], map:'park', stocks:3 };
 const models = [null, null, null, null];
 function rebuild(i){ if (models[i]) scene.remove(models[i].holder); models[i] = makeModel(sel.p[i], sel.skin[i] || 0); }
 function rebuildAll(){ for (let i=0;i<4;i++){ if (i < sel.count) rebuild(i); else if (models[i]){ scene.remove(models[i].holder); models[i] = null; } } }
@@ -1487,11 +1594,13 @@ function showScr(id){
 }
 document.getElementById('goSolo').onclick = ()=>{ audioOn(); sel.mode = sel.mode==='2p' ? '2p' : 'cpu'; rulesFrom = 'scrTitle'; document.getElementById('rulesH').textContent = '自己玩 · 規則'; document.getElementById('modeRow').hidden = false; syncMenu(); showScr('scrRules'); };
 document.getElementById('goOnline').onclick = ()=>{ audioOn(); showScr('scrOnline'); };
-document.getElementById('goHost').onclick = ()=>{ sel.mode = 'party'; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
+document.getElementById('goHost').onclick = ()=>{ sel.mode = 'party'; sel.remote = false; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
+document.getElementById('goRHost').onclick = ()=>{ audioOn(); sel.mode = 'party'; sel.remote = true; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '遠端開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
 document.querySelectorAll('[data-back]').forEach(b=>b.onclick = ()=>showScr(b.dataset.back));
 document.getElementById('rulesBack').onclick = ()=>{ leaveParty(); showScr(rulesFrom); };
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick = ()=>{ sel.mode = b.dataset.mode; syncMenu(); });
-document.getElementById('asPad').onclick = showJoin;
+document.getElementById('asPad').onclick = ()=>showJoin(false);
+document.getElementById('asRPad').onclick = ()=>showJoin(true);
 document.querySelectorAll('[data-count]').forEach(b=>b.onclick = ()=>{ sel.count = +b.dataset.count; syncMenu(); });
 document.querySelectorAll('[data-stocks]').forEach(b=>b.onclick = ()=>{ sel.stocks = +b.dataset.stocks; syncMenu(); });
 document.getElementById('joinBtn').onclick = joinAsPad;

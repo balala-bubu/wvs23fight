@@ -150,6 +150,19 @@ body.pad #c{visibility:hidden}
 .pb.shield{width:84px;height:84px;font-size:19px;background:#2a221d}
 .pb.fin{width:88px;height:88px;font-size:19px;background:#4a3d22;color:rgba(255,255,255,.5)}
 .pb.fin.ready{background:#f2c14e;color:#1b1410;text-shadow:none;animation:pulse .6s infinite alternate}
+/* remote play: the host's screen streams in behind the controller */
+.subH{margin:4px 0 -4px;font-size:12px;letter-spacing:.1em;color:var(--dim);font-weight:700}
+.big.rmt{background:linear-gradient(135deg,rgba(242,193,78,.22),rgba(79,163,255,.18))}
+#rvVid{position:absolute;left:0;top:0;width:800px;height:370px;object-fit:contain;background:#000;pointer-events:none}
+body.remote #padUI{background:#000}
+body.remote .pb{opacity:.5}
+body.remote .pb.on{opacity:.8}
+body.remote .pBase{opacity:.55}
+body.remote .pTop{background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));border-radius:12px;padding:0 8px}
+body.remote .pTop .padWho span{color:#fff}
+#rvHud{position:absolute;left:50%;bottom:6px;transform:translateX(-50%) scale(.72);transform-origin:50% 100%;display:flex;gap:6px;pointer-events:none;white-space:nowrap}
+#rvBan{position:absolute;left:0;right:0;top:120px;text-align:center;font-weight:900;font-size:46px;color:var(--gold);text-shadow:3px 3px 0 #000,-3px 3px 0 #000,3px -3px 0 #000,-3px -3px 0 #000;pointer-events:none}
+#rvBan.show{animation:bann 1.7s ease-out forwards}
 #rotHint{position:fixed;left:0;right:0;top:45%;text-align:center;font-weight:700;color:var(--ink);text-shadow:2px 2px 0 #000;pointer-events:none;padding-inline:16px}
 #menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding-top:calc(env(safe-area-inset-top,0px) + 18px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;gap:12px}
 .title{text-align:center;pointer-events:none}
@@ -216,9 +229,15 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   </div>
   <div class="sheet scr" id="scrOnline" hidden>
     <h2 class="scrH">連線</h2>
+    <h3 class="subH">同一個螢幕（大家在同一個地方）</h3>
     <div class="bigBtns">
       <button class="big" id="goHost"><b>開房</b><span>這台當大螢幕，選規則後會給你房號</span></button>
       <button class="big" id="asPad"><b>加入</b><span>輸入房號，這支手機變成手把</span></button>
+    </div>
+    <h3 class="subH">各自畫面（遠端，各自在家）</h3>
+    <div class="bigBtns">
+      <button class="big rmt" id="goRHost"><b>遠端開房</b><span>你當 P1，畫面會即時傳給每個朋友</span></button>
+      <button class="big rmt" id="asRPad"><b>遠端加入</b><span>輸入房號，在自己的手機或電腦上看畫面對打</span></button>
     </div>
     <button class="ghost" data-back="scrTitle">返回</button>
   </div>
@@ -302,7 +321,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 </div>
 <div id="joinUI" hidden>
   <div class="sheet">
-    <h2>輸入大螢幕上的手把代碼</h2>
+    <h2 id="joinH">輸入大螢幕上的手把代碼</h2>
     <input id="codeIn" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="手把代碼">
     <button class="go" id="joinBtn">連線</button>
     <p id="joinMsg"></p>
@@ -312,6 +331,9 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 </div>
 <div id="padUI" hidden>
   <div id="padStage">
+    <video id="rvVid" playsinline autoplay muted hidden></video>
+    <div id="rvHud" hidden></div>
+    <div id="rvBan" hidden></div>
     <div class="pTop">
       <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
       <div class="seg" role="group" aria-label="選角" id="padPicks"></div>
