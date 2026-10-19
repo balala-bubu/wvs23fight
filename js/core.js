@@ -190,6 +190,28 @@ function birthdayHat(a = '#ff5fa2', b = '#ffe066', pom = 0xffffff){
   g.rotation.z = -0.2;
   return g;
 }
+// party-ending cake: tiered, candles tagged with userData.flame so they can be "blown out"
+function buildCake(){
+  const g = new THREE.Group();
+  const icingA = L({color:0xfff3e2}), icingB = L({color:0xffd3ea}), spongeM = L({color:0xe9b27a});
+  let y = 0, r = 2.3;
+  for (let i=0;i<2;i++){
+    const h = i===0 ? 1.7 : 1.2;
+    const tier = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,20), i%2 ? icingB : icingA); tier.position.y = y+h/2; g.add(tier);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(r+0.04,r+0.04,0.3,20), i%2 ? icingA : icingB); band.position.y = y+0.18; g.add(band);
+    const drip = new THREE.Mesh(new THREE.TorusGeometry(r*0.99,0.14,6,20), i%2 ? icingA : icingB); drip.rotation.x = Math.PI/2; drip.position.y = y+h; g.add(drip);
+    y += h; r *= 0.66;
+  }
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(2.8,2.8,0.18,22), L({color:0xd8d0c0})); plate.position.y = -0.09; g.add(plate);
+  const colors = [0xff6b6b,0xffd93d,0x5fc0ef,0xb08cff,0x6fe08a];
+  for (let i=0;i<colors.length;i++){
+    const a = i/colors.length*Math.PI*2, cx = Math.cos(a)*r*0.5, cz = Math.sin(a)*r*0.5;
+    const candle = cyl(0.045,0.045,0.55,L({color:colors[i]}),6); candle.position.set(cx,y+0.28,cz); g.add(candle);
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.07,0.18,6), L({color:0xffcc33,emissive:0xff9900}));
+    flame.position.set(cx,y+0.62,cz); flame.userData.flame = true; g.add(flame);
+  }
+  return g;
+}
 function makeModel(kind, skin = 0){
   const holder = new THREE.Group(); scene.add(holder);
   const body = new THREE.Group(); body.scale.setScalar(SC); holder.add(body);
@@ -981,6 +1003,25 @@ function startResults(){
   G.fighters.forEach(f=>{ f.marker.visible = false; f.aura.visible = false; f.shieldMesh.visible = false; });
   G.sepiaT = 0; G.slowmo = 0; G.zoom = 0;
   RS.visible = true; scene.fog.near = 400; scene.fog.far = 900;
+  const party = G.fighters.length > 1 && G.fighters.every(f=>f.m.skin > 0);
+  // ---- easter egg: everyone picked the birthday-hat skin -> cake party instead of a winner ----
+  if (party){
+    burstDisc.material = burstMats[2];
+    const n = G.fighters.length, xs = n===2 ? [-6,6] : n===3 ? [-9,0,9] : [-11,-3.8,3.8,11];
+    const poses = [POSE.cheer, POSE.laughUp, POSE.salute, POSE.thumbs];
+    G.fighters.forEach((f,i)=>{
+      const m = f.m, x = xs[i]; m.holder.visible = true; m.holder.position.set(x, RS_Y, -2); m.holder.rotation.set(0, x < 0 ? 0.32 : -0.32, 0);
+      m.body.scale.setScalar(SC); m.setOld(0); m.setFace('normal'); for (const k in m.props) m.props[k].visible = false;
+      applyPose(m, poses[i % poses.length], 1);
+    });
+    const cake = buildCake(); cake.position.set(0, RS_Y, 2.2); cake.scale.setScalar(1.4); scene.add(cake);
+    RES = { t:0, W, Lz, party:true, fighters:G.fighters.slice(), items:[cake], puffs:[], attach:[], fired:{}, cake, look:new THREE.Vector3(0, RS_Y+3.2, 1) };
+    winTitle.style.setProperty('--wc', 'var(--gold)'); winName.textContent = '生日快樂'; document.querySelector('#winTitle span').textContent = '🎂 全員慶生！';
+    winTitle.hidden = false;
+    SFX2.fanfare();
+    setTimeout(()=>{ if (G.mode==='result'){ overEl.hidden = false; } }, 5200);
+    return;
+  }
   burstDisc.material = burstMats[W.slot < 2 ? W.slot : 's'+W.slot];
   const place = (f, x, z, ry)=>{
     const m = f.m; m.holder.visible = true; m.holder.position.set(x, RS_Y, z); m.holder.rotation.set(0, ry, 0);
@@ -990,7 +1031,7 @@ function startResults(){
   place(W, -3.5, 0, 0.25); place(Lz, 9.5, -5, -0.35);
   let extra = 0; G.fighters.forEach(f=>{ if (f!==W && f!==Lz){ place(f, -10.5 - extra*3.4, -6 - extra, 0.5); extra++; } });
   RES = { t:0, W, Lz, items:[], puffs:[], attach:[], fired:{}, look:new THREE.Vector3(1.5, RS_Y+3.4, 0) };
-  winName.textContent = W.D.name; winTitle.style.setProperty('--wc', 'var(--p'+(W.slot+1)+')'); winTitle.hidden = false;
+  winName.textContent = W.D.name; document.querySelector('#winTitle span').textContent = 'WINS!'; winTitle.style.setProperty('--wc', 'var(--p'+(W.slot+1)+')'); winTitle.hidden = false;
   const CW = CHARS[W.kind], CL = CHARS[Lz.kind];
   if (CW.winSetup) CW.winSetup(RES);
   if (CL.loseSetup) CL.loseSetup(RES);
@@ -1007,12 +1048,23 @@ function once(key, t, fn){ if (RES.t >= t && !RES.fired[key]){ RES.fired[key] = 
 function popAt(text, f, dy, cls){ const p = f.m.holder.position; pop(text, p.x, p.y + (dy||7.5), cls); }
 function updateResults(dt, t){
   const R = RES; if (!R) return; R.t += dt;
-  const W = R.W, Lz = R.Lz;
   burstDisc.rotation.z += dt*.12;
   const k = 1 - Math.exp(-dt*10);
-  const CW = CHARS[W.kind], CL = CHARS[Lz.kind];
-  if (CW.winUpdate) CW.winUpdate(R, dt, k); else applyPose(W.m, POSE.cheer, k);
-  if (CL.loseUpdate) CL.loseUpdate(R, dt, k); else applyPose(Lz.m, POSE.dizzy, k);
+  if (R.party){
+    const poses = [POSE.cheer, POSE.laughUp, POSE.salute, POSE.thumbs];
+    R.fighters.forEach((f,i)=>{ applyPose(f.m, poses[i % poses.length], k); f.m.chest.scale.y = 1 + Math.sin(t*2.4 + i)*0.01; });
+    R.cake.rotation.y += dt*0.12;
+    once('blowCandles', 2.6, ()=>{
+      burst(R.cake.position.x, R.cake.position.y + R.cake.scale.y*3.1, 0xffd166, 28, 6.5); SFX2.cheer();
+      R.cake.traverse(o=>{ if (o.userData.flame) o.visible = false; });
+    });
+    if (Math.random() < dt*1.8){ const h = spriteOf(loveTex, 1.1); h.position.set(R.cake.position.x + (Math.random()-.5)*7, RS_Y + 4 + Math.random()*2.2, R.cake.position.z + (Math.random()-.5)*2); scene.add(h); R.puffs.push({o:h, life:1.4, vy:2.6, grow:.25}); }
+  } else {
+    const W = R.W, Lz = R.Lz;
+    const CW = CHARS[W.kind], CL = CHARS[Lz.kind];
+    if (CW.winUpdate) CW.winUpdate(R, dt, k); else applyPose(W.m, POSE.cheer, k);
+    if (CL.loseUpdate) CL.loseUpdate(R, dt, k); else applyPose(Lz.m, POSE.dizzy, k);
+  }
   // puffs / hearts
   for (let i=R.puffs.length-1;i>=0;i--){ const p = R.puffs[i]; p.life -= dt; p.o.position.y += p.vy*dt; const s = p.o.scale.x + p.grow*dt; p.o.scale.set(s,s,1); p.o.material.opacity = Math.min(1, p.life); if (p.life <= 0){ scene.remove(p.o); R.puffs.splice(i,1); } }
   // camera
@@ -1693,8 +1745,9 @@ function toMenu(){
 }
 function showOver(){
   const w = G.winner;
-  document.getElementById('winTxt').textContent = `${w.D.name} 獲勝！`;
-  document.getElementById('winSub').textContent = CHARS[w.kind].winSub || 'GAME!';
+  const party = G.fighters.length > 1 && G.fighters.every(f=>f.m.skin > 0);
+  document.getElementById('winTxt').textContent = party ? '生日快樂！大家一起吃蛋糕' : `${w.D.name} 獲勝！`;
+  document.getElementById('winSub').textContent = party ? 'HAPPY BIRTHDAY! 🎂' : (CHARS[w.kind].winSub || 'GAME!');
   startResults();
 }
 // pause
