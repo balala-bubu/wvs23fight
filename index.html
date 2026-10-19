@@ -108,7 +108,20 @@ body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden
 .padTop .seg button{font-size:15px}
 #padUI .ghost{padding:6px 12px;font-size:13px}
 body.pad #touch{z-index:2}
-body.pad #stickZone{top:120px}
+body.pad #stickZone{top:110px}
+/* phone-as-controller: big gamepad layout */
+body.pad .stick{width:176px;height:176px;margin:-88px 0 0 -88px;border-width:3px;background:rgba(255,255,255,.06)}
+body.pad .knob{width:80px;height:80px;margin:-40px 0 0 -40px}
+body.pad .acts{width:380px;height:320px;right:max(28px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform-origin:100% 100%}
+body.pad .tb{border-width:3px;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+body.pad .tb.on{box-shadow:0 2px 0 rgba(0,0,0,.35)}
+body.pad .tb.atk{width:136px;height:136px;right:0;bottom:0;font-size:28px}
+body.pad .tb.jump{width:108px;height:108px;right:150px;bottom:-6px;font-size:24px}
+body.pad .tb.sp{width:108px;height:108px;right:14px;bottom:150px;font-size:24px}
+body.pad .tb.shield{width:92px;height:92px;right:146px;bottom:122px;font-size:19px}
+body.pad .tb.fin{width:96px;height:96px;right:262px;bottom:170px;font-size:19px}
+@media (max-height:420px){ body.pad .acts{transform:scale(.82)} body.pad .stick{transform:scale(.85)} }
+@media (max-height:340px){ body.pad .acts{transform:scale(.7)} }
 body.pad #c{visibility:hidden}
 #pause{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,7,6,.55);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #pause .sheet{width:min(300px,100%);text-align:center}
@@ -1877,12 +1890,23 @@ document.querySelectorAll('#touch .tb').forEach(b=>{
 // floating thumb-stick: touch anywhere on the left half
 const stickEl = document.getElementById('stick'), knobEl = document.getElementById('knob'), zoneEl = document.getElementById('stickZone');
 let stickId = null, sx0 = 0, sy0 = 0;
-function stickHome(){ stickEl.style.left = (110 + Math.max(0, parseFloat(getComputedStyle(document.documentElement).paddingLeft)||0)) + 'px'; stickEl.style.top = (innerHeight - 120) + 'px'; stickEl.style.opacity = '.55'; knobEl.style.transform = ''; }
+function stickHome(){
+  const pad = document.body.classList.contains('pad');
+  if (pad){
+    stickEl.style.left = Math.max(140, innerWidth*0.2) + 'px';
+    stickEl.style.top = Math.min(innerHeight - 120, Math.max(200, innerHeight*0.62)) + 'px';
+  } else {
+    stickEl.style.left = (110 + Math.max(0, parseFloat(getComputedStyle(document.documentElement).paddingLeft)||0)) + 'px';
+    stickEl.style.top = (innerHeight - 120) + 'px';
+  }
+  stickEl.style.opacity = '.55'; knobEl.style.transform = '';
+}
 function stickSet(e){
-  let dx = e.clientX - sx0, dy = e.clientY - sy0; const d = Math.hypot(dx,dy), mx = 48;
+  let dx = e.clientX - sx0, dy = e.clientY - sy0; const d = Math.hypot(dx,dy), mx = document.body.classList.contains('pad') ? 64 : 48;
   if (d > mx){ dx *= mx/d; dy *= mx/d; }
   knobEl.style.transform = `translate(${dx}px,${dy}px)`;
-  TS.l = dx < -14; TS.r = dx > 14; TS.u = dy < -24; TS.d = dy > 24;
+  const dz = document.body.classList.contains('pad') ? 18 : 14;
+  TS.l = dx < -dz; TS.r = dx > dz; TS.u = dy < -dz*1.7; TS.d = dy > dz*1.7;
 }
 zoneEl.addEventListener('pointerdown', e=>{
   e.preventDefault(); audioOn(); stickId = e.pointerId; sx0 = e.clientX; sy0 = e.clientY;
@@ -2118,6 +2142,7 @@ function leavePad(){
 }
 function padTick(){
   if (!party) return;
+  rotHint.hidden = !(innerHeight > innerWidth);
   const msg = { pad:1, pick:padPick, st:padC.st, rdy:padReady?1:0,
     inp:{ l:TS.l?1:0, r:TS.r?1:0, u:TS.u?1:0, d:TS.d?1:0, s:TS.shield?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
