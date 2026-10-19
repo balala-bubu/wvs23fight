@@ -232,6 +232,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
       <div class="seg" role="group" aria-label="地圖">
         <button data-map="park" aria-pressed="true">秋日公園</button>
         <button data-map="ntu" aria-pressed="false">台大總圖</button>
+        <button data-map="sea" aria-pressed="false">海底王國</button>
       </div>
     </div>
     <div class="ruleRow"><span>命數</span>
@@ -1001,20 +1002,59 @@ function buildBearSuit(){
   const face = new THREE.Mesh(new THREE.PlaneGeometry(1.32,1.32), L({map:bearFaceTex})); face.position.set(0,-0.1,0.93); head.add(face);
   g.head = head; return g;
 }
-const waterM = new THREE.MeshLambertMaterial({color:0x2f86c8, transparent:true, opacity:.78, depthWrite:false}), foamM = L({color:0xf4fbff});
-function buildTsunami(dir){
-  const g = new THREE.Group(), inner = new THREE.Group(); inner.scale.x = dir; g.add(inner);
-  inner.add(at(rbox(9,8,5,.35,waterM),0,4,0));
-  const crest = rbox(6,2.6,5,.6,waterM); crest.position.set(2.4,8.6,0); crest.rotation.z = -0.45; inner.add(crest);
-  inner.add(at(rbox(9.6,0.8,5.4,.6,foamM),0,8.1,0));
-  const lip = rbox(2.6,0.7,5.4,.6,foamM); lip.position.set(4.6,9.2,0); lip.rotation.z = -0.8; inner.add(lip);
-  const bear = buildBearSuit(); bear.position.set(-1.6,0.6,2.1); bear.scale.setScalar(.9); bear.rotation.y = 0.25; inner.add(bear);
-  const sea = [];
-  [[1.2,3.2,2.7,2.4,'f'],[-3,6.2,2.6,1.3,'s'],[2.8,5.6,2.6,1.6,'c'],[-3.4,2.2,2.6,1.2,'f'],[3.6,1.6,2.7,1.0,'s'],[0.4,6.8,2.7,1.0,'c'],[-0.6,1.0,2.7,1.4,'s'],[2,7.4,2.0,1.1,'f']].forEach(([x,y,z,sc,k],i)=>{
-    const m = k==='f' ? fishMesh(sc,[0x6f8fb8,0xd8584a,0xe0b040][i%3]) : k==='s' ? shrimpMesh(sc) : clamMesh(sc);
-    m.position.set(x,y,z); inner.add(m); sea.push(m);
+const foamM = new THREE.MeshLambertMaterial({color:0xf4fbff, transparent:true, opacity:.95});
+const waveBodyM = new THREE.MeshLambertMaterial({vertexColors:true, transparent:true, opacity:.82, depthWrite:false});
+function waveGeo(){
+  // cross-section of a curling wave (front at +x), extruded along z
+  const sh = new THREE.Shape();
+  sh.moveTo(-8,0);
+  sh.bezierCurveTo(-5,0.5, -3,6.5, 0,9);
+  sh.bezierCurveTo(1.6,10.2, 4.2,9.8, 5.0,7.8);
+  sh.bezierCurveTo(5.4,6.6, 4.6,5.9, 3.9,6.6);
+  sh.bezierCurveTo(3.0,7.4, 2.4,5.5, 3.0,3.2);
+  sh.bezierCurveTo(3.4,1.6, 4.8,0.6, 6.2,0);
+  sh.lineTo(-8,0);
+  const geo = new THREE.ExtrudeGeometry(sh, {depth:6, bevelEnabled:true, bevelThickness:.5, bevelSize:.35, bevelSegments:2, curveSegments:14});
+  geo.translate(0,0,-3);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count*3), c = new THREE.Color(), lo = new THREE.Color(0x0f4f8a), hi = new THREE.Color(0x7fe0f5);
+  for (let i=0;i<pos.count;i++){ const k = Math.max(0, Math.min(1, pos.getY(i)/9.5)); c.copy(lo).lerp(hi, k*k); col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+  return geo;
+}
+function foamGeo(){
+  // a white cap following the crest and the curl
+  const path = new THREE.Path();
+  path.moveTo(-3,6.6); path.quadraticCurveTo(-1.5,8.6,0,9.05);
+  path.bezierCurveTo(1.6,10.25, 4.2,9.85, 5.02,7.8);
+  path.bezierCurveTo(5.42,6.6, 4.6,5.9, 3.9,6.6);
+  const pts = path.getPoints(14), out = [], inn = [];
+  pts.forEach((p,i)=>{
+    const a = pts[Math.max(0,i-1)], b = pts[Math.min(pts.length-1,i+1)];
+    let nx = b.y - a.y, ny = -(b.x - a.x); const l = Math.hypot(nx,ny) || 1; nx /= l; ny /= l;
+    const w = 0.7*Math.sin(Math.min(1, i/3, (pts.length-1-i)/3)*Math.PI/2) + 0.05;
+    out.push(new THREE.Vector2(p.x - nx*.12, p.y - ny*.12)); inn.push(new THREE.Vector2(p.x + nx*w, p.y + ny*w));
   });
-  g.sea = sea; g.bear = bear; return g;
+  const sh = new THREE.Shape(out.concat(inn.reverse()));
+  const geo = new THREE.ExtrudeGeometry(sh, {depth:6.9, bevelEnabled:true, bevelThickness:.25, bevelSize:.15, bevelSegments:2});
+  geo.translate(0,0,-3.45);
+  return geo;
+}
+let WAVE_GEO = null, FOAM_GEO = null;
+function buildTsunami(dir){
+  if (!WAVE_GEO){ WAVE_GEO = waveGeo(); FOAM_GEO = foamGeo(); }
+  const g = new THREE.Group(), inner = new THREE.Group(); inner.scale.x = dir; g.add(inner);
+  const surge = new THREE.Group(); inner.add(surge);
+  surge.add(new THREE.Mesh(WAVE_GEO, waveBodyM));
+  surge.add(new THREE.Mesh(FOAM_GEO, foamM));
+  // foam streaks running down the back slope
+  for (let i=0;i<5;i++){ const st = rbox(1.6+i*.3,0.18,0.5,.5,foamM); st.position.set(-1.5-i*1.1, 7.6-i*1.5, -2.6+i*1.3); st.rotation.z = 0.75 - i*.08; surge.add(st); }
+  const bear = buildBearSuit(); bear.position.set(-1.8,0.2,2.4); bear.scale.setScalar(.85); bear.rotation.y = 0.25; surge.add(bear);
+  const sea = [];
+  [[0.6,3.6,2.9,2.0,'f'],[-4.2,3.0,2.6,1.3,'s'],[1.6,6.4,2.4,1.3,'c'],[-5.5,1.2,2.4,1.1,'f'],[4.0,1.3,2.8,1.0,'s'],[-0.8,7.2,2.2,0.9,'c'],[2.2,1.4,3.0,1.3,'s'],[-2.6,5.6,2.4,1.1,'f'],[-6.2,0.6,1.0,0.9,'c']].forEach(([x,y,z,sc,k],i)=>{
+    const m = k==='f' ? fishMesh(sc,[0x6f8fb8,0xd8584a,0xe0b040][i%3]) : k==='s' ? shrimpMesh(sc) : clamMesh(sc);
+    m.position.set(x,y,z); surge.add(m); sea.push(m);
+  });
+  g.sea = sea; g.bear = bear; g.surge = surge; return g;
 }
 const sSkinM = L({map:sSkinTex}), sShirtM = L({map:sShirtTex}), sFrontM = L({map:sFrontTex}), sSleeveM = L({map:sSleeveTex}), sPantsM = L({map:sPantsTex});
 function buildSeafood(parent){
@@ -1234,6 +1274,81 @@ const hedgeTex = tex(16,16,(g)=>speckle(g,16,16,'#2c4f26',['#365e2d','#23421f','
   MAPS.ntu = { name:'台大總圖', group:g, W, plats, sky:ntuSkyTex, fog:0xcdd9df, fogNear:110, fogFar:360, hemi:[0xe6f0ff,0x4a5a38], sun:0xffd6a0, rim:0xa8c8ff };
 }
 
+/* --- map 3: under the sea --- */
+const seaSkyTex = tex(4,64,(g)=>{
+  const gr=g.createLinearGradient(0,0,0,64);
+  gr.addColorStop(0,'#7fd6e8'); gr.addColorStop(.3,'#2f9bc0'); gr.addColorStop(.6,'#17607f'); gr.addColorStop(1,'#0b3048');
+  g.fillStyle=gr; g.fillRect(0,0,4,64);
+});
+seaSkyTex.magFilter = THREE.LinearFilter;
+const sandTex = tex(32,32,(g)=>{ speckle(g,32,32,'#d8c48e',['#e6d4a0','#c9b37c','#efe0b4','#bfa66e'],.6); for(let i=0;i<6;i++){ g.fillStyle='#f6eee0'; g.fillRect((rnd()*30)|0,(rnd()*30)|0,2,1); } },[60,60]);
+const sandTopTex = tex(32,32,(g)=>{ speckle(g,32,32,'#dcc896',['#e8d8a8','#ccb680','#f0e2b8'],.6); g.fillStyle='rgba(150,120,70,.25)'; for(let y=3;y<32;y+=6) for(let x=0;x<32;x++) g.fillRect(x,y+((Math.sin(x*.6)*1.5)|0),1,1); },[8,2]);
+const reefTex = tex(32,32,(g)=>{ speckle(g,32,32,'#c86a6a',['#d9807a','#b35858','#e09a8a','#8a4a5a'],.6); for(let i=0;i<30;i++){ g.fillStyle=['#f2c14e','#7fd0a0','#f4f0e6'][(rnd()*3)|0]; g.fillRect((rnd()*32)|0,(rnd()*32)|0,1,1); } },[6,1]);
+const bubbleTex = tex(16,16,(g)=>{ g.strokeStyle='#e8fbff'; g.lineWidth=1.5; g.beginPath(); g.arc(8,8,6,0,7); g.stroke(); g.fillStyle='rgba(232,251,255,.25)'; g.beginPath(); g.arc(8,8,5,0,7); g.fill(); g.fillStyle='#fff'; g.fillRect(5,4,2,2); });
+const rayTex = tex(8,64,(g)=>{ const gr=g.createLinearGradient(0,0,0,64); gr.addColorStop(0,'rgba(220,250,255,.55)'); gr.addColorStop(1,'rgba(220,250,255,0)'); g.fillStyle=gr; g.fillRect(0,0,8,64); });
+rayTex.magFilter = THREE.LinearFilter;
+{
+  const g = new THREE.Group(); scene.add(g);
+  const W = 20;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(500,500), L({map:sandTex})); floor.rotation.x = -Math.PI/2; floor.position.y = -26; g.add(floor);
+  const topM = L({map:sandTopTex}), sideM = L({map:reefTex}), underM = L({map:rockTex});
+  g.add(at(rbox(W*2+0.6,1.4,9,.05,[sideM,sideM,topM,sideM,sideM,sideM]),0,-0.7,0));
+  const under = new THREE.Mesh(new THREE.ConeGeometry(W,12,6), underM); under.rotation.x = Math.PI; under.scale.z = 0.3; under.position.y = -7.3; g.add(under);
+  const plats = [ {x1:-15,x2:-7,y:7}, {x1:7,x2:15,y:7}, {x1:-3.5,x2:3.5,y:13} ];
+  const coralTopM = L({color:0xf09a8a});
+  plats.forEach(p=>addPlatform(g,p,coralTopM,sideM,underM));
+  const clock0 = performance.now();
+  const now = ()=> (performance.now() - clock0)/1000;
+  // swaying seaweed
+  const weedM = [L({color:0x3f8a4a}), L({color:0x2e6f3c}), L({color:0x5aa85a})];
+  const weed = (x, z, h, base)=>{
+    const root = new THREE.Group(); root.position.set(x, base, z); g.add(root);
+    let parent = root; const segs = [];
+    for (let i=0;i<h;i++){ const sg = new THREE.Group(); sg.position.y = i ? 1.2 : 0; parent.add(sg); sg.add(at(rbox(0.35,1.3,0.15,.5,weedM[(i+(x|0))%3]),0,0.6,0)); segs.push(sg); parent = sg; }
+    const ph = Math.random()*6;
+    segs[0].children[0].onBeforeRender = ()=>{ const t = now(); segs.forEach((sg,i)=>{ sg.rotation.z = Math.sin(t*1.4 + ph + i*.5)*.13; }); };
+  };
+  [[-W+1.5,-3],[-W+3,-3.6],[W-1.6,-3.2],[W-3.2,-3.8],[-9,-3.6],[10,-3.4]].forEach(([x,z],i)=>weed(x,z,4+i%3,0));
+  for (let i=0;i<26;i++) weed(-110 + rnd()*220, -30 - rnd()*70, 6 + ((rnd()*8)|0), -26);
+  // corals
+  const coralCols = [0xff6f61,0xffb347,0xc77dff,0x5fd3c8,0xff8fb1];
+  for (let i=0;i<30;i++){
+    const x = -120 + rnd()*240, z = -28 - rnd()*80, col = coralCols[i%5], cm = L({color:col});
+    const c = new THREE.Group(); c.position.set(x,-26,z); g.add(c);
+    const n = 3 + ((rnd()*4)|0);
+    for (let k=0;k<n;k++){ const b = cyl(0.5,0.9,4+rnd()*6,cm,6); b.position.set((rnd()-.5)*4, 2.5, (rnd()-.5)*3); b.rotation.set((rnd()-.5)*.8,0,(rnd()-.5)*.9); c.add(b); }
+    if (i%3===0) c.add(at(new THREE.Mesh(new THREE.SphereGeometry(2.4,8,6), L({color:coralCols[(i+2)%5]})),0,1.2,0));
+  }
+  // sunken ship
+  const wreck = new THREE.Group(); wreck.position.set(-48,-24,-95); wreck.rotation.set(0,.4,.22); g.add(wreck);
+  const woodM = L({color:0x5a3f28}), darkM = L({color:0x3a2818});
+  wreck.add(at(rbox(30,7,9,.4,woodM),0,2,0));
+  wreck.add(at(rbox(10,4,8,.3,darkM),-9,7,0));
+  const mast = cyl(.5,.6,22,darkM,6); mast.position.set(3,14,0); mast.rotation.z = -.35; wreck.add(mast);
+  // giant clam on the far floor
+  const bigClam = clamMesh(10); bigClam.position.set(55,-23,-80); g.add(bigClam);
+  // light rays from the surface
+  const rayM = new THREE.MeshBasicMaterial({map:rayTex, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, fog:false, side:THREE.DoubleSide});
+  for (let i=0;i<7;i++){ const r = new THREE.Mesh(new THREE.PlaneGeometry(6+rnd()*6,90), rayM); r.position.set(-60 + i*20 + rnd()*8, 18, -40 - rnd()*30); r.rotation.z = .25; g.add(r); }
+  // fish schools circling in the background
+  const schoolCols = [0xffd23f,0x6fd3ff,0xff7a4a];
+  for (let s=0;s<3;s++){
+    const sch = new THREE.Group(); sch.position.set(-40 + s*40, 4 + s*5, -55 - s*12); g.add(sch);
+    const R = 14 + s*4, sp = .25 + s*.07, dir = s%2 ? -1 : 1;
+    for (let k=0;k<9;k++){ const f = fishMesh(1.1, schoolCols[s]); f.position.set((k%3)*1.6, ((k/3)|0)*1.2, (k%2)*1.4); sch.add(f); }
+    const holder = sch.children[0].children[0];
+    holder.frustumCulled = false;
+    holder.onBeforeRender = ()=>{ const a = now()*sp*dir + s*2; sch.position.x = -40 + s*40 + Math.cos(a)*R; sch.position.z = -55 - s*12 + Math.sin(a)*R*.4; sch.rotation.y = -a*1 - dir*Math.PI/2; };
+  }
+  // rising bubbles
+  const bubbles = [];
+  for (let i=0;i<40;i++){ const b = spriteOf(bubbleTex, .5 + rnd()*1.2); b.material.fog = true; b.position.set(-60 + rnd()*120, -26 + rnd()*70, -8 - rnd()*60); g.add(b); bubbles.push({o:b, sp:2 + rnd()*4, ph:rnd()*6}); }
+  let lastT = now();
+  bubbles[0].o.frustumCulled = false;
+  bubbles[0].o.onBeforeRender = ()=>{ const t = now(), d = Math.min(.05, t - lastT); lastT = t;
+    bubbles.forEach(b=>{ b.o.position.y += b.sp*d; b.o.position.x += Math.sin(t*2 + b.ph)*d*.6; if (b.o.position.y > 46) b.o.position.y = -26; }); };
+  MAPS.sea = { name:'海底王國', group:g, W, plats, sky:seaSkyTex, fog:0x1d6a8a, fogNear:45, fogFar:170, hemi:[0x9fe8ff,0x1a3a4a], sun:0xbfefff, rim:0x6fd3ff };
+}
 const hemi = new THREE.HemisphereLight(0xffe4c8, 0x4a3828, 0.8); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffc18a, 0.95); sun.position.set(-6,12,9); scene.add(sun);
 const rimL = new THREE.DirectionalLight(0xff8a5a, 0.35); rimL.position.set(5,4,-8); scene.add(rimL);
@@ -2092,12 +2207,18 @@ function updateSeafoodFinal(F, dt, t){
   F.mesh.position.set(F.x, Math.sin(t*6)*.15, 0);
   F.mesh.sea.forEach((m,i)=>{ m.rotation.z = Math.sin(t*8 + i)*.5; });
   F.mesh.bear.head.rotation.z = Math.sin(t*5)*.15;
-  if (Math.random() < dt*30) burst(F.x + dir*4.5, 8 + Math.random()*1.5, 0xf4fbff, 1, 6);
+  const grow = Math.min(1, .25 + F.t*2.5);
+  F.mesh.scale.set(grow, grow, 1);
+  F.mesh.surge.scale.y = 1 + Math.sin(t*5)*.04; F.mesh.surge.position.x = Math.sin(t*3.3)*.25;
+  const spray = (x,y,sz,life)=>{ const p = spriteOf(puffTex, sz, 0xeefbff); p.material.transparent = true; p.position.set(x,y,(Math.random()-.5)*6); scene.add(p); G.fx.push({o:p, t:0, life, grow:sz*1.3, base:sz}); };
+  if (Math.random() < dt*45) spray(F.x + dir*(1 + Math.random()*4.2)*grow, (8.4 + Math.random()*2)*grow, .8 + Math.random()*.8, .5);
+  if (Math.random() < dt*30) spray(F.x + dir*(5.6 + Math.random()*1.5)*grow, .4 + Math.random()*1.4, 1 + Math.random(), .6);
+  if (Math.random() < dt*22) spray(F.x - dir*(5 + Math.random()*4)*grow, .5 + Math.random()*2.5, .9 + Math.random()*.6, .9);
   const edge = dir > 0 ? MAIN.x2 : MAIN.x1;
   if (F.riding){
     if (f.state==='dead') F.riding = false;
     else {
-      f.x = F.x; f.y = 8.6; f.vx = f.vy = 0; f.face = dir; f.state = 'final'; f.onGround = false;
+      f.x = F.x; f.y = 9.1*Math.min(1, .25 + F.t*2.5); f.vx = f.vy = 0; f.face = dir; f.state = 'final'; f.onGround = false;
       if ((F.x - (edge - dir*4))*dir > 0){ F.riding = false; f.finalT = .01; f.vy = 18; f.vx = -dir*8; f.x = edge - dir*5; pop('衝浪成功！', f.x, f.y+7); }
     }
   }
