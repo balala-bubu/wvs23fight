@@ -2,8 +2,9 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#120e0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="description" content="秉寶與偷米的 PS2 風格 3D 平台格鬥遊戲，可以用手機當手把。">
 <style>
 :root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -23,7 +24,8 @@ img{max-width:100%}
   --ui:"Noto Sans TC", system-ui, "PingFang TC", sans-serif;
   color-scheme:dark;
 }
-html,body{height:100%}
+html,body{height:100%;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{touch-action:manipulation}
 body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #pops{position:fixed;inset:0;pointer-events:none;overflow:hidden}
@@ -126,6 +128,26 @@ body.pad #c{visibility:hidden}
 #pause{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,7,6,.55);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #pause .sheet{width:min(300px,100%);text-align:center}
 #pause h2{margin:0;font-size:28px;font-weight:900;letter-spacing:.2em}
+
+/* phone controller: fixed 800x370 landscape stage, scaled (and rotated if held upright) to fit */
+#padUI{position:fixed;inset:0;overflow:hidden;touch-action:none;background:radial-gradient(circle at 50% 45%,#2c211b,#100c0a);z-index:5}
+#padStage{position:absolute;left:0;top:0;width:800px;height:370px;transform-origin:0 0}
+.pTop{position:absolute;left:24px;right:24px;top:10px;height:58px;display:flex;align-items:center;gap:12px}
+.pTop .padWho{margin-right:auto;text-align:left}
+.pTop .padWho b{font-size:24px}
+.pTop .go{padding:10px 18px;font-size:17px}
+.pTop .ghost{padding:8px 14px;font-size:14px}
+#pZone{position:absolute;left:0;top:72px;width:430px;bottom:0;touch-action:none}
+.pBase{position:absolute;left:70px;top:132px;width:196px;height:196px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.05);pointer-events:none}
+.pKnob{position:absolute;left:50%;top:50%;width:88px;height:88px;margin:-44px 0 0 -44px;border-radius:50%;background:rgba(246,238,223,.72);box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.pb{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:3px solid rgba(255,255,255,.32);color:#fff;font:inherit;font-weight:900;display:flex;align-items:center;justify-content:center;touch-action:none;text-shadow:1px 1px 0 #000;box-shadow:0 6px 0 rgba(0,0,0,.35);-webkit-user-select:none;user-select:none}
+.pb.on{transform:translate(-50%,-50%) scale(.92);filter:brightness(1.35);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.pb.atk{width:132px;height:132px;font-size:30px;background:#c45a2c}
+.pb.jump{width:104px;height:104px;font-size:26px;background:#6a625a}
+.pb.sp{width:104px;height:104px;font-size:24px;background:#3a6fae}
+.pb.shield{width:84px;height:84px;font-size:19px;background:#2a221d}
+.pb.fin{width:88px;height:88px;font-size:19px;background:#4a3d22;color:rgba(255,255,255,.5)}
+.pb.fin.ready{background:#f2c14e;color:#1b1410;text-shadow:none;animation:pulse .6s infinite alternate}
 #rotHint{position:fixed;left:0;right:0;top:45%;text-align:center;font-weight:700;color:var(--ink);text-shadow:2px 2px 0 #000;pointer-events:none;padding-inline:16px}
 #menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding-top:calc(env(safe-area-inset-top,0px) + 18px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;gap:12px}
 .title{text-align:center;pointer-events:none}
@@ -280,14 +302,23 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   </div>
 </div>
 <div id="padUI" hidden>
-  <div class="padTop">
-    <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
-    <div class="seg" role="group" aria-label="選角">
-      <button data-pick="waffle" aria-pressed="false">秉寶</button>
-      <button data-pick="tommy" aria-pressed="false">偷米</button>
+  <div id="padStage">
+    <div class="pTop">
+      <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
+      <div class="seg" role="group" aria-label="選角">
+        <button data-pick="waffle" aria-pressed="false">秉寶</button>
+        <button data-pick="tommy" aria-pressed="false">偷米</button>
+      </div>
+      <button class="go" id="padStart">準備好了</button>
+      <button class="ghost" id="padLeave">離開</button>
     </div>
-    <button class="go" id="padStart">準備好了</button>
-    <button class="ghost" id="padLeave">離開</button>
+    <div id="pZone"></div>
+    <div class="pBase" id="pBase"><div class="pKnob" id="pKnob"></div></div>
+    <button class="pb fin" data-p="fin" id="pFin" style="left:470px;top:150px">大招</button>
+    <button class="pb sp" data-p="sp" style="left:700px;top:150px">必殺</button>
+    <button class="pb shield" data-p="shield" style="left:580px;top:198px">防禦</button>
+    <button class="pb jump" data-p="jump" style="left:560px;top:305px">跳</button>
+    <button class="pb atk" data-p="atk" style="left:690px;top:280px">攻擊</button>
   </div>
 </div>
 <div id="touch" hidden>
@@ -315,6 +346,17 @@ scene.fog = new THREE.Fog(0xd8a786, 45, 140);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.8, 500);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isTouch = matchMedia('(pointer: coarse)').matches;
+// stop iPhone double-tap / pinch zoom while playing
+document.addEventListener('gesturestart', e=>e.preventDefault(), {passive:false});
+document.addEventListener('gesturechange', e=>e.preventDefault(), {passive:false});
+document.addEventListener('touchmove', e=>{ if (e.touches && e.touches.length > 1) e.preventDefault(); }, {passive:false});
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e=>{
+  const now = Date.now();
+  if (now - lastTouchEnd < 320 && (G.mode==='play' || G.mode==='pad' || G.mode==='select')) e.preventDefault();
+  lastTouchEnd = now;
+}, {passive:false});
+document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
 if (isTouch){
   document.body.classList.add('touch');
   document.getElementById('touchHelp').hidden = false;
@@ -1920,6 +1962,37 @@ zoneEl.addEventListener('pointerup', stickEnd); zoneEl.addEventListener('pointer
 addEventListener('resize', ()=>{ if (stickId===null) stickHome(); });
 stickHome();
 const finBtn = document.getElementById('finBtn'), rotHint = document.getElementById('rotHint');
+// ---- phone controller page: fixed 800x370 stage, scaled, rotated when the phone is upright ----
+const padStage = document.getElementById('padStage'), pKnob = document.getElementById('pKnob'), pZone = document.getElementById('pZone'), pFin = document.getElementById('pFin');
+const PW = 800, PH = 370; let padFit = {s:1, rot:false};
+function fitPad(){
+  const W = innerWidth, H = innerHeight, rot = H > W;
+  let s, tx, ty, tf;
+  if (!rot){ s = Math.min(W/PW, H/PH); tx = (W - PW*s)/2; ty = (H - PH*s)/2; tf = `translate(${tx}px,${ty}px) scale(${s})`; }
+  else { s = Math.min(H/PW, W/PH); tx = (W + PH*s)/2; ty = (H - PW*s)/2; tf = `translate(${tx}px,${ty}px) rotate(90deg) scale(${s})`; }
+  padStage.style.transform = tf; padFit = {s, rot};
+}
+addEventListener('resize', ()=>{ if (G.mode==='pad') fitPad(); });
+let pStickId = null, pX0 = 0, pY0 = 0;
+function pStickSet(e){
+  let dX = e.clientX - pX0, dY = e.clientY - pY0;
+  let dx = (padFit.rot ? dY : dX)/padFit.s, dy = (padFit.rot ? -dX : dY)/padFit.s;
+  const d = Math.hypot(dx,dy), mx = 70; if (d > mx){ dx *= mx/d; dy *= mx/d; }
+  pKnob.style.transform = `translate(${dx}px,${dy}px)`;
+  TS.l = dx < -20; TS.r = dx > 20; TS.u = dy < -34; TS.d = dy > 34;
+}
+pZone.addEventListener('pointerdown', e=>{ e.preventDefault(); if (pStickId!==null) return; pStickId = e.pointerId; pX0 = e.clientX; pY0 = e.clientY; try{ pZone.setPointerCapture(e.pointerId); }catch(_){} pStickSet(e); });
+pZone.addEventListener('pointermove', e=>{ if (e.pointerId===pStickId){ e.preventDefault(); pStickSet(e); } });
+const pEnd = (e)=>{ if (e.pointerId!==pStickId) return; pStickId = null; TS.l = TS.r = TS.u = TS.d = false; pKnob.style.transform = ''; };
+pZone.addEventListener('pointerup', pEnd); pZone.addEventListener('pointercancel', pEnd);
+document.querySelectorAll('#padStage .pb').forEach(b=>{
+  const k = b.dataset.p;
+  b.addEventListener('pointerdown', e=>{ e.preventDefault(); TS[k] = true; b.classList.add('on'); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); });
+  const off = (e)=>{ e.preventDefault(); TS[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
+  b.addEventListener('contextmenu', e=>e.preventDefault());
+});
+padStage.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
 
 /* =================== party: phones as controllers =================== */
 // Every phone keeps its stick/buttons in room presence (absolute state + press counters);
@@ -2128,8 +2201,8 @@ async function joinAsPad(){
   try {
     const room = await openChannel(code, 'pad');
     party = { role:'pad', code, room, lastSent:'', lastUI:'', since:performance.now() };
-    joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = false;
-    document.body.classList.add('pad', 'touch'); G.mode = 'pad'; stickHome();
+    joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
+    document.body.classList.add('pad'); G.mode = 'pad'; fitPad();
   } catch(e){
     if (e && e.peer){ joinMsg.textContent = (PEER_MSG[e.code] || '連線失敗，請重新整理再試。') + `（${e.code}）`; return; }
     roomWhy = roomWhy || (e && e.code) || 'error'; joinMsg.textContent = await roomDiag();
@@ -2137,12 +2210,11 @@ async function joinAsPad(){
 }
 function leavePad(){
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
-  document.body.classList.remove('pad'); if (!isTouch) document.body.classList.remove('touch');
+  document.body.classList.remove('pad'); for (const k in TS) TS[k] = false;
   padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr('scrOnline');
 }
 function padTick(){
   if (!party) return;
-  rotHint.hidden = !(innerHeight > innerWidth);
   const msg = { pad:1, pick:padPick, st:padC.st, rdy:padReady?1:0,
     inp:{ l:TS.l?1:0, r:TS.r?1:0, u:TS.u?1:0, d:TS.d?1:0, s:TS.shield?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
@@ -2167,12 +2239,12 @@ function padTick(){
     party.lastUI = ui;
     padSlotEl.textContent = who; padStateEl.textContent = state;
     padSlotEl.style.color = slot===0 ? 'var(--p1)' : slot===1 ? 'var(--p2)' : 'var(--ink)';
-    finBtn.classList.toggle('ready', ready);
+    pFin.classList.toggle('ready', ready);
     document.querySelectorAll('[data-pick]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===padPick)));
     const ps = document.getElementById('padStart');
     ps.hidden = !(hp && slot >= 0 && (hp.st==='select' || hp.st==='over'));
     ps.textContent = hp && hp.st==='over' ? '再來一局' : (padReady ? '取消準備' : '準備好了');
-    document.querySelector('.padTop .seg').hidden = !(hp && slot >= 0 && hp.st==='select');
+    document.querySelector('.pTop .seg').hidden = !(hp && slot >= 0 && hp.st==='select');
   }
 }
 function aiInput(f, o, dt){
