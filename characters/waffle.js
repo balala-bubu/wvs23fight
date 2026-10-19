@@ -205,6 +205,7 @@ function waffleLoseUpdate(R, dt, k){
 }
 registerChar('waffle', {
   stats: { name:'秉寶', en:'Waffle', tag:'魔性笑聲・棒壘球・鋼琴・鬆餅', weight:1.15, run:12.5, air:10, jumpV:29, djV:25, jumps:2 },
+  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#ff5fa2','#ffe066'); h.position.set(0.05,0.6,0); c.head.add(h); } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.12,.1,.3], pose:['laughIn','laugh'], box:[1.3,3.6,2.1], dmg:6, kb:9, sc:.7, ang:40, text:'哈！', sfx:'laughShort'},

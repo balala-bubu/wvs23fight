@@ -306,6 +306,12 @@ function bearLoseUpdate(R, dt, k){
 }
 registerChar('bear', {
   stats: { name:'提姆熊', en:'Tim Bear', tag:'暴言・奶奶的金孫・蜂蜜・醫學系', weight:1.4, run:11, air:9, jumpV:26, djV:22, jumps:2 },
+  skins: [{ name:'生日帽', apply(c){
+    const h = birthdayHat('#36b37e','#ffd166',0xff5fa2); h.position.set(0.05,0.64,0); c.head.add(h);
+    let hood = false, bear = false; const fix = ()=>{ h.position.y = hood ? (bear ? 0.98 : 0.86) : 0.64; };   // sit on top of the bear hood
+    const sh = c.setHood, sb = c.setBear;
+    c.setHood = (on)=>{ hood = on; sh(on); fix(); }; c.setBear = (on)=>{ bear = on; sb(on); fix(); };
+  } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.3], pose:['jabR','punch2'], box:[2.1,3.8,1.6], dmg:7, kb:9, sc:.75, ang:38, text:'蛤？', sfx:'swing'},

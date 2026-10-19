@@ -168,11 +168,34 @@ function buildChar(S, parent){
 
 const shoeM = L({map:shoeTex}), greySole = L({color:0x8f8a80}), blueSole = L({color:0x2a4fb0});
 const SC = 0.85;
-function makeModel(kind){
+// ---- costumes: a character lists extra looks in registerChar({skins:[{name, apply(c)}]}); skin 0 is the normal look ----
+const skinCount = (kind)=>(CHARS[kind] && CHARS[kind].skins ? CHARS[kind].skins.length : 0) + 1;
+const skinName = (kind, s)=>s > 0 && CHARS[kind].skins && CHARS[kind].skins[s-1] ? CHARS[kind].skins[s-1].name : '原版';
+const hatTexCache = {};
+function hatTex(a, b){
+  const key = a + b;
+  return hatTexCache[key] || (hatTexCache[key] = tex(32,32,(g)=>{
+    g.fillStyle = a; g.fillRect(0,0,32,32); g.fillStyle = b;
+    for (let x=-32; x<32; x+=10) for (let y=0; y<32; y++) g.fillRect(x + y, y, 4, 1);   // spiral stripes
+    g.fillStyle = '#ffffff'; [[5,4],[21,9],[12,17],[27,22],[6,27]].forEach(([x,y])=>g.fillRect(x,y,2,2));   // dots
+  }));
+}
+// party cone hat; place it on c.head (hair top is about y 0.7)
+function birthdayHat(a = '#ff5fa2', b = '#ffe066', pom = 0xffffff){
+  const g = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.34,0.95,14), L({map:hatTex(a, b)})); cone.position.y = 0.47; g.add(cone);
+  const ruff = new THREE.Mesh(new THREE.TorusGeometry(0.34,0.07,5,14), L({color:new THREE.Color(b)})); ruff.rotation.x = Math.PI/2; ruff.position.y = 0.03; g.add(ruff);
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.14,8,6), L({color:pom})),0,0.98,0));
+  [-1,1].forEach(s=>{ const st = cyl(0.015,0.015,0.62,black,4); st.position.set(s*0.33,-0.28,0.05); st.rotation.z = s*0.12; g.add(st); });   // elastic
+  g.rotation.z = -0.2;
+  return g;
+}
+function makeModel(kind, skin = 0){
   const holder = new THREE.Group(); scene.add(holder);
   const body = new THREE.Group(); body.scale.setScalar(SC); holder.add(body);
   const c = CHARS[kind].build(body);
-  c.holder = holder; c.body = body; c.kind = kind;
+  c.holder = holder; c.body = body; c.kind = kind; c.skin = 0;
+  if (skin > 0 && CHARS[kind].skins && CHARS[kind].skins[skin-1]){ CHARS[kind].skins[skin-1].apply(c); c.skin = skin; }
   for (const k in c.props) c.props[k].visible = false;
   return c;
 }
@@ -1389,9 +1412,9 @@ function aiInput(f, o, dt){
 }
 
 /* =================== menu / HUD =================== */
-const sel = { mode:'cpu', count:2, p:['waffle','tommy','karl','seafood'], map:'park', stocks:3 };
+const sel = { mode:'cpu', count:2, p:['waffle','tommy','karl','seafood'], skin:[0,0,0,0], map:'park', stocks:3 };
 const models = [null, null, null, null];
-function rebuild(i){ if (models[i]) scene.remove(models[i].holder); models[i] = makeModel(sel.p[i]); }
+function rebuild(i){ if (models[i]) scene.remove(models[i].holder); models[i] = makeModel(sel.p[i], sel.skin[i] || 0); }
 function rebuildAll(){ for (let i=0;i<4;i++){ if (i < sel.count) rebuild(i); else if (models[i]){ scene.remove(models[i].holder); models[i] = null; } } }
 const menuEl = document.getElementById('menu'), overEl = document.getElementById('over'), quitEl = document.getElementById('quit'), touchEl = document.getElementById('touch');
 const selEl = document.getElementById('sel'), pauseEl = document.getElementById('pause');
@@ -1425,10 +1448,10 @@ syncMenu();
 
 /* ---------- character select (ARMS-style) ---------- */
 const ROSTER = [];   // filled by boot() from the registered characters
-const SEL = { cur:[0,1,2,3], ready:[false,false,false,false], ctrl:['p1','cpu','cpu','cpu'], anim:[9,9,9,9], okT:[9,9,9,9], countdown:0, key:'' };
+const SEL = { cur:[0,1,2,3], stage:[0,0,0,0], ready:[false,false,false,false], ctrl:['p1','cpu','cpu','cpu'], anim:[9,9,9,9], okT:[9,9,9,9], countdown:0, key:'' };
 const selX = (i)=>{ const n = sel.count; return n===2 ? (i===0 ? -5.4 : 5.4) : n===3 ? [-7,0,7][i] : [-8.4,-2.8,2.8,8.4][i]; };
 const selRot = (i)=>{ const x = selX(i); return x < 0 ? 0.45 : x > 0 ? -0.45 : 0; };
-function portraitCanvas(kind){
+function portraitCanvas(kind, skin = 0){
   const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   if (kind==='random'){
     g.fillStyle = '#3a2a20'; g.fillRect(0,0,64,64); g.fillStyle = '#f2c14e'; g.font = '900 40px sans-serif'; g.textAlign = 'center'; g.fillText('?', 32, 46); return c;
@@ -1438,6 +1461,12 @@ function portraitCanvas(kind){
   try { g.drawImage(C.face.image, 6, 12, 52, 52); } catch(_){}
   g.fillStyle = '#151110';
   if (C.portrait) C.portrait(g);
+  if (skin > 0){   // little party hat
+    g.save(); g.translate(34,15); g.rotate(0.2);
+    g.fillStyle = '#ff5fa2'; g.beginPath(); g.moveTo(-11,0); g.lineTo(11,0); g.lineTo(0,-15); g.closePath(); g.fill();
+    g.fillStyle = '#ffe066'; g.fillRect(-7,-5,14,2); g.fillRect(-4,-10,8,2); g.fillRect(-12,-1,24,3);
+    g.fillStyle = '#ffffff'; g.fillRect(-2,-18,4,4); g.restore();
+  }
   return c;
 }
 const porEls = [];
@@ -1447,7 +1476,7 @@ function buildPortraits(){
     const w = document.createElement('div'); w.className = 'porWrap';
     const b = document.createElement('button'); b.className = 'por'; b.setAttribute('aria-label', k==='random' ? '隨機' : CH[k].name);
     b.appendChild(portraitCanvas(k));
-    b.onclick = ()=>{ audioOn(); const s = activeSlot(); if (s < 0) return; if (SEL.cur[s]===i) confirmSel(s); else moveSel(s, i - SEL.cur[s]); };
+    b.onclick = ()=>{ audioOn(); const s = activeSlot(); if (s < 0) return; if (SEL.stage[s] && SEL.cur[s]!==i) SEL.stage[s] = 0; if (SEL.cur[s]===i) confirmSel(s); else moveSel(s, i - SEL.cur[s]); };
     const n = document.createElement('span'); n.textContent = k==='random' ? '隨機' : CH[k].name;
     const mk = [0,1,2,3].map(j=>{ const e = document.createElement('i'); e.className = 'mk m'+j; e.textContent = (j+1)+'P'; return e; });
     w.append(...mk, b, n); box.appendChild(w); porEls.push({b, mk});
@@ -1474,7 +1503,7 @@ function enterSelect(){
   audioOn(); clearArena();
   G.mode = 'select'; G.paused = false; pauseEl.hidden = true;
   menuEl.hidden = true; selEl.hidden = false; overEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
-  SEL.ready = [false,false,false,false]; SEL.countdown = 0; SEL.okT = [9,9,9,9]; SEL.key = '';
+  SEL.ready = [false,false,false,false]; SEL.stage = [0,0,0,0]; SEL.countdown = 0; SEL.okT = [9,9,9,9]; SEL.key = '';
   SEL.cur = sel.p.map(k=>ROSTER.indexOf(k));
   SEL.ctrl = [0,1,2,3].map(slotCtrl);
   if (sel.mode==='party') hostParty(); else partyBox.hidden = true;
@@ -1490,14 +1519,22 @@ function placeSel(i){
 }
 function moveSel(i, d){
   if (SEL.ready[i]) return;
+  if (SEL.stage[i]){   // costume step: left / right changes the look
+    const n = skinCount(sel.p[i]);
+    sel.skin[i] = ((sel.skin[i] || 0) + d + n*4) % n; rebuild(i);
+    placeSel(i); SEL.anim[i] = 0; SFX.shield(); renderSel(); return;
+  }
   SEL.cur[i] = (SEL.cur[i] + d + ROSTER.length*4) % ROSTER.length;
   const k = ROSTER[SEL.cur[i]];
-  if (k !== 'random' && sel.p[i] !== k){ sel.p[i] = k; rebuild(i); }
+  if (k !== 'random' && sel.p[i] !== k){ sel.p[i] = k; sel.skin[i] = 0; rebuild(i); }
   placeSel(i); SEL.anim[i] = 0; SFX.shield(); renderSel();
 }
 function confirmSel(i){
   if (SEL.ready[i]) return;
-  if (ROSTER[SEL.cur[i]]==='random'){ const pool = ROSTER.filter(r=>r!=='random'), k = pool[(Math.random()*pool.length)|0]; sel.p[i] = k; rebuild(i); placeSel(i); models[i].holder.visible = true; }
+  if (ROSTER[SEL.cur[i]]==='random'){ const pool = ROSTER.filter(r=>r!=='random'), k = pool[(Math.random()*pool.length)|0]; sel.p[i] = k; sel.skin[i] = (Math.random()*skinCount(k))|0; rebuild(i); placeSel(i); models[i].holder.visible = true; }
+  else if (!SEL.stage[i] && skinCount(sel.p[i]) > 1 && SEL.ctrl[i]!=='pad'){   // pick a costume before OK
+    SEL.stage[i] = 1; SEL.anim[i] = 0; SFX.shield(); renderSel(); return;
+  }
   SEL.ready[i] = true; SEL.okT[i] = 0;
   { const C = CHARS[sel.p[i]]; if (C.selectSfx) C.selectSfx(); else SFX.whistle(); }
   renderSel(); checkBothReady();
@@ -1505,6 +1542,7 @@ function confirmSel(i){
 function cancelSel(i){
   if (SEL.countdown > 0){ SEL.countdown = 0; }
   if (i >= 0 && SEL.ready[i]){ SEL.ready[i] = false; renderSel(); return; }
+  if (i >= 0 && SEL.stage[i]){ SEL.stage[i] = 0; renderSel(); return; }
   for (let j=sel.count-1;j>=0;j--){ if (SEL.ready[j] && (SEL.ctrl[j]==='cpu' || SEL.ctrl[j]==='p1')){ SEL.ready[j] = false; renderSel(); return; } }
   backFromSelect();
 }
@@ -1523,17 +1561,36 @@ function renderSel(){
     pl.querySelector('.nm').textContent = k==='random' ? '？？？' : CH[k].name;
     pl.querySelector('.en').textContent = k==='random' ? 'RANDOM' : CH[k].en.toUpperCase();
     pl.classList.toggle('ok', SEL.ready[i]);
-    pl.querySelector('.st').textContent = SEL.ready[i] ? 'OK!' : (c==='cpu' ? (act===i ? '幫電腦選角色' : '等 P1 選好') : c==='pad' ? '手機選擇中…' : '選擇中…');
+    pl.querySelector('.st').textContent = SEL.ready[i] ? 'OK!' + (sel.skin[i] ? ' 🎂' : '') : SEL.stage[i] ? '選造型：' + skinName(sel.p[i], sel.skin[i] || 0) : (c==='cpu' ? (act===i ? '幫電腦選角色' : '等 P1 選好') : c==='pad' ? '手機選擇中…' : '選擇中…');
   }
   porEls.forEach((p,j)=>{
     p.mk.forEach((m,i)=>{ m.hidden = i >= sel.count || SEL.cur[i]!==j; m.textContent = SEL.ctrl[i]==='cpu' ? 'CPU' : (i+1)+'P'; });
     for (let i=0;i<4;i++) p.b.classList.toggle('c'+i, i < sel.count && SEL.cur[i]===j);
     p.b.classList.toggle('hot', act>=0 && SEL.cur[act]===j);
   });
+  const skinStep = act >= 0 && SEL.stage[act] && !SEL.ready[act];
+  document.getElementById('portraits').hidden = !!skinStep;
+  const sb = document.getElementById('skins'); sb.hidden = !skinStep;
+  if (skinStep){
+    const k = sel.p[act], key = act + k;
+    if (sb.dataset.key !== key){
+      sb.dataset.key = key; sb.innerHTML = '';
+      for (let s=0; s<skinCount(k); s++){
+        const w = document.createElement('div'); w.className = 'porWrap';
+        const b = document.createElement('button'); b.className = 'por'; b.dataset.skin = s; b.setAttribute('aria-label', skinName(k, s));
+        b.appendChild(portraitCanvas(k, s));
+        b.onclick = ()=>{ audioOn(); const a = activeSlot(); if (a < 0 || !SEL.stage[a]) return; if ((sel.skin[a]||0)===s) confirmSel(a); else moveSel(a, s - (sel.skin[a]||0)); };
+        const n = document.createElement('span'); n.textContent = skinName(k, s);
+        w.append(b, n); sb.appendChild(w);
+      }
+    }
+    sb.querySelectorAll('.por').forEach(b=>{ const on = +b.dataset.skin===(sel.skin[act]||0); b.classList.toggle('hot', on); b.classList.toggle('c'+act, on); b.setAttribute('aria-pressed', String(on)); });
+  } else sb.dataset.key = '';
   document.getElementById('selOk').disabled = act < 0;
-  document.getElementById('selOk').textContent = act > 0 && SEL.ctrl[act]==='cpu' ? '決定電腦' + (sel.count > 2 ? ' '+(act+1) : '') : '決定';
+  document.getElementById('selOk').textContent = skinStep ? '決定造型' : act > 0 && SEL.ctrl[act]==='cpu' ? '決定電腦' + (sel.count > 2 ? ' '+(act+1) : '') : '決定';
   const kb = !isTouch ? (sel.mode==='2p' ? 'P1：A／D 換、J 決定、K 取消　P2：←／→ 換、, 決定、. 取消' : 'A／D 或 ←／→ 換角色，J 或 Enter 決定，K 或 Esc 取消') : '點大頭貼換角色，再點一次或按「決定」';
-  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '馬上開始！' : kb;
+  const kbSkin = !isTouch ? '←／→ 或 A／D 換造型，J 或 Enter 決定，K 或 Esc 回上一步' : '點造型換裝，再點一次或按「決定」';
+  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '馬上開始！' : skinStep ? kbSkin : kb;
 }
 document.getElementById('selOk').onclick = ()=>{ const s = activeSlot(); if (s >= 0) confirmSel(s); };
 document.getElementById('selBack').onclick = ()=>{ const s = activeSlot(); cancelSel(s >= 0 ? s : 0); };
@@ -1579,7 +1636,7 @@ function updateSelect(dt, t){
     m.holder.rotation.y = selRot(i) + spin;
   });
   if (SEL.countdown > 0){ SEL.countdown -= dt; if (SEL.countdown <= 0){ selEl.hidden = true; startGame(); return; } }
-  const key = SEL.ready.join() + SEL.cur.join() + SEL.ctrl.join();
+  const key = SEL.ready.join() + SEL.cur.join() + SEL.ctrl.join() + SEL.stage.join() + sel.skin.join();
   if (key !== SEL.key){ SEL.key = key; renderSel(); }
   const narrow = innerWidth/innerHeight < .8;
   camPos.lerp(v3.set(0, RS_Y + 4.2, (narrow ? 34 : 19) + (sel.count > 2 ? 7 : 0)), 1-Math.exp(-dt*4));

@@ -79,6 +79,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden
 .selBottom{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;align-items:center;gap:10px;padding-left:16px;padding-right:16px}
 .portraits{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;pointer-events:auto}
 .porWrap{position:relative;display:grid;justify-items:center;gap:4px}
+.skins[hidden],.portraits[hidden]{display:none} .skins .por{width:96px;height:96px} .skins .porWrap > span{font-size:15px;font-weight:700}
 .por{width:78px;height:78px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.35);padding:0;background:#000;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4);transition:transform .12s}
 .por canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 .por.hot{transform:scale(1.12)}
@@ -274,6 +275,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   <div class="plate right top" id="plate3" style="--pc:var(--p4)" hidden><span class="tag">CPU</span><b class="nm">雲嵐</b><span class="en">SEAFOOD</span><i class="st">選擇中</i></div>
   <div class="selBottom">
     <div class="portraits" id="portraits"></div>
+    <div class="portraits skins" id="skins" hidden></div>
     <div class="selBtns"><button class="ghost" id="selBack">返回</button><button class="go" id="selOk">決定</button></div>
     <div class="selHint" id="selHint"></div>
   </div>

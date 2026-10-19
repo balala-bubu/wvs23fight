@@ -16,6 +16,9 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 3. Add `<script src="characters/<kind>.js"></script>` to `index.html` after the other characters. Nothing else in core changes.
 4. Test: `python3 tools/smoke_test.py` (headless; runs every character's moves, finals, wins and losses on every map; prints page errors).
 
+## Costumes (skins)
+- Optional `skins:[{name:'生日帽', apply(c){ ... }}]` in registerChar. After picking a character the select screen asks for a costume (skin 0 = 原版); `apply(c)` adds meshes to the built model, e.g. `birthdayHat(colorA, colorB, pom)` on `c.head` at y≈0.6. Stored in `sel.skin[i]`.
+
 ## Add a map
 1. Read `maps/_template.js` (or `maps/park.js`, the smallest).
 2. Write `maps/<id>.js`, add its script tag after the other maps. The menu button is generated from `name`.
