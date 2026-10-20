@@ -50,6 +50,44 @@ function honeyJarMesh(s){
   g.add(at(cyl(0.4,0.4,0.08,lidM,10),0,0.38,0));
   g.scale.setScalar(s); return g;
 }
+
+/* 落地緩速區：飛行道具第一次落到地面時，留下一攤約 5 秒的黏液，只拖慢對手（不改 core，靠 G.finals 更新） */
+const bearPud_GEO = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI*2, 0, Math.PI/2);
+function bearPud_watch(p, owner){
+  let done = false;
+  G.finals.push({owner, t:0, update(F, dt){
+    if (done || G.projs.indexOf(p) < 0) return true;
+    if (p.y - p.r <= .3 && p.x > MAIN.x1 && p.x < MAIN.x2){ done = true; bearPud_spawn(owner, p.x); return true; }
+    return false;
+  }});
+}
+function bearPud_spawn(owner, x){
+  const old = G.finals.filter(F=>F.pud && F.owner===owner);
+  if (old.length >= 2) old[0].t = Math.max(old[0].t, old[0].dur - .8);
+  const C = bearPud_CFG, g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({color:C.color, transparent:true, opacity:C.op, depthWrite:false});
+  const body = new THREE.Mesh(bearPud_GEO, mat); body.scale.set(C.rx, .22, 1.3); g.add(body);
+  const sh = new THREE.Mesh(bearPud_GEO, new THREE.MeshBasicMaterial({color:C.shine, transparent:true, opacity:.55, depthWrite:false, fog:false}));
+  sh.scale.set(C.rx*.45, .2, .5); sh.position.set(-C.rx*.25, .05, .25); g.add(sh);
+  g.position.set(x, .02, .4); g.scale.set(.1, .1, .1); scene.add(g);
+  const F = {pud:1, owner, t:0, dur:5, x, mesh:g, seen:new Set(), update(F, dt){
+    const k = Math.min(1, F.t/.25), fade = Math.min(1, (F.dur - F.t)/1);
+    g.scale.set(.1 + .9*k, .1 + .9*k, .1 + .9*k);
+    mat.opacity = C.op*Math.max(0, fade); sh.material.opacity = .55*Math.max(0, fade);
+    for (const v of G.fighters){
+      if (v===F.owner || v.state==='dead') continue;
+      if (v.onGround && v.y < 2 && Math.abs(v.x - F.x) < C.rx + .8){
+        v.slowT = Math.max(v.slowT, .3);
+        if (!F.seen.has(v)){ F.seen.add(v); pop(C.text, v.x, v.y+7.5); }
+      } else F.seen.delete(v);
+    }
+    if (Math.random() < dt*3) burst(F.x + (Math.random()-.5)*C.rx*1.6, .5, C.bubble, 1, 2);
+    return F.t >= F.dur;
+  }, dispose(F){ scene.remove(F.mesh); mat.dispose(); sh.material.dispose(); }};
+  G.finals.push(F);
+}
+
+const bearPud_CFG = {color:0xe8a020, shine:0xffe9a0, bubble:0xf4c24a, op:.88, rx:3.4, text:'黏住了！'};
 const rantTexs = ['蛤？','笑死','你很吵欸','!?','看這張圖'].map(t=>tex(64,40,(g)=>{
   g.fillStyle='#fff'; g.beginPath(); g.ellipse(32,18,30,16,0,0,7); g.fill(); g.beginPath(); g.moveTo(12,28); g.lineTo(6,39); g.lineTo(22,31); g.fill();
   g.strokeStyle='#1d1512'; g.lineWidth=2; g.beginPath(); g.ellipse(32,18,30,16,0,0,7); g.stroke();
@@ -390,7 +428,7 @@ registerChar('bear', {
   },
   fire: {
   rant(f){ const i = (Math.random()*rantTexs.length)|0; proj({owner:f, x:f.x+f.face*2, y:f.y+5, vx:f.face*18, vy:0, g:0, wave:.3, r:1.2, life:1.1, dmg:5, kb:4, sc:.2, ang:45, onHit:'shock', mesh:spriteOf(rantTexs[i],2.6)}); tone(180,.12,'sawtooth',.12,1.6); },
-  honeyJar(f){ proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.8, vx:f.face*15, vy:9, g:30, r:.9, life:2, bounce:1, dmg:8, kb:6, sc:.5, ang:45, soft:1, slow:2.5, mesh:honeyJarMesh(1.1), spin:1}); pop('蜂蜜！', f.x, f.y+7); },
+  honeyJar(f){ bearPud_watch(proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.8, vx:f.face*15, vy:9, g:30, r:.9, life:2, bounce:1, dmg:8, kb:6, sc:.5, ang:45, soft:1, slow:2.5, mesh:honeyJarMesh(1.1), spin:1}), f); pop('蜂蜜！', f.x, f.y+7); },
   camFlash(f){ G.flash = Math.max(G.flash, .3); burst(f.x+f.face*2, f.y+4.5, 0xffffff, 12, 9); tone(1800,.06,'square',.08); noise(.05,.15,4000); },
   },
   start: {

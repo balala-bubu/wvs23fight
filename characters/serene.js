@@ -88,6 +88,44 @@ function serPhoneMesh(s){
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.82), new THREE.MeshBasicMaterial({map:serSiriTex})); scr.position.z = 0.045; g.add(scr);
   g.scale.setScalar(s || 1); return g;
 }
+
+/* 落地緩速區：飛行道具第一次落到地面時，留下一攤約 5 秒的黏液，只拖慢對手（不改 core，靠 G.finals 更新） */
+const serPud_GEO = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI*2, 0, Math.PI/2);
+function serPud_watch(p, owner){
+  let done = false;
+  G.finals.push({owner, t:0, update(F, dt){
+    if (done || G.projs.indexOf(p) < 0) return true;
+    if (p.y - p.r <= .3 && p.x > MAIN.x1 && p.x < MAIN.x2){ done = true; serPud_spawn(owner, p.x); return true; }
+    return false;
+  }});
+}
+function serPud_spawn(owner, x){
+  const old = G.finals.filter(F=>F.pud && F.owner===owner);
+  if (old.length >= 2) old[0].t = Math.max(old[0].t, old[0].dur - .8);
+  const C = serPud_CFG, g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({color:C.color, transparent:true, opacity:C.op, depthWrite:false});
+  const body = new THREE.Mesh(serPud_GEO, mat); body.scale.set(C.rx, .22, 1.3); g.add(body);
+  const sh = new THREE.Mesh(serPud_GEO, new THREE.MeshBasicMaterial({color:C.shine, transparent:true, opacity:.55, depthWrite:false, fog:false}));
+  sh.scale.set(C.rx*.45, .2, .5); sh.position.set(-C.rx*.25, .05, .25); g.add(sh);
+  g.position.set(x, .02, .4); g.scale.set(.1, .1, .1); scene.add(g);
+  const F = {pud:1, owner, t:0, dur:5, x, mesh:g, seen:new Set(), update(F, dt){
+    const k = Math.min(1, F.t/.25), fade = Math.min(1, (F.dur - F.t)/1);
+    g.scale.set(.1 + .9*k, .1 + .9*k, .1 + .9*k);
+    mat.opacity = C.op*Math.max(0, fade); sh.material.opacity = .55*Math.max(0, fade);
+    for (const v of G.fighters){
+      if (v===F.owner || v.state==='dead') continue;
+      if (v.onGround && v.y < 2 && Math.abs(v.x - F.x) < C.rx + .8){
+        v.slowT = Math.max(v.slowT, .3);
+        if (!F.seen.has(v)){ F.seen.add(v); pop(C.text, v.x, v.y+7.5); }
+      } else F.seen.delete(v);
+    }
+    if (Math.random() < dt*3) burst(F.x + (Math.random()-.5)*C.rx*1.6, .5, C.bubble, 1, 2);
+    return F.t >= F.dur;
+  }, dispose(F){ scene.remove(F.mesh); mat.dispose(); sh.material.dispose(); }};
+  G.finals.push(F);
+}
+
+const serPud_CFG = {color:0xe9b83a, shine:0xfff3c0, bubble:0xfff6d0, op:.8, rx:3.4, text:'腳底黏黏的～'};
 function serBeerMesh(s){
   const g = new THREE.Group();
   g.add(cyl(0.2,0.2,0.56,serSilverM,10));
@@ -352,7 +390,7 @@ registerChar('serene', {
   fire: {
     serFoam(f){ burst(f.x, f.y+7, 0xfff6d0, 12, 8); burst(f.x, f.y+6, 0xf2c14e, 5, 5); },
     serShout(f){ const s = new THREE.Sprite(new THREE.SpriteMaterial({map:serShoutTex, transparent:true, alphaTest:.3, fog:false})); s.scale.set(3.6,1.8,1); proj({owner:f, x:f.x+f.face*1.8, y:f.y+4.6, vx:f.face*20, vy:0, g:0, wave:.3, r:1.3, life:.8, dmg:8, kb:9, sc:.6, ang:35, mesh:s}); },
-    serBeer(f){ proj({owner:f, x:f.x+f.face*1.3, y:f.y+4.4, vx:f.face*16, vy:12, g:30, r:.9, life:2, bounce:1, dmg:7, kb:6, sc:.5, ang:45, onHit:'serTipsy', mesh:serBeerMesh(1.6), spin:1}); pop('請你喝！', f.x, f.y+7); },
+    serBeer(f){ serPud_watch(proj({owner:f, x:f.x+f.face*1.3, y:f.y+4.4, vx:f.face*16, vy:12, g:30, r:.9, life:2, bounce:1, dmg:7, kb:6, sc:.5, ang:45, onHit:'serTipsy', mesh:serBeerMesh(1.6), spin:1}), f); pop('請你喝！', f.x, f.y+7); },
   },
   start: {
     serChamp(f){ f.vy = 35; f.vx = f.face*5; f.onGround = false; f.jumps = 0; f.ff = false; pop('砰！開香檳！', f.x, f.y+7); burst(f.x, f.y+1, 0xfff6d0, 14, 10); burst(f.x, f.y+1, 0xf2c14e, 6, 7); SFX.cork(); },
