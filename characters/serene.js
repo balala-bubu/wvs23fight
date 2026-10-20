@@ -89,7 +89,7 @@ function serPhoneMesh(s){
   g.scale.setScalar(s || 1); return g;
 }
 
-/* 落地緩速區：飛行道具第一次落到地面時，留下一攤約 5 秒的黏液，只拖慢對手（不改 core，靠 G.finals 更新） */
+/* 落地緩速區：飛行道具第一次落到地面時，留下一攤約 3 秒的黏液，只拖慢對手（不改 core，靠 G.finals 更新） */
 const serPud_GEO = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI*2, 0, Math.PI/2);
 function serPud_watch(p, owner){
   let done = false;
@@ -108,7 +108,7 @@ function serPud_spawn(owner, x){
   const sh = new THREE.Mesh(serPud_GEO, new THREE.MeshBasicMaterial({color:C.shine, transparent:true, opacity:.55, depthWrite:false, fog:false}));
   sh.scale.set(C.rx*.45, .2, .5); sh.position.set(-C.rx*.25, .05, .25); g.add(sh);
   g.position.set(x, .02, .4); g.scale.set(.1, .1, .1); scene.add(g);
-  const F = {pud:1, owner, t:0, dur:5, x, mesh:g, seen:new Set(), update(F, dt){
+  const F = {pud:1, owner, t:0, dur:3, x, mesh:g, seen:new Set(), update(F, dt){
     const k = Math.min(1, F.t/.25), fade = Math.min(1, (F.dur - F.t)/1);
     g.scale.set(.1 + .9*k, .1 + .9*k, .1 + .9*k);
     mat.opacity = C.op*Math.max(0, fade); sh.material.opacity = .55*Math.max(0, fade);
