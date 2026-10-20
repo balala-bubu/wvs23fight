@@ -1420,14 +1420,19 @@ function partyHostTick(){
   for (const p of pads){
     const slot = party.slots.indexOf(p.peer); if (slot < 0) continue;
     const st = +p.presence.st || 0;
-    if (st > (party.startSeen[p.peer]||0)){ party.startSeen[p.peer] = st; if (G.mode==='result' && RES && RES.t > 3) startGame(); }
+    if (st > (party.startSeen[p.peer]||0)){ party.startSeen[p.peer] = st; if (G.mode==='result') party.pendStart = true; }   // remember it: a tap in the first seconds of the results used to be dropped
     const sq = +p.presence.sel || 0, ss = party.selSeen || (party.selSeen = {});
     if (sq > (ss[p.peer]||0)){ ss[p.peer] = sq; if (G.mode==='result') party.pendSel = true; }
   }
   // a phone asked to change characters: go back to select once the results can be skipped
   if (party.pendSel){
     if (G.mode!=='result') party.pendSel = false;
-    else if (RES && RES.t > 3){ party.pendSel = false; enterSelect(); return; }
+    else if (RES && RES.t > 3){ party.pendSel = false; party.pendStart = false; enterSelect(); return; }
+  }
+  // a phone asked for a rematch: start it once the results can be skipped
+  if (party.pendStart){
+    if (G.mode!=='result') party.pendStart = false;
+    else if (RES && RES.t > 3){ party.pendStart = false; startGame(); return; }
   }
   if (party.remote) remoteCalls(pads);
   if (changed || G.mode==='select'){
