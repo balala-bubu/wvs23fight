@@ -650,17 +650,25 @@ registerChar('karl', {
     jab3:{t:[.1,.1,.28], pose:['laughIn','laugh'], box:[1.5,3.6,2.0], dmg:6, kb:8, sc:.7, ang:40, text:'哈哈！', sfx:'laughShort'},
     side:{t:[.18,.18,.32], pose:['sprint','sprint'], box:[1.9,3.4,1.6], dmg:14, kb:11, sc:1.05, ang:36, dash:26, text:'衝啊！', sfx:'swing'},
     up:{t:[.16,.12,.3], pose:['climbUp2','climbUp'], box:[0.4,6.6,1.8], dmg:12, kb:11, sc:1, ang:88, text:'攀岩！'},
-    down:{t:[.22,.1,.32], pose:['bookUp','bookSlam'], box:[1.9,0.9,1.7], dmg:11, kb:9, sc:.85, ang:70, prop:'book', text:karlBookOrDanceText, sfx:'spike', start:'karlBookDance'},
+    down:{t:[.22,.1,.32], pose:['bookUp','bookSlam'], box:[1.9,0.9,1.7], dmg:11, kb:9, sc:.85, ang:70, prop:'book', text:karlBookOrDanceText, sfx:'spike', fire:[[0,'karlBookDance']]},
     nair:{t:[.06,.2,.15], pose:['nair','nair'], box:[0,3,2.1], dmg:7, kb:6, sc:.6, ang:45, air:1},
     fair:{t:[.12,.1,.2], pose:['batWind','batHit'], box:[2.3,3.4,1.5], dmg:10, kb:8, sc:.9, ang:40, air:1, prop:'book', sfx:'swing'},
     uair:{t:[.1,.12,.2], pose:['air','climbUp'], box:[0.3,6.3,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
-    dair:{t:[.18,.1,.25], pose:['bookUp','bookSlam'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'book', sfx:'spike', start:'karlBookDance'},
+    dair:{t:[.18,.1,.25], pose:['bookUp','bookSlam'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'book', sfx:'spike', fire:[[0,'karlBookDance']]},
     nB:{t:[.22,.05,.28], pose:['throwWind','throwHit'], prop0:'berries', fire:[[.22,'berry']], air:1, sfx:'swing'},
-    sB:{t:[.15,.1,.3], pose:['throwWind','throwHit'], fire:[[.15,'whiteDog']], air:1, start:'karlDogWindup'},
+    sB:{t:[.15,.1,.3], pose:['throwWind','throwHit'], fire:[[0,'karlDogWindup'],[.15,'whiteDog']], air:1},
     uB:{t:[.05,.55,.1], pose:['climbUp','climbUp2'], poseSwitch:.3, start:'climbJump', box:[0.4,4.8,1.7], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1},
     dB:{t:[.2,.45,.3], pose:['selfie','selfie'], prop:'phone', box:[1.6,3.8,2.6], dmg:4, kb:2, sc:.1, ang:50, onHit:'cringe', air:1, text:'對不起……我喜歡你', textCls:'blue', sfx:'sob'},
   },
   fire: {
+  // NOTE: these are in fire{} (time 0), not start{}: core gives every move that has a `start` hook a "steady lift" (vy>=30 for .32s) meant for recovery moves
+  karlBookDance(f){ if (karlIsMilk(f)) f.kDanceSide = !f.kDanceSide; },   // 原版白狗完全不受影響；僅黃色玩偶服切換搖手側
+  karlDogWindup(f){                                                        // 特效第 1 層：出招前的小小預備動作（不改碰撞判定、不影響原版小白狗）
+    if (!karlIsMilk(f)) return;
+    burst(f.x + f.face*0.6, f.y + 0.3, 0xffe066, 6, 4);
+    spark(f.x + f.face*0.6, f.y + 1.2, .6);
+    SFX.soft();
+  },
   berry(f){ proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*16, vy:10, g:34, r:.8, life:2, bounce:1, dmg:5, kb:4, sc:.4, ang:45, onHit:'poison', mesh:berryBunch(1.2), spin:1}); pop('吃吃看？', f.x, f.y+7); },
   whiteDog(f){
     if (karlIsMilk(f)){                                                    // 黃色玩偶服：召喚奶龍（與結算畫面同一顆模型），原傷害/速度/擊退不變
@@ -676,13 +684,6 @@ registerChar('karl', {
   },
   start: {
   climbJump(f){ f.vy = 32; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; pop('攀岩！', f.x, f.y+7); burst(f.x, f.y+1, 0x8a7a62, 8, 8); },
-  karlBookDance(f){ if (karlIsMilk(f)) f.kDanceSide = !f.kDanceSide; },   // 原版白狗完全不受影響；僅黃色玩偶服切換搖手側
-  karlDogWindup(f){                                                        // 特效第 1 層：出招前的小小預備動作（不改碰撞判定、不影響原版小白狗）
-    if (!karlIsMilk(f)) return;
-    burst(f.x + f.face*0.6, f.y + 0.3, 0xffe066, 6, 4);
-    spark(f.x + f.face*0.6, f.y + 1.2, .6);
-    SFX.soft();
-  },
   },
   onhit: {
   poison(a,v){ v.slowT = 2.5; v.state = 'stun'; v.stunT = .45; v.move = null; pop('中毒了！', v.x, v.y+7.5, 'red'); burst(v.x, v.y+5, 0x7fd060, 8, 5); },
