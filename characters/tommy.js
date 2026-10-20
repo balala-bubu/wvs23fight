@@ -269,7 +269,10 @@ function tommyLoseUpdate(R, dt, k){
 }
 registerChar('tommy', {
   stats: { name:'偷米', en:'Tommy', tag:'排球・打針・失戀吉他・瞬間老化', weight:0.95, run:14, air:11, jumpV:31, djV:27, jumps:2 },
-  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#3d8bff','#ffffff',0xffd166); h.position.set(0.05,0.64,-0.02); c.head.add(h); } }],
+  skins: [
+    { name:'生日帽', apply(c){ const h = birthdayHat('#3d8bff','#ffffff',0xffd166); h.position.set(0.05,0.64,-0.02); c.head.add(h); } },
+    { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); } },
+  ],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.08,.1,.28], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:6, kb:8, sc:.7, ang:35, text:'莒拳！', dash:6},

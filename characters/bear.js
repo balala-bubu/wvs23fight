@@ -311,7 +311,8 @@ registerChar('bear', {
     let hood = false, bear = false; const fix = ()=>{ h.position.y = hood ? (bear ? 0.98 : 0.86) : 0.64; };   // sit on top of the bear hood
     const sh = c.setHood, sb = c.setBear;
     c.setHood = (on)=>{ hood = on; sh(on); fix(); }; c.setBear = (on)=>{ bear = on; sb(on); fix(); };
-  } }],
+  } },
+  { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.3], pose:['jabR','punch2'], box:[2.1,3.8,1.6], dmg:7, kb:9, sc:.75, ang:38, text:'蛤？', sfx:'swing'},
