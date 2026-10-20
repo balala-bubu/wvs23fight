@@ -344,13 +344,16 @@ function tMilPortrait(g){                               // 選角小頭像：換
   g.fillStyle = TMIL_WHITE; g.beginPath(); g.moveTo(21,56); g.lineTo(43,56); g.lineTo(32,64); g.closePath(); g.fill();
   g.fillStyle = TMIL_GOLD_L; g.fillRect(31,59,2,2);
 }
+function tMilSetFace(c, A){                             // 頭部方塊第 5 面是這個角色專屬的材質，換圖就好；哭臉／老臉沿用偷米原本的
+  const fm = c.head.children[0].material[4]; fm.map = A.faces.normal; fm.needsUpdate = true;
+  let cur = 'normal';
+  c.setFace = (f)=>{ if (f!==cur){ cur = f; fm.map = A.faces[f] || A.faces.normal; fm.needsUpdate = true; } };
+}
 function tMilApply(c){
   const A = tMilAssets();
   const gold = L({color:0xe3b22a}), goldL = L({color:0xf4d460}), navyM = L({map:A.navy});
   /* 臉：頭部方塊的第 5 面是這個角色專屬的材質，換圖就好；哭臉／老臉沿用偷米原本的 */
-  const fm = c.head.children[0].material[4]; fm.map = A.faces.normal; fm.needsUpdate = true;
-  let cur = 'normal';
-  c.setFace = (f)=>{ if (f!==cur){ cur = f; fm.map = A.faces[f] || A.faces.normal; fm.needsUpdate = true; } };
+  tMilSetFace(c, A);
   /* 身體：白胸襟藏青肩、立領、金邊 */
   const meshes = c.chest.children.filter(o=>o.isMesh), torso = meshes[0];
   const sideM = L({map:A.side}), frontM = L({map:A.front}), backM = L({map:A.back});
@@ -382,12 +385,88 @@ function tMilApply(c){
   [c.joints.rHp, c.joints.lHp].forEach(h=>{ h.children[0].material = pantsM; });
   [c.joints.rKn, c.joints.lKn].forEach(k=>{ k.children[0].material = pantsM; k.children[1].material = shoeB; k.children[2].material = soleB; });
 }
+/* ---- 迷彩造型：迷彩衣褲、鋼盔、背槍（卡通方塊槍，槍口朝上掛在背後）、黑軍靴 ---- */
+let _tCamo = null;
+function tCamoAssets(){
+  if (_tCamo) return _tCamo;
+  const cols = ['#3b4726','#7b7a44','#2a301b','#8c7240'];
+  const camo = (g,w,h)=>{
+    g.fillStyle='#5b6a38'; g.fillRect(0,0,w,h);
+    for (let i=0;i<w*h/22;i++){ g.fillStyle=cols[(rnd()*cols.length)|0]; g.fillRect((rnd()*w)|0,(rnd()*h)|0,2+((rnd()*5)|0),1+((rnd()*3)|0)); }
+  };
+  const A = {};
+  A.camo = tex(48,48,camo);
+  A.front = tex(96,138,(g,w,h)=>{
+    camo(g,w,h);
+    g.fillStyle='rgba(30,36,18,.55)'; g.fillRect(48,0,1,h);                               // 門襟
+    [[12,44],[58,44]].forEach(([x,y])=>{                                                  // 兩個胸前口袋 + 蓋子
+      g.strokeStyle='#232a14'; g.lineWidth=1.5; g.strokeRect(x+.5,y+.5,26,22);
+      g.fillStyle='rgba(30,36,18,.45)'; g.fillRect(x+1,y+1,25,7);
+      g.fillStyle='#c8b45a'; g.fillRect(x+12,y+9,3,3);
+    });
+    g.fillStyle='#e8e2c8'; g.fillRect(14,28,18,5); g.fillStyle='#2a301b'; g.fillRect(16,30,14,1);   // 名牌
+    g.fillStyle='#232a14'; g.fillRect(0,0,96,2);
+  });
+  A.back = tex(96,138,(g,w,h)=>{ camo(g,w,h); g.fillStyle='rgba(30,36,18,.55)'; g.fillRect(48,0,1,h); });
+  return (_tCamo = A);
+}
+function tCamoPortrait(g){                              // 頭像：照片的臉 + 迷彩鋼盔 + 迷彩領口
+  const A = tMilAssets();
+  g.fillStyle = CHARS.tommy.portraitBg; g.fillRect(0,0,64,64);
+  try { g.drawImage(A.face.image, 6, 12, 52, 52); } catch(_){}
+  g.fillStyle = '#4e5a31'; g.beginPath(); g.ellipse(32,27,30,23,0,Math.PI,0); g.closePath(); g.fill();
+  g.fillStyle = '#2f3820'; g.fillRect(2,26,60,3);
+  g.fillStyle = '#3b4726'; [[10,14,8,4],[26,9,10,4],[44,15,9,4],[20,20,9,3],[38,21,10,3]].forEach(([x,y,w,h])=>g.fillRect(x,y,w,h));
+  g.fillStyle = '#7b7a44'; [[16,11,5,3],[34,15,6,3],[50,10,5,3]].forEach(([x,y,w,h])=>g.fillRect(x,y,w,h));
+  g.fillStyle = '#5b6a38'; g.fillRect(0,56,64,8);
+  g.fillStyle = '#3b4726'; [[4,58,8,3],[20,60,10,3],[40,57,9,3],[52,61,8,3]].forEach(([x,y,w,h])=>g.fillRect(x,y,w,h));
+  g.fillStyle = '#232a14'; g.fillRect(0,56,64,1);
+}
+function tCamoApply(c){
+  const A = tCamoAssets(), M = tMilAssets();
+  const camoM = L({map:A.camo}), frontM = L({map:A.front}), backM = L({map:A.back});
+  tMilSetFace(c, M);                                                                      // 還是照片裡那張臉
+  const meshes = c.chest.children.filter(o=>o.isMesh), torso = meshes[0];
+  torso.material = [camoM,camoM,camoM,camoM,frontM,backM];
+  meshes.slice(1).forEach(o=>{ o.material = camoM; });                                    // 翻領／領口也換迷彩
+  const dark = L({color:0x2b2d30}), wood = L({color:0x6b4423}), olive = L({color:0x3d4228}), strap = L({color:0x232a14});
+  /* 腰帶：軍綠帆布帶 + 黃銅扣 */
+  c.chest.add(at(rbox(1.7,0.4,1.0,.3,olive),0,0.12,0));
+  c.chest.add(at(rbox(0.32,0.3,0.07,.3,L({color:0xc8b45a})),0,0.12,0.52));
+  /* 長袖迷彩 */
+  [c.R, c.Lf].forEach(a=>{
+    a.sh.children[0].material = camoM;
+    const up = a.sh.children[1]; up.material = camoM; up.scale.set(1.45,1,1.45);
+    const fore = a.el.children[0]; fore.material = camoM; fore.scale.set(1.35,1,1.35);
+  });
+  if (c.Lf.el.children[1]) c.Lf.el.children[1].visible = false;
+  /* 迷彩褲 + 黑軍靴 */
+  const shoeB = L({color:0x1b1a1e}), soleB = L({color:0x0c0c0e});
+  [c.joints.rHp, c.joints.lHp].forEach(h=>{ h.children[0].material = camoM; });
+  [c.joints.rKn, c.joints.lKn].forEach(k=>{ k.children[0].material = camoM; k.children[1].material = shoeB; k.children[2].material = soleB; });
+  /* 鋼盔：蓋住瀏海和頭頂的尖髮，下緣一圈帽簷，兩條下巴帶 */
+  if (c.extra && c.extra.crown) c.extra.crown.visible = false;
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.6,12,8,0,Math.PI*2,0,Math.PI/2), L({map:A.camo}));
+  helm.scale.set(1.12,0.95,1.1); helm.position.set(0,0.2,-0.02); c.head.add(helm);
+  c.head.add(at(cyl(0.7,0.7,0.05,L({color:0x2f3820}),14),0,0.19,-0.02));
+  [-1,1].forEach(s=>{ const st = rbox(0.04,0.5,0.04,.3,strap); st.position.set(s*0.52,-0.08,0.12); c.head.add(st); });
+  /* 背槍：背帶斜過胸口，槍斜掛在背後，槍口從右肩上方露出來 */
+  const sf = rbox(0.14,2.6,0.05,.3,strap); sf.position.set(0.05,1.1,0.5); sf.rotation.z = 0.62; c.chest.add(sf);
+  const rifle = new THREE.Group(); rifle.position.set(0.1,1.3,-0.66); rifle.rotation.z = 0.62; c.chest.add(rifle);
+  rifle.add(at(cyl(0.045,0.045,1.3,dark,6),0,0.95,0));
+  rifle.add(at(rbox(0.14,0.7,0.14,.3,olive),0,0.3,0));
+  rifle.add(at(rbox(0.17,0.6,0.19,.25,dark),0,-0.35,0));
+  rifle.add(at(rbox(0.1,0.42,0.12,.25,dark),0,-0.38,-0.17));
+  rifle.add(at(rbox(0.13,0.85,0.13,.3,wood),0,-1.1,0));
+  rifle.add(at(rbox(0.05,0.12,0.05,.2,dark),0,1.55,0));
+}
 registerChar('tommy', {
   stats: { name:'偷米', en:'Tommy', tag:'排球・打針・失戀吉他・瞬間老化', weight:0.95, run:14, air:11, jumpV:31, djV:27, jumps:2 },
   skins: [
     { name:'生日帽', apply(c){ const h = birthdayHat('#3d8bff','#ffffff',0xffd166); h.position.set(0.05,0.64,-0.02); c.head.add(h); } },
     { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
-    { name:'軍裝', apply: tMilApply, portrait: tMilPortrait },
+    { name:'樂隊制服', apply: tMilApply, portrait: tMilPortrait },
+    { name:'迷彩', apply: tCamoApply, portrait: tCamoPortrait },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,
