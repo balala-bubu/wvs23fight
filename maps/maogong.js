@@ -59,11 +59,11 @@
   });
 
   /* ---------- 山與山壁 ---------- */
-  ridge(ridgeTex('#4d6e50','#5d8060','#3d5d42',6,2.2,.5), 700,150, 0, 26, -170, 0x98a69e);
-  ridge(ridgeTex('#44684a','#557c58','#375a3e',7,4.1,.3),  600,115, 30, 16, -112, 0x93a698);
+  ridge(ridgeTex('#70889a','#8098a6','#62788c',6,2.2,.7), 700,118, 0, 12, -170, 0xa8b4bc);
+  ridge(ridgeTex('#4a6f58','#5b8364','#3c5c49',7,4.1,.4), 600,92, 30, 4, -112, 0x91a29a);
   const cliff = new THREE.Mesh(new THREE.BoxGeometry(60,70,24), L({map:cliffT, color:0x8f8b80})); cliff.position.set(-92,22,-92); g.add(cliff);
   const cliffTop = new THREE.Mesh(new THREE.IcosahedronGeometry(34,0), L({color:0x466a44})); cliffTop.scale.set(1.2,.5,.6); cliffTop.position.set(-92,58,-92); g.add(cliffTop);
-  ridge(ridgeTex('#3f6a46','#52805a','#33583b',5,6.3,.12), 520,70, 20, 2, -66, 0x90a490);
+  ridge(ridgeTex('#33573a','#436b48','#27452e',5,6.3,.1), 520,58, 20, -6, -66, 0x84977f);
 
   /* ---------- 地面 ---------- */
   const far = new THREE.Mesh(new THREE.PlaneGeometry(700,500), L({color:0x607a4a})); far.rotation.x = -Math.PI/2; far.position.y = -26; g.add(far);
@@ -101,7 +101,7 @@
   }
   // 中央大涼亭（柱子從地面 -8 立到屋簷）
   {
-    const R = 36, H = 9, cz = -48, yB = 9;
+    const R = 28, H = 8, cz = -62, yB = 6;
     const grp = canopy(0,cz,R,H,6,2.2,8,yB);
     for(let i=0;i<8;i++){ const a = i/8*Math.PI*2, r = R*.86; g.add(at(cyl(.7,.7,19,steelM,10),Math.cos(a)*r,1.5,cz+Math.sin(a)*r)); }
     // 簡單骨架環
@@ -126,9 +126,9 @@
     t.add(at(new THREE.Mesh(new THREE.BoxGeometry(4*s,.9*s,2*s),L({color:0xb8aa94})),0,.5*s,0));       // 桌
   }
   const reds = [0xa84438,0xb4b0a8];
-  for(let i=0;i<9;i++) tent(-34+i*8.6+((i*7)%3), -19-(i%2)*2.2, reds[i%2], 1.2);
+  [-38,-27,-17,16,27,38].forEach((x,i)=>tent(x+((i*5)%4), -26-(i%3)*3, reds[i%2], 1.1));
   // 左側白帳篷
-  [-52,-60,-68].forEach((x,i)=>tent(x,-24-i*2,0xb4b0a8,1.3));
+  [-56,-68].forEach((x,i)=>tent(x,-30-i*3,0xb4b0a8,1.2));
 
   /* ---------- 小樹與路燈 ---------- */
   function palm(x,z,s){
@@ -139,6 +139,6 @@
   [-82,-72,60,95,-24,28].forEach((x,i)=>palm(x,-60-(i%3)*8,1.4+(i%2)*.4));
   for(let i=0;i<20;i++){ const m = new THREE.Mesh(new THREE.IcosahedronGeometry(2+rnd()*1.4,0), L({color:0x446a3c})); m.position.set(-110+i*11+rnd()*4,-6.5,-30-rnd()*10); m.scale.y = .8; g.add(m); }
 
-  registerMap('maogong', { name:'貓公部落', group:g, W, plats, sky:skyT, fog:0xb8c2c6, fogNear:75, fogFar:280,
-    hemi:[0xe0e6ea,0x6c6a5c], sun:0xf6f0e2, rim:0xb8cce0 });
+  registerMap('maogong', { name:'貓公部落', group:g, W, plats, sky:skyT, fog:0xc0cacf, fogNear:65, fogFar:250,
+    hemi:[0xe6ecf0,0x60665a], sun:0xfaf2e4, rim:0xb0c8e0 });
 }

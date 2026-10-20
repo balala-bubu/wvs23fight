@@ -6,7 +6,7 @@
   const W = 20;
 
   /* ---------- textures ---------- */
-  const skyT = tex(4,64,(c)=>{ const gr = c.createLinearGradient(0,0,0,64); gr.addColorStop(0,'#a9b8b6'); gr.addColorStop(1,'#d2dbd6'); c.fillStyle = gr; c.fillRect(0,0,4,64); });
+  const skyT = tex(4,64,(c)=>{ const gr = c.createLinearGradient(0,0,0,64); gr.addColorStop(0,'#8ea6b4'); gr.addColorStop(.55,'#bccbcd'); gr.addColorStop(1,'#e2e4dc'); c.fillStyle = gr; c.fillRect(0,0,4,64); });
   skyT.magFilter = THREE.LinearFilter;
 
   // 籃球場面：藍邊、綠場地、紅色禁區、白線
@@ -44,9 +44,9 @@
     const m = L({map:t, color:tint}); m.transparent = true; m.alphaTest = .5; m.depthWrite = true;
     const p = new THREE.Mesh(new THREE.PlaneGeometry(w,h), m); p.position.set(x,y,z); g.add(p); return p;
   }
-  ridge(ridgeTex('#4f6e55','#5d7f62','#3f5c47',6,1.2,.55), 640,150, 0, 22, -150, 0x9aa8a0);
-  ridge(ridgeTex('#44684a','#557c58','#375a3e',7,3.1,.3),  560,120, 20, 14, -105, 0x95a79a);
-  ridge(ridgeTex('#3f6a46','#52805a','#33583b',5,5.4,.12), 480,80,  -10, 4, -62, 0x92a592);
+  ridge(ridgeTex('#4f7a5e','#5e8d6c','#42684f',6,1.2,.45), 640,130, 0, 14, -150, 0xa0b4a8);
+  ridge(ridgeTex('#3f6e4c','#52825c','#33583e',7,3.1,.25), 560,100, 20, 4, -105, 0x93a994);
+  ridge(ridgeTex('#33573a','#436b48','#27452e',5,5.4,.1), 480,64, -10, -4, -62, 0x84977f);
 
   // 教學樓壁畫（原創簡化：大樹、雲、小朋友、通風花磚）
   const muralT = tex(128,56,(c,w,h)=>{
@@ -141,10 +141,10 @@
     for(let i=0;i<7;i++){ const l = new THREE.Mesh(new THREE.BoxGeometry(.2*s,.12*s,5.5*s), L({color:i%2?0x6a9a3e:0x78a84a})); l.position.set(0,5.2*s,0); l.rotation.set(-.5-(i%3)*.12,i*Math.PI*2/7,0,'YXZ'); l.translateZ(2.4*s); t.add(l); }
   }
   tree(58,-26,1.5); tree(-62,-38,1.2); tree(70,-40,1.3);
-  [-34,-24,-14,10,18,-48,-56].forEach((x,i)=>banana(x,-20-(i%3)*3,.8+(i%2)*.2));
+  [-40,-29,-18,14,24,-52,36].forEach((x,i)=>banana(x,-30-(i%3)*4,1.5+(i%2)*.3));
   // 低矮灌木
-  for(let i=0;i<22;i++){ const x = -75+i*7+rnd()*3, z = -18-rnd()*2; const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6+rnd(),0), L({color:0x41653a})); m.position.set(x,-7.2,z); m.scale.y = .7; g.add(m); }
+  for(let i=0;i<24;i++){ const x = -84+i*7.2+rnd()*3; const m = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2+rnd()*1.2,0), L({color:0x3d6038})); m.position.set(x,-7.4,-17-rnd()*3); m.scale.y = .62; g.add(m); }
 
-  registerMap('dayu', { name:'大禹國小', group:g, W, plats, sky:skyT, fog:0xb9c6c0, fogNear:70, fogFar:260,
-    hemi:[0xe4ebe8,0x66705a], sun:0xf4f0e0, rim:0xbcd4e4 });
+  registerMap('dayu', { name:'大禹國小', group:g, W, plats, sky:skyT, fog:0xc4ced0, fogNear:60, fogFar:230,
+    hemi:[0xe8eef0,0x5e6a56], sun:0xfff4e4, rim:0xb4cce0 });
 }
