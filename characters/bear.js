@@ -304,6 +304,64 @@ function bearLoseUpdate(R, dt, k){
   once('bl1', 3.0, ()=>popAt('還有期中考……', Lz, 3.5, 'blue'));
   once('bl2', 4.2, ()=>popAt('共筆還沒寫……', Lz, 3.5, 'blue'));
 }
+/* ---------- 提姆熊 extra costumes: 休閒T恤（藏青T恤＋橄欖綠短褲，沒有背包）／墨鏡T恤（再加黑色運動墨鏡）。鞋子沿用黃色洞洞鞋 ---------- */
+const tbsNavyC = ['#243269','#18244f','#2a3a74'];
+const tbsTeeSide = tex(32,32,(g)=>speckle(g,32,32,'#1d2a5c',tbsNavyC,.4));
+const tbsTeeFront = tex(64,92,(g)=>{
+  speckle(g,64,92,'#1d2a5c',tbsNavyC,.4);
+  g.fillStyle='rgba(8,14,40,.28)'; [[12,40,2,26],[50,52,2,22],[30,70,3,12]].forEach(r=>g.fillRect(r[0],r[1],r[2],r[3]));   // soft fabric folds
+  g.fillStyle='rgba(70,90,160,.18)'; g.fillRect(20,30,2,30); g.fillRect(40,44,2,24);
+  g.fillStyle='#dca07c'; g.beginPath(); g.ellipse(32,0,13,9,0,0,Math.PI); g.fill();                                // crew neck opening
+  g.strokeStyle='#121c44'; g.lineWidth=3; g.beginPath(); g.ellipse(32,0,13.5,9.5,0,0,Math.PI); g.stroke();
+});
+const tbsShortsTex = tex(32,32,(g)=>speckle(g,32,32,'#4b4e40',['#545747','#414436','#5a5d4c'],.5));
+function tbsRR(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function tbsLensPaint(g,x,y,w,h){                                         // dark mirrored lens with a soft reflection
+  const gr = g.createLinearGradient(x,y,x+w,y+h); gr.addColorStop(0,'#4a505a'); gr.addColorStop(.5,'#1d2026'); gr.addColorStop(1,'#101216');
+  g.fillStyle = gr; g.fillRect(x,y,w,h);
+  g.fillStyle='rgba(185,200,222,.4)'; g.beginPath(); g.moveTo(x+w*.15,y+h); g.lineTo(x+w*.45,y); g.lineTo(x+w*.62,y); g.lineTo(x+w*.32,y+h); g.closePath(); g.fill();
+  g.fillStyle='rgba(120,135,160,.3)'; g.fillRect(x+w*.62,y+h*.55,w*.28,h*.25);
+}
+function tbsSunPaint(g){                                                  // sunglasses painted on the 64×64 face (also shows in the bear hood window)
+  g.fillStyle='#0c0d10';
+  tbsRR(g,8,23,23,18,6); g.fill(); tbsRR(g,33,23,23,18,6); g.fill();
+  g.fillRect(30,27,4,3); g.fillRect(0,26,9,3); g.fillRect(55,26,9,3);
+  g.save(); tbsRR(g,10,25,19,14,4); g.clip(); tbsLensPaint(g,10,25,19,14); g.restore();
+  g.save(); tbsRR(g,35,25,19,14,4); g.clip(); tbsLensPaint(g,35,25,19,14); g.restore();
+}
+const tbsSunFaces = { normal:tex(64,64,(g)=>{ timFace(g,'normal'); tbsSunPaint(g); }), cry:tex(64,64,(g)=>{ timFace(g,'cry'); tbsSunPaint(g); }), shout:tex(64,64,(g)=>{ timFace(g,'shout'); tbsSunPaint(g); }) };
+const tbsLensTex = tex(32,24,(g)=>tbsLensPaint(g,0,0,32,24));
+function tbsTee(c){
+  const sideM = L({map:tbsTeeSide}), frontM = L({map:tbsTeeFront}), shortsM = L({map:tbsShortsTex});
+  const torso = c.chest.children[0], old = Array.isArray(torso.material) ? torso.material[0] : torso.material;
+  torso.material = [sideM,sideM,sideM,sideM,frontM,sideM];
+  c.chest.children.forEach(o=>{ if (o !== torso && o.isMesh && o.material === old){ o.material = sideM; o.scale.set(0.55,0.5,0.6); o.position.y = 2.3; } });   // jacket collar -> thin neck band
+  [c.R, c.Lf].forEach(a=>{
+    const sl = a.sh.children[0]; sl.material = sideM; sl.scale.y = 0.6; sl.position.y = -0.18;                       // short sleeve
+    a.sh.children[1].material = tbSkinM; a.el.children[0].material = tbSkinM;                                        // bare arms
+  });
+  [c.joints.rHp, c.joints.lHp].forEach(h=>{ const th = h.children[0]; th.material = shortsM; th.scale.set(1.12,1,1.12); });   // baggy knee-length shorts
+  [c.joints.rKn, c.joints.lKn].forEach(k=>{ k.children[0].material = tbSkinM; });                                    // bare shins (crocs unchanged)
+}
+function tbsSunglasses(c){
+  const frameM = L({color:0x0c0d10}), lensM = L({map:tbsLensTex}), g = new THREE.Group();
+  [-1,1].forEach(s=>{
+    g.add(at(rbox(0.43,0.34,0.06,.4,frameM), s*0.235, 0, 0.52));
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.36,0.26), lensM); lens.position.set(s*0.235,0,0.553); g.add(lens);
+    g.add(at(rbox(0.2,0.05,0.07,.3,frameM), s*0.55, 0.02, 0.5));
+    g.add(at(rbox(0.04,0.05,0.55,.3,frameM), s*0.65, 0.02, 0.24));
+  });
+  g.add(at(rbox(0.1,0.06,0.06,.3,frameM), 0, 0.06, 0.53));
+  c.head.add(g);
+  const fm = c.head.children[0].material[4]; let now = 'normal';
+  fm.map = tbsSunFaces.normal; fm.needsUpdate = true;
+  c.setFace = (f)=>{ const k = tbsSunFaces[f] ? f : 'normal'; if (k !== now){ now = k; fm.map = tbsSunFaces[k]; fm.needsUpdate = true; } };
+}
+function tbsTeePortrait(g){                                               // select-screen preview: navy tee + neckline
+  g.fillStyle='#1d2a5c'; g.fillRect(0,54,64,10);
+  g.fillStyle='#dca07c'; g.beginPath(); g.ellipse(32,54,10,6,0,0,Math.PI); g.fill();
+}
+function tbsSunPortrait(g){ tbsTeePortrait(g); g.save(); g.translate(6,12); g.scale(.8125,.8125); tbsSunPaint(g); g.restore(); }
 registerChar('bear', {
   stats: { name:'提姆熊', en:'Tim Bear', tag:'暴言・奶奶的金孫・蜂蜜・醫學系', weight:1.4, run:11, air:9, jumpV:26, djV:22, jumps:2 },
   skins: [{ name:'生日帽', apply(c){
@@ -312,7 +370,9 @@ registerChar('bear', {
     const sh = c.setHood, sb = c.setBear;
     c.setHood = (on)=>{ hood = on; sh(on); fix(); }; c.setBear = (on)=>{ bear = on; sb(on); fix(); };
   } },
-  { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } }],
+  { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
+  { name:'休閒T恤', apply(c){ tbsTee(c); }, portrait: tbsTeePortrait },
+  { name:'墨鏡T恤', apply(c){ tbsTee(c); tbsSunglasses(c); }, portrait: tbsSunPortrait }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.3], pose:['jabR','punch2'], box:[2.1,3.8,1.6], dmg:7, kb:9, sc:.75, ang:38, text:'蛤？', sfx:'swing'},
