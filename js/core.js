@@ -1340,8 +1340,8 @@ async function hostParty(){
       party = { role:'host', code, room, remote:!!sel.remote, calls:{}, slots:[null,null,null,null], prev:[{},{},{},{}], startSeen:{}, lastSent:'' };
       partyCodeEl.textContent = code;
       partyMsg.textContent = party.remote
-        ? '朋友在自己的手機或電腦打開這個網址 → 連線 → 遠端加入，輸入房號。你是 P1，朋友依序當 P2～P4，空位由電腦補上；人滿之後加入的會變成觀戰。'
-        : '朋友用手機打開這個網址 → 連線 → 加入，輸入房號。最多四支手機（依選的人數），空位由電腦補上。';
+        ? '朋友在自己的手機或電腦打開這個網址 → 加入房間，輸入上面的房號。你是 P1，朋友依序當 P2～P4，空位由電腦補上；人滿之後加入的會變成觀戰。'
+        : '朋友用手機打開這個網址 → 加入房間，輸入上面的房號。最多四支手機（依選的人數），空位由電腦補上。';
       return;
     } catch(e){ lastErr = e; if (!(e && e.code==='unavailable-id')) break; }
   }
@@ -1445,41 +1445,49 @@ function readPad(slot){
 }
 
 /* phone side */
-let joinRemote = false;
-function showJoin(remote){
-  joinRemote = remote===true;
-  document.getElementById('joinH').textContent = joinRemote ? '輸入朋友給你的房號' : '輸入大螢幕上的手把代碼';
+function showJoin(){
   audioOn(); menuEl.hidden = true; joinUI.hidden = false; joinMsg.textContent = ''; codeIn.value = '';
   setTimeout(()=>{ try{ codeIn.focus(); }catch(_){} }, 50);
+}
+// a room turns out to be a remote one: start showing the host's screen
+function becomeRemote(){
+  if (!party || party.remote) return;
+  party.remote = true; party.lastUI = '';
+  document.body.classList.add('remote'); rvVid.hidden = false;
 }
 async function joinAsPad(){
   const code = (codeIn.value||'').replace(/\D/g,'');
   if (code.length !== 4){ joinMsg.textContent = '代碼是 4 個數字。'; return; }
   joinMsg.textContent = '連線中…（最多等 10 秒）';
-  try {
-    const room = await openChannel(code, 'pad', joinRemote);
-    party = { role:'pad', code, room, remote:joinRemote, lastSent:'', lastUI:'', lastHud:'', banSeen:null, winSeen:null, since:performance.now() };
-    joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
-    document.body.classList.add('pad'); document.body.classList.toggle('remote', joinRemote); G.mode = 'pad'; fitPad();
-    rvVid.hidden = !joinRemote; rvHud.hidden = true; rvBan.hidden = true;
-    if (joinRemote){
-      padStateEl.textContent = '等待畫面傳過來…';
-      room.onStream = (st)=>{
-        rvVid.srcObject = st; rvVid.muted = false;
-        rvVid.play().catch(()=>{ rvVid.muted = true; rvVid.play().catch(()=>{}); });
-      };
-    }
-  } catch(e){
-    if (e && e.peer){ joinMsg.textContent = (PEER_MSG[e.code] || '連線失敗，請重新整理再試。') + `（${e.code}）`; return; }
-    roomWhy = roomWhy || (e && e.code) || 'error'; joinMsg.textContent = await roomDiag();
+  // One code for every kind of room. Remote rooms always use the direct link and it fails fast
+  // when nobody is hosting, so try that first, then the shared-room service.
+  let room = null, err = null;
+  try { room = await openChannel(code, 'pad', true); }
+  catch(e){ err = e; }
+  if (!room){
+    try { room = await openChannel(code, 'pad', false); err = null; }
+    catch(e){ err = err || e; }
   }
+  if (!room){
+    if (err && err.peer){ joinMsg.textContent = (PEER_MSG[err.code] || '連線失敗，請重新整理再試。') + `（${err.code}）`; return; }
+    roomWhy = roomWhy || (err && err.code) || 'error'; joinMsg.textContent = await roomDiag(); return;
+  }
+  party = { role:'pad', code, room, remote:false, lastSent:'', lastUI:'', lastHud:'', banSeen:null, winSeen:null, since:performance.now() };
+  joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
+  document.body.classList.add('pad'); document.body.classList.remove('remote'); G.mode = 'pad'; fitPad();
+  rvVid.hidden = true; rvHud.hidden = true; rvBan.hidden = true;
+  room.onStream = (st)=>{
+    becomeRemote();
+    rvVid.srcObject = st; rvVid.muted = false;
+    rvVid.play().catch(()=>{ rvVid.muted = true; rvVid.play().catch(()=>{}); });
+  };
 }
 function leavePad(){
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
   try { rvVid.pause(); rvVid.srcObject = null; } catch(_){}
   rvVid.hidden = true; rvHud.hidden = true; rvBan.hidden = true;
   document.body.classList.remove('pad'); document.body.classList.remove('remote'); for (const k in TS) TS[k] = false;
-  padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr(joinRemote ? 'scrOnline' : 'scrTitle');
+  padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr('scrTitle');
 }
 const padKPrev = {};
 function padKeys(){
@@ -1496,13 +1504,14 @@ function padKeys(){
 function padTick(){
   if (!party) return;
   const K = padKeys();
-  const msg = { pad:1, pick:padPick, skin:padSkin, st:padC.st, sel:padC.sel, rdy:padReady?1:0, view:party.remote?1:0,
+  const msg = { pad:1, pick:padPick, skin:padSkin, st:padC.st, sel:padC.sel, rdy:padReady?1:0, view:1,
     inp:{ l:(TS.l||K.l)?1:0, r:(TS.r||K.r)?1:0, u:(TS.u||K.u)?1:0, d:(TS.d||K.d)?1:0, s:(TS.shield||K.shield)?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
   if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
   const peers = party.room.peers();
   const me = peers.find(p=>p.sameTab), host = peers.find(p=>!p.sameTab && p.presence && p.presence.host);
   let who = '連線中…', state = '等待大螢幕開房', slot = -1, hp = host && host.presence;
+  if (hp && hp.remote) becomeRemote();
   if (hp){
     slot = Array.isArray(hp.slots) && me ? hp.slots.indexOf(me.peer) : -1;
     if (slot < 0){ who = party.remote ? '觀戰中' : '已滿或等待中'; state = party.remote ? '位置已滿，可以看比賽' : '大螢幕已有兩支手把'; }
@@ -1617,14 +1626,34 @@ function rebuildAll(){ for (let i=0;i<4;i++){ if (i < sel.count) rebuild(i); els
 const menuEl = document.getElementById('menu'), overEl = document.getElementById('over'), quitEl = document.getElementById('quit'), touchEl = document.getElementById('touch');
 const selEl = document.getElementById('sel'), pauseEl = document.getElementById('pause');
 let rulesFrom = 'scrTitle';
+const SCREENS = ['scrTitle','scrParty','scrRules'];
+const isHome = (id)=>id==='scrTitle' || id==='scrParty';
+let scrNow = '';
+const scrBodyEl = document.querySelector('.scrBody');
+function fitRules(){ if (scrBodyEl) scrBodyEl.classList.toggle('more', scrBodyEl.scrollHeight > scrBodyEl.clientHeight + 2); }
+addEventListener('resize', fitRules);
 function showScr(id){
-  ['scrTitle','scrOnline','scrRules'].forEach(k=>{ document.getElementById(k).hidden = k!==id; });
-  menuEl.hidden = false; selEl.hidden = true; joinUI.hidden = true; menuEl.classList.remove('splash');
+  SCREENS.forEach(k=>{ document.getElementById(k).hidden = k!==id; });
+  menuEl.hidden = false; selEl.hidden = true; joinUI.hidden = true;
+  menuEl.classList.toggle('home', id==='scrTitle');
+  if (id !== scrNow){
+    if (isHome(id) && !isHome(scrNow)) homeShowcase();
+    else if (!isHome(id) && isHome(scrNow)){ applyMap(sel.map); rebuildAll(); }
+    scrNow = id;
+  }
+  if (id==='scrRules') requestAnimationFrame(fitRules);
 }
-// opening screen: logo + "press start"; first tap / Enter / Space opens the menu (and unlocks audio)
-function leaveSplash(){ if (!menuEl.classList.contains('splash')) return; audioOn(); menuEl.classList.remove('splash'); try{ SFX.whistle && SFX.whistle(); }catch(_){} }
-menuEl.addEventListener('click', leaveSplash);
-addEventListener('keydown', e=>{ if (e.key==='Enter' || e.key===' ') leaveSplash(); });
+// home screen: a random stage with two random characters (random costumes) standing on it.
+// Only the display models change — sel.* keeps whatever the player actually chose.
+function homeShowcase(){
+  const ks = CHAR_ORDER.filter(k=>CHARS[k]); if (!ks.length) return;
+  const one = ()=>{ const k = ks[(Math.random()*ks.length)|0]; return [k, (Math.random()*skinCount(k))|0]; };
+  let a = one(), b = one();
+  for (let g=0; g<20 && b[0]===a[0] && ks.length > 1; g++) b = one();
+  for (let i=0;i<4;i++){ if (models[i]){ scene.remove(models[i].holder); models[i] = null; } }
+  models[0] = makeModel(a[0], a[1]); models[1] = makeModel(b[0], b[1]);
+  const ms = MAP_ORDER.filter(m=>MAPS[m]); if (ms.length) applyMap(ms[(Math.random()*ms.length)|0]);
+}
 // remember the last rules (people play the same setup every time)
 const RULES_KEY = 'wvs.rules';
 function loadRules(){
@@ -1642,21 +1671,35 @@ function saveRules(){
   if (sel.mode==='cpu' || sel.mode==='2p') soloMode = sel.mode;
   try { localStorage.setItem(RULES_KEY, JSON.stringify({count:sel.count, stocks:sel.stocks, map:sel.map, mode:soloMode})); } catch(_){}
 }
-document.getElementById('goSolo').onclick = ()=>{ audioOn(); sel.mode = sel.mode==='2p' ? '2p' : 'cpu'; rulesFrom = 'scrTitle'; document.getElementById('rulesH').textContent = '自己玩 · 規則'; document.getElementById('modeRow').hidden = false; syncMenu(); showScr('scrRules'); };
-document.getElementById('goOnline').onclick = ()=>{ audioOn(); showScr('scrOnline'); };
-document.getElementById('goHost').onclick = ()=>{ audioOn(); sel.mode = 'party'; sel.remote = false; rulesFrom = 'scrTitle'; document.getElementById('rulesH').textContent = '開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
-document.getElementById('goRHost').onclick = ()=>{ audioOn(); sel.mode = 'party'; sel.remote = true; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '遠端開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
+function toRules(mode, remote, from, head){
+  audioOn(); sel.mode = mode; sel.remote = remote; rulesFrom = from;
+  document.getElementById('rulesH').textContent = head;
+  document.getElementById('modeRow').hidden = mode==='party';
+  syncMenu(); showScr('scrRules');
+}
+document.getElementById('goSolo').onclick = ()=>toRules(sel.mode==='2p' ? '2p' : 'cpu', false, 'scrTitle', '一個人玩 · 規則');
+document.getElementById('goParty').onclick = ()=>{ audioOn(); showScr('scrParty'); };
+document.getElementById('goHost').onclick = ()=>toRules('party', false, 'scrParty', '在同一個地方 · 規則');
+document.getElementById('goRHost').onclick = ()=>toRules('party', true, 'scrParty', '各自在家 · 規則');
 document.querySelectorAll('[data-back]').forEach(b=>b.onclick = ()=>showScr(b.dataset.back));
 document.getElementById('rulesBack').onclick = ()=>{ leaveParty(); showScr(rulesFrom); };
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick = ()=>{ sel.mode = b.dataset.mode; syncMenu(); });
-document.getElementById('asPad').onclick = ()=>showJoin(false);
-document.getElementById('asRPad').onclick = ()=>showJoin(true);
+document.getElementById('asPad').onclick = showJoin;
+document.getElementById('asPad2').onclick = showJoin;
 document.querySelectorAll('[data-count]').forEach(b=>b.onclick = ()=>{ sel.count = +b.dataset.count; syncMenu(); });
 document.querySelectorAll('[data-stocks]').forEach(b=>b.onclick = ()=>{ sel.stocks = +b.dataset.stocks; syncMenu(); });
 document.getElementById('joinBtn').onclick = joinAsPad;
 codeIn.addEventListener('keydown', e=>{ if (e.key==='Enter') joinAsPad(); });
-document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr(joinRemote ? 'scrOnline' : 'scrTitle'); };
-document.getElementById('padLeave').onclick = leavePad;
+document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr('scrTitle'); };
+const padLeaveBtn = document.getElementById('padLeave');
+let padLeaveArm = 0;
+const padLeaveRest = ()=>{ padLeaveArm = 0; padLeaveBtn.textContent = '離開'; padLeaveBtn.classList.remove('arm'); };
+padLeaveBtn.addEventListener('pointerdown', e=>{
+  e.preventDefault(); e.stopPropagation();
+  if (performance.now() < padLeaveArm){ padLeaveRest(); leavePad(); return; }
+  padLeaveArm = performance.now() + 3000; padLeaveBtn.textContent = '再按一次'; padLeaveBtn.classList.add('arm');
+  setTimeout(()=>{ if (performance.now() >= padLeaveArm) padLeaveRest(); }, 3100);
+});
 document.getElementById('padSel').onclick = ()=>{ padC.sel++; padReady = false; if (party) party.lastUI = ''; };
 document.getElementById('padStart').onclick = document.getElementById('padGo').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(15); }catch(_){} };
 function syncMenu(){
@@ -1772,7 +1815,7 @@ function cancelSel(i){
 function backFromSelect(){
   selEl.hidden = true; RS.visible = false; applyMap(sel.map); G.mode = 'menu';
   rebuildAll();
-  if (sel.mode==='party'){ leaveParty(); showScr(sel.remote ? 'scrOnline' : 'scrTitle'); } else showScr('scrRules');
+  if (sel.mode==='party'){ leaveParty(); showScr('scrParty'); } else showScr('scrRules');
 }
 function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = 1.4; banner('準備開戰！'); } }
 function renderSel(){
@@ -1952,17 +1995,21 @@ function tick(){
   } else if (G.mode==='menu'){
     models.forEach((m,i)=>{
       if (!m) return; if (i > 1){ m.holder.visible = false; return; }
-      const x = i===0 ? -3.6 : 3.6;
-      m.holder.position.set(x, 0, 1.5); m.holder.rotation.y = (i===0 ? .35 : -.35);
+      // stand them well apart so the menu panel sits between them, not on top of them
+      const tall = innerWidth/innerHeight < .8;
+      const spread = tall ? 3.6 : Math.min(9.5, Math.max(5.6, innerWidth/innerHeight * 5.2));
+      const x = i===0 ? -spread : spread;
+      m.holder.position.set(x, 0, 1.5); m.holder.rotation.y = (i===0 ? .5 : -.5);
       m.body.scale.setScalar(SC);
       applyPose(m, POSE[CHARS[m.kind].introPose || 'peace'], 1 - Math.exp(-dt*8));
       m.chest.scale.y = 1 + Math.sin(t*2.1 + i)*0.006;
       m.setOld(0); m.setFace('normal');
       for (const n in m.props) m.props[n].visible = false;
     });
+    // upright phones: frame the pair high up, so the menu panel can sit below them
     const narrow = innerWidth/innerHeight < .8;
-    camPos.lerp(v3.set(0, narrow ? 7.5 : 5.2, narrow ? 30 : 21), 1-Math.exp(-dt*3));
-    camLook.lerp(v3.set(0, narrow ? 6.5 : 4.4, 0), 1-Math.exp(-dt*3));
+    camPos.lerp(v3.set(0, narrow ? 5.0 : 5.2, narrow ? 41 : 21), 1-Math.exp(-dt*3));
+    camLook.lerp(v3.set(0, narrow ? -1.0 : 4.4, 0), 1-Math.exp(-dt*3));
   } else if (G.mode==='result'){
     updateResults(dt, t);
   } else {
@@ -2018,7 +2065,6 @@ function boot(){
   sel.p = sel.p.map((k,i)=>CHARS[k] ? k : CHAR_ORDER[i % CHAR_ORDER.length]);
   loadRules(); rulesLoaded = true;
   if (!MAPS[sel.map]) sel.map = MAP_ORDER[0];
-  menuEl.classList.add('splash');
   const ms = document.getElementById('mapSeg');
   MAP_ORDER.forEach(id=>{ const b = document.createElement('button'); b.dataset.map = id; b.textContent = MAPS[id].name; b.setAttribute('aria-pressed','false');
     b.onclick = ()=>{ sel.map = id; applyMap(id); syncMenu(); }; ms.appendChild(b); });
@@ -2030,6 +2076,6 @@ function boot(){
     b.appendChild(portraitCanvas(k)); const nm = document.createElement('span'); nm.textContent = CH[k].name; b.appendChild(nm);
     b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(10); }catch(_){} }; pg.appendChild(b); });
   buildPortraits();
-  applyMap(sel.map); rebuildAll(); syncMenu();
+  applyMap(sel.map); rebuildAll(); syncMenu(); showScr('scrTitle');
   tick();
 }

@@ -125,6 +125,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden
 .padWho span{font-size:12px;color:var(--dim)}
 .padTop .seg button{font-size:15px}
 #padUI .ghost{padding:6px 12px;font-size:13px}
+#padLeave.arm{border-color:#c45a2c;color:#ffb48c}
 body.pad #touch{z-index:2}
 body.pad #stickZone{top:110px}
 /* phone-as-controller: big gamepad layout */
@@ -188,10 +189,11 @@ body.remote .pTop .padWho span{color:#fff}
 .pcard[aria-pressed="true"]{border-color:var(--pc,var(--gold));background:rgba(255,255,255,.16);box-shadow:0 0 0 3px var(--pc,var(--gold)),0 6px 0 rgba(0,0,0,.4);transform:translateY(-2px)}
 .pcard[aria-pressed="true"]::after{content:"✓";position:absolute;right:5px;top:2px;font-size:15px;font-weight:900;color:var(--pc,var(--gold))}
 #padSelBox.lock #padGrid{opacity:.4;pointer-events:none}
-#padSide{width:156px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;gap:8px}
+#padSide{width:156px;flex:none;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
+#padGo{margin-top:auto}
 #padSide .go{height:88px;font-size:24px;padding:0}
 #padSelBox.lock #padGo{background:#3a6fae;color:#fff}
-#padSkins{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden}
+#padSkins{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;margin-bottom:30px}
 #padSkins button{min-height:44px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;cursor:pointer}
 #padSkins button[aria-pressed="true"]{background:var(--ink);color:#1b1511;border-color:var(--ink)}
 #rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
@@ -205,30 +207,65 @@ body.remote .pTop .padWho span{color:#fff}
 .title h1{margin:0;display:flex;justify-content:center;align-items:baseline;gap:.18em;font-family:var(--ui);font-weight:900;font-size:clamp(34px,7vw,56px);letter-spacing:.06em;color:#fff;transform:skewX(-8deg);text-shadow:3px 3px 0 var(--p1),6px 6px 0 #000;text-wrap:balance;transition:font-size .25s}
 .title h1 span:last-child{color:var(--gold);text-shadow:3px 3px 0 #b8501f,6px 6px 0 #000}
 .title p{margin:6px 0 0;font-family:var(--pixel);font-size:22px;color:var(--gold);letter-spacing:.5em;text-indent:.5em;text-shadow:2px 2px 0 #000}
-/* opening screen: big logo + blinking "press start", the menu appears after the first tap */
-#menu.splash{justify-content:center;gap:34px;cursor:pointer}
-#menu.splash .title{animation:bob 2.6s ease-in-out infinite}
-#menu.splash .title h1{font-size:clamp(52px,13vw,128px)}
-#menu.splash .title p{font-size:clamp(26px,5vw,44px)}
-#menu.splash .scr{display:none}
-.pressStart{display:none;font:inherit;font-weight:900;font-size:clamp(20px,3.6vw,30px);letter-spacing:.18em;color:var(--ink);background:rgba(20,15,12,.55);border:2px solid var(--gold);border-radius:999px;padding:12px 34px 8px;text-shadow:2px 2px 0 #000;cursor:pointer;animation:blink 1.1s steps(2,jump-none) infinite}
-.pressStart small{display:block;font-family:var(--pixel);font-weight:400;font-size:.62em;letter-spacing:.4em;color:var(--gold);margin-top:2px}
-#menu.splash .pressStart{display:block}
-@keyframes blink{50%{opacity:.25}}
-@keyframes bob{50%{transform:translateY(-8px)}}
-@media (prefers-reduced-motion:reduce){ #menu.splash .title,.pressStart{animation:none} }
-.big{position:relative}
-.big i{position:absolute;right:12px;top:10px;font-family:var(--pixel);font-style:normal;font-size:26px;line-height:1;color:rgba(246,238,223,.28)}
+/* home screen: big logo over a random stage; the title shrinks away on the inner screens */
+#menu.home{justify-content:center;gap:clamp(12px,4vh,40px)}
+#menu.home .scr{width:min(540px,88%)}
+/* holding the phone upright there is no room beside the panel, so the panel drops to the bottom
+   and the two characters get the middle of the screen to themselves */
+@media (orientation:portrait){ #menu.home{justify-content:space-between} #menu.home .scr{width:min(540px,100%)} }
+#menu.home .title h1{font-size:clamp(40px,9vw,96px)}
+#menu.home .title p{font-size:clamp(20px,3.4vw,34px)}
+#menu:not(.home) .title h1{font-size:clamp(18px,3.2vw,26px);text-shadow:2px 2px 0 var(--p1),4px 4px 0 #000}
+#menu:not(.home) .title p{display:none}
+.joinLink{font-size:14px;color:var(--dim);border-style:dashed}
+.joinLink b{color:var(--gold);margin-left:4px}
+.joinNote{margin:-4px 0 0;font-size:12px;color:var(--dim);line-height:1.6}
+/* rules sheet: the settings scroll, the "next" button never leaves the screen */
+#scrRules{display:flex;flex-direction:column;min-height:0}
+.scrBody{display:grid;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
+.scrFoot{display:grid;gap:8px;flex:none}
+.scrMore{display:none;font-size:12px;color:var(--gold);text-align:center;letter-spacing:.08em}
+.scrBody.more ~ .scrFoot .scrMore{display:block}
+.help summary{font-size:13px;color:var(--gold);cursor:pointer;list-style:none;padding:2px 0}
+.help summary::-webkit-details-marker{display:none}
+.help summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.help[open] summary::before{content:"▾ "}
 @media (pointer:coarse){
-  #asPad{order:-1}
-  .big{padding:16px 16px 14px;min-height:76px}
+  .big{padding:16px 16px 14px}
   .seg button{min-height:42px;padding:8px 18px}
   .go{min-height:50px}
   .ghost{min-height:44px}
 }
-#scrTitle .bigBtns{grid-template-columns:repeat(2,1fr)}
-@media (max-width:420px){ #scrTitle .bigBtns{grid-template-columns:1fr} }
-@media (max-height:520px){ #menu.splash{gap:14px} .big{padding:10px 14px;min-height:0} .big b{font-size:22px} .scr{width:min(640px,100%)} #scrTitle .subH{display:none} #menu{gap:6px} }
+#scrTitle .bigBtns,#scrParty .bigBtns{grid-template-columns:repeat(2,1fr)}
+@media (max-width:460px){ #scrTitle .bigBtns,#scrParty .bigBtns{grid-template-columns:1fr} }
+@media (max-height:520px){
+  #menu{gap:6px;overflow:hidden}
+  #menu.home{gap:10px}
+  #menu.home .title h1{font-size:clamp(30px,7vw,48px)}
+  #menu.home .title p{font-size:18px}
+  #menu:not(.home) .title{display:none}
+  .big{padding:10px 14px} .big b{font-size:21px} .big span{font-size:12px}
+  .scr{width:min(680px,100%)} .sheet{padding:10px 12px;gap:8px}
+  .scrH{font-size:17px} .ruleRow{gap:8px} .ruleRow > span{font-size:12px}
+}
+/* short + wide (phone held sideways): two columns so every setting fits without scrolling */
+@media (max-height:520px) and (min-width:520px){
+  .scrBody{grid-template-columns:1fr 1fr;align-content:start;column-gap:18px}
+  .scrBody .seg{flex-wrap:wrap}
+  .scrBody .help{grid-column:1/-1}
+}
+/* very short screens: squeeze the rows so nothing hides below the fold */
+@media (max-height:430px){
+  .scrBody{gap:8px}
+  .sheet{padding:8px 10px;gap:6px}
+  .seg{padding:2px}
+  .seg button{min-height:32px;padding:5px 11px;font-size:13px}
+  .ruleRow{gap:6px} .ruleRow > span{width:2.6em;font-size:11px}
+  .go{min-height:40px;padding:8px;font-size:16px}
+  .ghost{min-height:36px;padding:6px;font-size:13px}
+  .scrH{font-size:14px}
+  .scrBody .help{display:none}
+}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;width:min(660px,100%);display:grid;gap:12px;backdrop-filter:blur(8px)}
 .row{display:flex;gap:12px;flex-wrap:wrap}
 .pick{flex:1 1 230px;min-width:0;display:grid;gap:6px}
@@ -280,29 +317,27 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 <div id="hud" hidden></div>
 <button id="quit" hidden>Ⅱ 換角色</button>
 
-<div id="menu">
+<div id="menu" class="home">
   <div class="title"><h1><span>世志</span><span>大亂鬥</span></h1><p>BRAWL</p></div>
-  <button class="pressStart" id="pressStart">點一下開始<small>PRESS START</small></button>
   <div class="sheet scr" id="scrTitle">
-    <h3 class="subH">選一個玩法</h3>
     <div class="bigBtns">
-      <button class="big" id="goSolo"><i>1</i><b>自己玩</b><span>對電腦，或兩個人同一個鍵盤</span></button>
-      <button class="big" id="goHost"><i>2</i><b>大螢幕開房</b><span>這台當螢幕，朋友用手機當手把</span></button>
-      <button class="big" id="asPad"><i>3</i><b>加入房間</b><span>輸入房號，這支手機變成手把</span></button>
-      <button class="big rmt" id="goOnline"><i>4</i><b>遠端對戰</b><span>各自在家，畫面即時傳給朋友</span></button>
+      <button class="big" id="goSolo"><b>一個人玩</b><span>對電腦，或兩個人用同一個鍵盤</span></button>
+      <button class="big" id="goParty"><b>跟朋友玩</b><span>手機當手把，或各自在家連線</span></button>
     </div>
+    <button class="ghost joinLink" id="asPad">已經有房號了？<b>加入房間</b></button>
   </div>
-  <div class="sheet scr" id="scrOnline" hidden>
-    <h2 class="scrH">遠端對戰</h2>
-    <h3 class="subH">各自在家，畫面會即時傳給每個朋友</h3>
+  <div class="sheet scr" id="scrParty" hidden>
+    <h2 class="scrH">跟朋友玩</h2>
     <div class="bigBtns">
-      <button class="big rmt" id="goRHost"><b>遠端開房</b><span>你當 P1，畫面會即時傳給每個朋友</span></button>
-      <button class="big rmt" id="asRPad"><b>遠端加入</b><span>輸入房號，在自己的手機或電腦上看畫面對打</span></button>
+      <button class="big" id="goHost"><b>在同一個地方</b><span>這台當大螢幕，朋友拿手機當手把一起打</span></button>
+      <button class="big rmt" id="goRHost"><b>各自在家</b><span>你當 P1，畫面即時傳到每個朋友的手機</span></button>
     </div>
+    <button class="ghost joinLink" id="asPad2">已經有房號了？<b>加入房間</b></button>
     <button class="ghost" data-back="scrTitle">返回</button>
   </div>
   <div class="sheet scr" id="scrRules" hidden>
     <h2 class="scrH" id="rulesH">規則</h2>
+    <div class="scrBody">
     <div class="ruleRow"><span>人數</span>
       <div class="seg" role="group" aria-label="人數">
         <button data-count="2" aria-pressed="true">2 人</button>
@@ -327,13 +362,18 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
         <button data-stocks="5" aria-pressed="false">5</button>
       </div>
     </div>
-    <button class="go" id="start">下一步：選角色</button>
-    <button class="ghost" id="rulesBack">返回</button>
-    <div class="help" id="help">
+    <details class="help" id="help">
+      <summary>怎麼操作？</summary>
       <div id="touchHelp" hidden><b>手機</b>　左半邊螢幕任意處按住拖曳＝搖桿；右邊「跳」「攻擊」「必殺」「防禦」，大招集滿會亮起來。搖桿推方向再按攻擊或必殺會出不同招（推上＋攻擊＝往上打）。</div>
       <div id="kbHelp"><b>P1</b>　<kbd>A</kbd><kbd>D</kbd> 移動　<kbd>W</kbd> 跳　<kbd>S</kbd> 下　<kbd>J</kbd> 攻擊　<kbd>K</kbd> 必殺　<kbd>L</kbd> 防禦　<kbd>U</kbd> 大招</div>
       <div id="help2" hidden><b>P2</b>　方向鍵移動／跳　<kbd>,</kbd> 攻擊　<kbd>.</kbd> 必殺　<kbd>/</kbd> 防禦　<kbd>Enter</kbd> 大招（數字鍵盤 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>0</kbd> 也可以）</div>
       <div><b>自救</b>　跳完兩段後再按一次跳會往上衝；靠近台邊會自動抓住，按跳或往台上推就爬上來。</div>
+    </details>
+    </div>
+    <div class="scrFoot">
+      <span class="scrMore">▾ 往下滑還有設定</span>
+      <button class="go" id="start">下一步：選角色</button>
+      <button class="ghost" id="rulesBack">返回</button>
     </div>
   </div>
 </div>
@@ -381,7 +421,8 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 </div>
 <div id="joinUI" hidden>
   <div class="sheet">
-    <h2 id="joinH">輸入大螢幕上的手把代碼</h2>
+    <h2 id="joinH">輸入房號</h2>
+    <p class="joinNote">大螢幕上顯示的 4 位數字；不管是哪一種多人模式都是輸入這組</p>
     <input id="codeIn" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="手把代碼">
     <button class="go" id="joinBtn">連線</button>
     <p id="joinMsg"></p>
