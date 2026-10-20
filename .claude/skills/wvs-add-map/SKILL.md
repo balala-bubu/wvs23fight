@@ -32,6 +32,7 @@ description: 在世志大亂鬥（GitHub repo balala-bubu/wvs23fight）快速新
 ## 5. 常見錯誤（都踩過）
 - **疊在一起的面要隔 ≥0.5**：牆 z=-42.8、木板 z=-42、黑板／布幕 z=-41.5…。間隔 0.1 在遠處（距離 70）會 z-fighting，畫面出現一條條閃爍條紋。薄的 box 前面再貼一張 plane，要把 plane 放在 box 前面至少 0.2。
 - 平面（天花板、燈）要單面：天花板 `rotation.x = Math.PI/2`（朝下），相機飛到天花板上方時才不會擋畫面；天花板燈、通風口要比天花板低 0.15～0.3。
+- **室內地圖的天花板要夠高**：角色飛到 y>48 才會被判出界，身高約 6，所以天花板至少放 y=58（牆也要加高到 61 以上），不然擊飛時會穿進天花板。吊扇、投影機這類吊掛物用細桿從天花板吊到中間高度（約 y 27～34），不要貼在天花板上。用 `python3 tools/map_shot.py <id> <資料夾> 44` 檢查高飛畫面。
 - 舞台下面不要再放整塊實心木頭，從正面看會變成一面奇怪的牆；只留 `ConeGeometry` 就好（顏色壓暗）。
 - 貼圖是 `NearestFilter`；要放中文字或細線的貼圖（黑板、布幕、時鐘、名牌）要設 `tex.magFilter = THREE.LinearFilter`。字型用 `"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif`。無頭 Chromium 若沒有中文字型，字會是方塊，只在截圖才會看到，不是 bug。
 - 動態：`mesh.onBeforeRender = ()=>{ ... }`，用 `performance.now()` 算時間，`if (reduce) 不要動`；地圖 group 隱藏時不會呼叫，不用手動關。

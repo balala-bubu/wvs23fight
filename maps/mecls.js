@@ -75,11 +75,11 @@
   const glow = new THREE.MeshBasicMaterial({color:0xe0e0d8, side:THREE.FrontSide});
 
   const g = new THREE.Group(); scene.add(g);
-  const W = 20, WALL_Z = -42, CEIL = 21;
+  const W = 20, WALL_Z = -42, CEIL = 58;   // fighters are KO'd above y=48 and are ~6 tall, so the ceiling must be higher than that
 
   /* ---------- room shell ---------- */
   const pit = new THREE.Mesh(new THREE.PlaneGeometry(500,500), L({map:pitFloorT, color:0x77756f})); pit.rotation.x = -Math.PI/2; pit.position.y = -26; g.add(pit);
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(420,60), wallM); wall.position.set(0,-9,WALL_Z-0.8); g.add(wall);          // y -39 .. 21
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(420,100), wallM); wall.position.set(0,11,WALL_Z-0.8); g.add(wall);          // y -39 .. 61
   const dado = new THREE.Mesh(new THREE.PlaneGeometry(420,40.5), oak); dado.position.set(0,-5.75,WALL_Z); g.add(dado);   // wood panels, y -26 .. 14.5
   g.add(at(rbox(420,0.7,0.5,.05,woodDark),0,14.6,WALL_Z+0.25));                                                              // top rail of the panels
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(420,60), new THREE.MeshBasicMaterial({map:ceilT, color:0x9a9993}));
@@ -146,18 +146,20 @@
     const fr = new THREE.Mesh(new THREE.PlaneGeometry(w+.5,d+.5), L({color:0xcfcfca})); fr.rotation.x = Math.PI/2; fr.position.set(x,CEIL-0.15,z); g.add(fr); };
   for (const z of [-34,-22,-10]) for (const x of [-30,-10,10,30]) lightP(x,z,12,1.4);
   for (const [x,z] of [[-20,-28],[22,-16]]){ const v = new THREE.Mesh(new THREE.PlaneGeometry(5,5), new THREE.MeshBasicMaterial({map:ventT})); v.rotation.x = Math.PI/2; v.position.set(x,CEIL-0.2,z); g.add(v); }
-  const fan = (x,z)=>{                                                                                                       // round ceiling circulator with spinning blades
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.3,.5,16), L({color:0xe9e8e3})); hub.position.set(x,CEIL-.5,z); g.add(hub);
-    g.add(at(cyl(2.6,2.6,.2,L({color:0xcfcfca}),16),x,CEIL-.2,z));
-    const blades = new THREE.Group(); blades.position.set(x,CEIL-.95,z); g.add(blades);
+  const FANY = 34, PROJY = 27;
+  const fan = (x,z)=>{ g.add(at(cyl(.12,.12,CEIL-FANY,metal,6),x,(CEIL+FANY)/2,z));
+                                                                                                          // round ceiling circulator with spinning blades
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.3,.5,16), L({color:0xe9e8e3})); hub.position.set(x,FANY-.5,z); g.add(hub);
+    g.add(at(cyl(2.6,2.6,.2,L({color:0xcfcfca}),16),x,FANY-.2,z));
+    const blades = new THREE.Group(); blades.position.set(x,FANY-.95,z); g.add(blades);
     for (let k=0;k<6;k++){ const b = rbox(2.4,.1,.7,.2,L({color:0xf2f1ec})); b.position.set(Math.cos(k*Math.PI/3)*1.3,0,Math.sin(k*Math.PI/3)*1.3); b.rotation.y = -k*Math.PI/3; blades.add(b); }
     blades.add(at(cyl(.5,.5,.2,L({color:0xbdbcb6}),10),0,0,0));
     hub.onBeforeRender = ()=>{ if (!reduce) blades.rotation.y = performance.now()*0.0035; };
   };
   fan(-5,-24); fan(26,-26);
-  const projector = new THREE.Group(); projector.position.set(6,CEIL-1.6,-9); g.add(projector);                              // ceiling projector pointing at the screen
+  const projector = new THREE.Group(); projector.position.set(6,PROJY,-9); g.add(projector);                              // ceiling projector pointing at the screen
   projector.add(at(rbox(3.2,1.1,2.8,.15,L({color:0xf1f0ec})),0,0,0)); projector.add(at(cyl(.45,.45,.5,black,10),0,-.1,-1.5));
-  projector.rotation.x = -.04; projector.add(at(cyl(.08,.08,.8,metal,6),0,.9,0));
+  projector.rotation.x = -.04; projector.add(at(cyl(.08,.08,CEIL-PROJY,metal,6),0,(CEIL-PROJY)/2,0));
   projector.children[1].rotation.x = Math.PI/2;
 
   /* ---------- 憶中老師 (advisor) standing beside the podium ---------- */
