@@ -103,9 +103,15 @@ body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden
   .selTop{gap:4px}
   #sel .party{padding:6px 10px;gap:4px;max-width:380px}
   .party .code b{font-size:30px}
+  #partyQR{width:84px;height:84px}
+  #sel .party.hasQR{max-width:500px}
   .party p{font-size:11px;line-height:1.45}
 }
 .party{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+.partyInfo{display:grid;gap:8px;min-width:0}
+.party.hasQR{grid-template-columns:1fr auto;align-items:center;gap:14px}
+#partyQR{width:132px;height:132px;image-rendering:pixelated;border-radius:6px;background:#fff;display:block}
+#sel .party.hasQR{max-width:580px}
 .party .code{display:flex;align-items:baseline;gap:12px}
 .party .code span{font-size:12px;color:var(--dim);letter-spacing:.08em}
 .party .code b{font-family:var(--pixel);font-size:48px;line-height:.8;color:var(--gold);letter-spacing:.12em}
@@ -382,10 +388,13 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   <div class="selTop">
     <b>選擇角色</b>
     <div class="party" id="partyBox" hidden>
-      <div class="code"><span>房號</span><b id="partyCode">····</b></div>
-      <p id="partyMsg">手機打開這個連結 → 連線 → 加入，輸入房號。</p>
-      <div id="padList"></div>
-      <button class="ghost permBtn" hidden>允許連線</button>
+      <div class="partyInfo">
+        <div class="code"><span>房號</span><b id="partyCode">····</b></div>
+        <p id="partyMsg">手機打開這個連結 → 連線 → 加入，輸入房號。</p>
+        <div id="padList"></div>
+        <button class="ghost permBtn" hidden>允許連線</button>
+      </div>
+      <canvas id="partyQR" hidden aria-label="用手機掃描就能加入房間"></canvas>
     </div>
   </div>
   <div class="plate" id="plate0" style="--pc:var(--p1)"><span class="tag">P1</span><b class="nm">秉寶</b><span class="en">WAFFLE</span><i class="st">選擇中</i></div>
@@ -472,6 +481,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/qrcode.js"></script>
 <script src="js/core.js"></script>
 <!-- 角色：新增角色就在這裡加一行（順序＝選角畫面順序） -->
 <script src="characters/waffle.js"></script>

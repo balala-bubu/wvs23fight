@@ -1325,12 +1325,26 @@ const partyBox = document.getElementById('partyBox'), partyCodeEl = document.get
 const joinUI = document.getElementById('joinUI'), padUI = document.getElementById('padUI'), joinMsg = document.getElementById('joinMsg'), codeIn = document.getElementById('codeIn');
 const NO_ROOM = '這裡沒辦法連線：要在 claude.ai 登入，而且要被加進這個作品的分享名單。';
 
+const partyQR = document.getElementById('partyQR');
+const joinURL = (code)=>location.href.split(/[?#]/)[0] + '?room=' + code;     // phones that scan the QR code land here and connect by themselves
+function drawPartyQR(code){
+  partyBox.classList.remove('hasQR'); partyQR.hidden = true;
+  if (!code || typeof qrcode !== 'function') return;
+  try {
+    const qr = qrcode(0,'M'); qr.addData(joinURL(code)); qr.make();
+    const n = qr.getModuleCount(), px = 4, quiet = 4, size = (n + quiet*2) * px;
+    partyQR.width = partyQR.height = size;
+    const g = partyQR.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,size,size); g.fillStyle = '#000';
+    for (let r=0; r<n; r++) for (let k=0; k<n; k++) if (qr.isDark(r,k)) g.fillRect((k+quiet)*px, (r+quiet)*px, px, px);
+    partyQR.hidden = false; partyBox.classList.add('hasQR');
+  } catch(_){}
+}
 async function hostParty(){
   partyBox.hidden = false;
   if (party && party.role==='host') return;
   if (party && party.opening) return;
   partyCodeEl.textContent = '····'; partyMsg.textContent = '開房中…（最多等 10 秒）';
-  party = { opening:true };
+  party = { opening:true }; drawPartyQR(null);
   let lastErr = null;
   for (let attempt=0; attempt<3; attempt++){
     const code = String(1000 + Math.floor(Math.random()*9000));
@@ -1338,10 +1352,10 @@ async function hostParty(){
       const room = await openChannel(code, 'host', sel.remote);
       if (sel.mode !== 'party' || G.mode !== 'select'){ room.leave(); party = null; return; }
       party = { role:'host', code, room, remote:!!sel.remote, calls:{}, slots:[null,null,null,null], prev:[{},{},{},{}], startSeen:{}, lastSent:'' };
-      partyCodeEl.textContent = code;
+      partyCodeEl.textContent = code; drawPartyQR(code);
       partyMsg.textContent = party.remote
-        ? '朋友在自己的手機或電腦打開這個網址 → 加入房間，輸入上面的房號。你是 P1，朋友依序當 P2～P4，空位由電腦補上；人滿之後加入的會變成觀戰。'
-        : '朋友用手機打開這個網址 → 加入房間，輸入上面的房號。最多四支手機（依選的人數），空位由電腦補上。';
+        ? '朋友用自己的手機或電腦掃 QR code 就能加入（或打開網址 → 加入房間，輸入房號）。你是 P1，朋友依序當 P2～P4，空位由電腦補上；人滿之後加入的會變成觀戰。'
+        : '朋友用手機掃 QR code 就能加入（或打開網址 → 加入房間，輸入房號）。最多四支手機（依選的人數），空位由電腦補上。';
       return;
     } catch(e){ lastErr = e; if (!(e && e.code==='unavailable-id')) break; }
   }
@@ -2077,5 +2091,7 @@ function boot(){
     b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(10); }catch(_){} }; pg.appendChild(b); });
   buildPortraits();
   applyMap(sel.map); rebuildAll(); syncMenu(); showScr('scrTitle');
+  const roomQ = (location.search.match(/[?&]room=(\d{4})(?!\d)/) || [])[1];   // opened from the host's QR code: fill in the room number and connect
+  if (roomQ){ try{ showJoin(); }catch(_){} codeIn.value = roomQ; setTimeout(joinAsPad, 300); }
   tick();
 }
