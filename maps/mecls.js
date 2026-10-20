@@ -233,6 +233,6 @@
     };
   }
 
-  registerMap('mecls', { name:'機械系承先教室', group:g, W, plats, sky:skyT, fog:0x6f6c66, fogNear:120, fogFar:420,
+  registerMap('mecls', { name:'承先教室', group:g, W, plats, sky:skyT, fog:0x6f6c66, fogNear:120, fogFar:420,
     hemi:[0xe8e8e8,0x8a8174], sun:0xfff1da, rim:0xd8e6ff });
 }
