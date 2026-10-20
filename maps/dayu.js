@@ -28,16 +28,17 @@
 
   // 山：剪影＋樹冠斑點
   function ridgeTex(base, light, dark, amp, sd, mist){
-    return tex(256,96,(c,w,h)=>{
+    const T = tex(512,192,(c,w,h)=>{
       c.clearRect(0,0,w,h);
       const pts = []; let y = h*0.38;
-      for(let x=0;x<=w;x+=4){ y += (Math.sin(x*.045+sd)*.9 + Math.sin(x*.13+sd*2)*.5 + (rnd()-.5)*1.4)*amp*.35; y = Math.max(h*.12, Math.min(h*.62,y)); pts.push([x,y]); }
+      for(let x=0;x<=w;x+=6){ y += (Math.sin(x*.0225+sd)*.9 + Math.sin(x*.065+sd*2)*.5 + (rnd()-.5)*1.4)*amp*.35; y = Math.max(h*.12, Math.min(h*.62,y)); pts.push([x,y]); }
       c.beginPath(); c.moveTo(0,h); pts.forEach(p=>c.lineTo(p[0],p[1])); c.lineTo(w,h); c.closePath(); c.clip();
       speckle(c,w,h,base,[light,dark,light],.7);
-      for(let i=0;i<90;i++){ c.fillStyle = rnd()<.5?light:dark; const x=rnd()*w, yy=rnd()*h; c.fillRect(x,yy,3+rnd()*4,2+rnd()*3); }
+      for(let i=0;i<500;i++){ c.fillStyle = rnd()<.5?light:dark; c.globalAlpha=.55; c.fillRect(rnd()*w,rnd()*h,2+rnd()*5,2+rnd()*3); } c.globalAlpha=1;
       const gr = c.createLinearGradient(0,0,0,h); gr.addColorStop(0,'rgba(210,222,218,'+(mist*.6)+')'); gr.addColorStop(1,'rgba(210,222,218,'+mist+')');
       c.fillStyle = gr; c.fillRect(0,0,w,h);
     });
+    T.magFilter = T.minFilter = THREE.LinearFilter; return T;
   }
   function ridge(t, w, h, x, y, z, tint){
     const m = L({map:t, color:tint}); m.transparent = true; m.alphaTest = .5; m.depthWrite = true;
