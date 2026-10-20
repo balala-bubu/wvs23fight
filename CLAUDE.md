@@ -22,6 +22,8 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 ## Add a map
 1. Read `maps/_template.js` (or `maps/park.js`, the smallest).
 2. Write `maps/<id>.js`, add its script tag after the other maps. The menu button is generated from `name`.
+3. Keep the background darker than the platforms/fighters (multiply-tint big wall/floor/ceiling textures, dim `MeshBasicMaterial` screens/lights) and give platforms a bright top edge so they stand out. Overlapping planes need ≥0.5 spacing (z-fighting at distance 70).
+4. Look at it: `python3 tools/map_shot.py <id> <outdir>` (2p / 4p / fighters-high screenshots), then `tools/smoke_test.py`. `maps/mecls.js` is a full example (indoor room, spinning fans, a friendly NPC built with `buildChar`). Full recipe: `.claude/skills/wvs-add-map/SKILL.md`.
 
 ## Shared helpers (from core)
 - Textures: `tex(w,h,draw,rep)`, `speckle`, `shadeFace(g)`, `blackHairTex`, `shoeTex`, `starTex`, `puffTex`, `loveTex`, `rockTex`, `cobbleTex`
