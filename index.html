@@ -199,8 +199,8 @@ body.remote .pTop .padWho span{color:#fff}
 #padGo{margin-top:auto}
 #padSide .go{height:88px;font-size:24px;padding:0}
 #padSelBox.lock #padGo{background:#3a6fae;color:#fff}
-#padSkins{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden;margin-bottom:30px}
-#padSkins button{min-height:44px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;cursor:pointer}
+#padSkins{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;margin-bottom:30px}
+#padSkins button{flex:none;min-height:44px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;cursor:pointer}
 #padSkins button[aria-pressed="true"]{background:var(--ink);color:#1b1511;border-color:var(--ink)}
 #rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
 #rotLock[hidden]{display:none}
