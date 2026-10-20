@@ -1,4 +1,4 @@
-/* map: mecls — 台大機械系承先樓教室. Loaded after js/core.js and the characters.
+/* map: mecls — 台大機械系承先教室. Loaded after js/core.js and the characters.
    Everything lives inside one block so no top-level names can clash with other files.
    Layout: the stage is the teacher's dais; the front wall of the classroom (wood panels, chalkboard,
    pull-down screen, door) is at z=-42; platforms are classroom desks. */
@@ -48,7 +48,7 @@
   const slideT = tex(320,180,(g)=>{                                                  // what the projector is showing
     g.fillStyle='#fbfaf5'; g.fillRect(0,0,320,180); g.fillStyle='#e2e8c8'; g.fillRect(0,0,320,10); g.fillRect(0,170,320,10);
     g.fillStyle='#8a9a4a'; g.fillRect(24,28,5,56);
-    g.fillStyle='#4a4f3a'; g.textBaseline='top'; g.font='bold 24px '+CJK; g.fillText('機械工程學系', 40, 28); g.font='bold 15px '+CJK; g.fillStyle='#7c8060'; g.fillText('承先樓 · 教室', 40, 62);
+    g.fillStyle='#4a4f3a'; g.textBaseline='top'; g.font='bold 24px '+CJK; g.fillText('機械工程學系', 40, 28); g.font='bold 15px '+CJK; g.fillStyle='#7c8060'; g.fillText('承先教室', 40, 62);
     g.font='bold 15px '+CJK; g.fillStyle='#6b6f55'; g.fillText('今天的課：齒輪與傳動', 24, 112); g.fillText('帶筆、帶水、帶好心情', 24, 136);
     g.strokeStyle='#b9c28a'; g.lineWidth=4; g.beginPath(); g.arc(256,70,34,0,7); g.stroke(); g.beginPath(); g.arc(256,70,13,0,7); g.stroke();
     for(let k=0;k<12;k++){ const a=k*Math.PI/6; g.beginPath(); g.moveTo(256+Math.cos(a)*34,70+Math.sin(a)*34); g.lineTo(256+Math.cos(a)*46,70+Math.sin(a)*46); g.stroke(); }
