@@ -232,7 +232,7 @@ function buildSerene(parent){
 /* ---------- ultimate: "Hey Siri" — a giant phone locks onto the nearest foe and slams down ---------- */
 function serFinal(f, opp){
   const tgt = nearestFoe(f) || opp;
-  f.finalT = 4.0; banner('嘿 Siri！幫我找最近的人！'); SFX.siri(); pop('嘿 Siri～！！', f.x, f.y+7.5, 'big');
+  f.finalT = 3.0; banner('嘿 Siri！幫我找最近的人！'); SFX.siri(); pop('嘿 Siri～！！', f.x, f.y+7.5, 'big');
   const mesh = new THREE.Group();
   mesh.add(rbox(5.2,9.6,0.7,.4,serDarkM));
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(4.6,8.9), new THREE.MeshBasicMaterial({map:serSiriTex, fog:false})); scr.position.z = 0.37; mesh.add(scr);
@@ -244,8 +244,8 @@ function serFinal(f, opp){
   scene.add(ret);
   G.finals.push({owner:f, target:tgt, t:0, mesh, ret, x:tgt.x, y:11.5, landY:4.9, hit:new Set(), landed:false, update(F, dt){
     const T = F.target;
-    // 0~0.7s: follow the target · 0.7~2.7s: position locked, warning only (time to escape) · 2.7s+: slam down
-    const LOCK = .7, DROP = 2.7;
+    // 0~0.7s: follow the target · 0.7~1.7s: position locked, warning only (time to escape) · 1.7s+: slam down
+    const LOCK = .7, DROP = 1.7;
     if (F.t < LOCK){
       if (T.state!=='dead'){ F.x += (T.x - F.x)*(1 - Math.exp(-dt*8)); F.gy = Math.max(0, T.y); F.landY = Math.max(4.9, T.y + 4.9); }
       F.y = (F.gy || 0) + 11.5 + Math.sin(F.t*6)*.4;
@@ -276,7 +276,7 @@ function serFinal(f, opp){
         }
       }
     }
-    return F.t > 4.0;
+    return F.t > 3.0;
   }, dispose(F){ scene.remove(F.mesh); scene.remove(F.ret); }});
 }
 
