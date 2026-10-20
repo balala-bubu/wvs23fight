@@ -84,7 +84,7 @@ const ktYoungTex = tex(128,64,(g)=>{
 const ktDarkM = L({color:0x2b2b30});
 function ktBall(s){ return new THREE.Mesh(new THREE.SphereGeometry(0.5*s,12,8), L({map:ktBallTex})); }
 function ktScreen(w, h){ return new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:ktPosterTex, fog:false})); }
-function ktPad(){ const g = new THREE.Group(); g.add(rbox(1.5,2.1,0.1,.15,ktDarkM)); const s = ktScreen(1.3,1.9); s.position.z = 0.06; g.add(s); g.position.set(0,-0.7,0.2); return g; }
+function ktPad(){ const g = new THREE.Group(); g.add(rbox(1.5,2.1,0.1,.15,ktDarkM)); const s = ktScreen(1.3,1.9); s.position.z = 0.06; g.add(s); g.scr = s; g.position.set(0,-0.7,0.2); return g; }
 function ktPhone(){ const g = new THREE.Group(); g.add(rbox(0.62,1.1,0.1,.2,ktDarkM)); const s = ktScreen(0.52,0.95); s.position.z = 0.06; g.add(s); g.position.set(0,-0.38,0.14); return g; }
 // the shield: a golden 3D "19" in a bubble
 function ktShield(){
@@ -174,58 +174,154 @@ function ktFinal(f, opp){
   }, dispose(F){ scene.remove(boom); scene.remove(lab); f.ktIQ = 0; f.D = base; }});
 }
 
+/* ---------- results textures: design drafts, the finished poster, student ID, request slips ---------- */
+const KT_DRAFTS = [['#ff9ecb','#ffe08a'],['#8ad7ff','#c7b3ff'],['#ffd166','#ff8f6b'],['#b9f0c8','#7fd2ff'],['#ffb3d1','#b7a6ff']];
+const ktDraftTexes = KT_DRAFTS.map(([a,b],i)=>tex(48,66,(g)=>{
+  const gr = g.createLinearGradient(0,0,48,66); gr.addColorStop(0,a); gr.addColorStop(1,b); g.fillStyle=gr; g.fillRect(0,0,48,66);
+  g.fillStyle='rgba(255,255,255,.85)'; g.fillRect(5,6+i,38,26);
+  g.fillStyle=['#5b8def','#e3523a','#3f9a3a','#c2377a','#f2a900'][i]; g.fillRect(8,9+i,32,20);
+  g.fillStyle='#2b2b30'; for (let r=0;r<4;r++) g.fillRect(6, 38+r*6, 36 - r*7 - i*2, 3);
+  g.fillStyle='rgba(255,255,255,.7)'; g.fillRect(4+i*6,56,8,6);
+}));
+const ktBannerTex = tex(256,160,(g)=>{
+  const gr = g.createLinearGradient(0,0,256,160); gr.addColorStop(0,'#ff8fc4'); gr.addColorStop(.5,'#ffd166'); gr.addColorStop(1,'#8ad7ff'); g.fillStyle=gr; g.fillRect(0,0,256,160);
+  g.fillStyle='rgba(255,255,255,.9)'; g.fillRect(10,10,236,140);
+  const g2 = g.createLinearGradient(0,20,256,140); g2.addColorStop(0,'#fff0f6'); g2.addColorStop(1,'#eef6ff'); g.fillStyle=g2; g.fillRect(14,14,228,132);
+  g.fillStyle='#f1c232'; g.beginPath(); g.arc(206,56,30,0,7); g.fill();
+  g.fillStyle='#2d6cc0'; for (let i=0;i<3;i++){ g.beginPath(); g.ellipse(206,56,30 - i*10,30,0,0,7); g.fill(); g.fillStyle = i ? '#2d6cc0' : '#f6f1de'; }
+  g.fillStyle='#c2377a'; g.font='900 44px sans-serif'; g.textAlign='left'; g.fillText('凱蒂', 26, 62);
+  g.fillStyle='#2b2b30'; g.font='900 20px sans-serif'; g.fillText('KATTIS · 冠軍', 26, 88);
+  g.fillStyle='#5b8def'; g.font='900 17px sans-serif'; g.fillText('美宣 3 秒完稿', 26, 114);
+  g.fillStyle='#e3523a'; g.font='900 17px sans-serif'; g.fillText('♥ 9999  已讀 999+', 26, 138);
+});
+const ktIdTex = tex(64,96,(g)=>{
+  g.fillStyle='#f8f8f4'; g.fillRect(0,0,64,96); g.fillStyle='#3f9a3a'; g.fillRect(0,0,64,16);
+  g.fillStyle='#fff'; g.font='900 10px sans-serif'; g.textAlign='center'; g.fillText('學生證', 32, 12);
+  g.fillStyle='#d8d4c8'; g.fillRect(6,22,24,30); g.fillStyle='#241b1c'; g.fillRect(9,24,18,10); g.fillStyle='#f2d6c0'; g.fillRect(12,32,12,12);
+  g.fillStyle='#2b2b30'; g.font='900 11px sans-serif'; g.textAlign='left'; g.fillText('凱蒂', 34, 32); g.font='900 9px sans-serif'; g.fillText('大二', 34, 45);
+  g.fillStyle='#c2377a'; g.font='900 26px sans-serif'; g.fillText('19', 34, 72); g.fillStyle='#2b2b30'; g.font='900 10px sans-serif'; g.fillText('歲', 60, 72);
+  g.fillStyle='#5b8def'; g.fillRect(6,58,24,4); g.fillRect(6,66,20,4); g.fillRect(6,74,24,4);
+});
+const KT_REQ = [['學長','海報明天早上要','#5b8def'],['學妹','IG 限動也拜託～','#c2377a'],['社長','再改一版就好','#e3523a'],['排球隊','隊服也給你設計','#3f9a3a']];
+const ktReqTexes = KT_REQ.map(([who,what,col])=>tex(96,48,(g)=>{
+  g.fillStyle='#fdfcf6'; g.fillRect(0,0,96,48); g.fillStyle=col; g.fillRect(0,0,96,11);
+  g.fillStyle='#fff'; g.font='900 9px sans-serif'; g.textAlign='left'; g.fillText(who, 4, 9);
+  g.fillStyle='#2b2b30'; g.font='900 11px sans-serif'; g.fillText(what, 4, 26);
+  g.fillStyle='#b9b4a6'; g.fillRect(4,33,88,2); g.fillRect(4,39,64,2);
+}));
+function ktIdCard(){
+  const g = new THREE.Group(); g.add(rbox(2.3,3.4,0.14,.1,L({color:0xf8f8f4})));
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.1,3.2), new THREE.MeshBasicMaterial({map:ktIdTex, fog:false})); f.position.z = 0.09; g.add(f);
+  return g;
+}
+function ktReqPaper(i){
+  const g = new THREE.Group(); g.add(rbox(3.3,1.8,0.1,.06,L({color:0xfdfcf6})));
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(3.1,1.6), new THREE.MeshBasicMaterial({map:ktReqTexes[i], fog:false})); f.position.z = 0.07; g.add(f);
+  return g;
+}
+
 /* ---------- results ---------- */
-// win: volleyball spike → story selfie poster → genius pose
+// win: spike the ball at the loser → design the victory poster in 3 s → unfurl it → flash the 19 student ID
 function ktWinSetup(R){
   const W = R.W, wp = W.m.holder.position;
   W.m.body.rotation.y = 0;
-  const pol = new THREE.Group();
-  pol.add(rbox(3.4,4.1,0.12,.08,L({color:0xfbfaf6})));
-  const pt = new THREE.CanvasTexture(portraitCanvas('kattisbbb', W.m.skin||0)); pt.magFilter = pt.minFilter = THREE.NearestFilter; pt.generateMipmaps = false;
-  const ph = new THREE.Mesh(new THREE.PlaneGeometry(3,3), new THREE.MeshBasicMaterial({map:pt, fog:false})); ph.position.set(0,0.35,0.07); pol.add(ph);
-  const cap = new THREE.Mesh(new THREE.PlaneGeometry(3,0.6), new THREE.MeshBasicMaterial({map:tex(96,20,(g)=>{ g.fillStyle='#fbfaf6'; g.fillRect(0,0,96,20); g.fillStyle='#c2377a'; g.font='900 12px sans-serif'; g.textAlign='center'; g.fillText('#大二才19歲', 48, 15); }), fog:false}));
-  cap.position.set(0,-1.6,0.07); pol.add(cap);
-  pol.position.set(wp.x + 4.4, RS_Y + 7.2, -1); pol.rotation.z = -0.12; pol.scale.setScalar(.001); scene.add(pol); R.items.push(pol); R.pol = pol;
+  const b = ktBall(1.5); b.position.set(wp.x + 1, RS_Y + 7, wp.z); b.visible = false; scene.add(b); R.items.push(b); R.ktB = b;
+  const ban = new THREE.Group();
+  ban.add(rbox(8.8,5.7,0.2,.05,L({color:0xfff6fb})));
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(8.3,5.2), new THREE.MeshBasicMaterial({map:ktBannerTex, fog:false})); f.position.z = 0.13; ban.add(f);
+  ban.position.set(wp.x + 5.4, RS_Y + 24, -4); ban.visible = false; scene.add(ban); R.items.push(ban); R.ktBan = ban;
+  const tab = new THREE.Group();                                                 // the tablet she draws on, turned to the camera
+  tab.add(rbox(2.9,3.9,0.16,.12,ktDarkM));
+  const ts = new THREE.Mesh(new THREE.PlaneGeometry(2.5,3.5), new THREE.MeshBasicMaterial({map:ktDraftTexes[0], fog:false})); ts.position.z = 0.1; tab.add(ts);
+  tab.position.set(wp.x + 2.7, RS_Y + 4.6, wp.z + 1.8); tab.rotation.z = -.1; tab.visible = false; scene.add(tab); R.items.push(tab); R.ktTab = tab; R.ktScr = ts;
+  const id = ktIdCard(); id.position.set(wp.x + 2.3, RS_Y + 5.9, wp.z + 1.8); id.rotation.z = .08; id.visible = false; scene.add(id); R.items.push(id); R.ktId = id;
 }
 function ktWinUpdate(R, dt, k){
-  const W = R.W, m = W.m;
+  const W = R.W, m = W.m, Lz = R.Lz, wp = m.holder.position, lp = Lz.m.holder.position, b = R.ktB, ban = R.ktBan;
   for (const n in m.props) m.props[n].visible = false;
-  if (R.t < 1.8){
-    applyPose(m, (R.t % .9) < .5 ? POSE.serveWind : POSE.serveHit, k); m.props.ball.visible = true; m.setFace('grin');
-    once('kw0', .3, ()=>popAt('扣殺得分！', W, 8.5, 'big'));
-    once('kw0b', .55, ()=>SFX.batCrack());
-  } else if (R.t < 3.6){
-    applyPose(m, POSE.selfie, k); m.props.phone.visible = true; m.setFace('wink');
-    once('kw1', 2.0, ()=>{ SFX.ktSnap(); popAt('發限動！📸', W, 9, 'big'); const p = m.holder.position; burst(p.x + .8, p.y + 6.5, 0xffffff, 16, 9); });
-  } else {
-    applyPose(m, Math.sin(R.t*9) > 0 ? POSE.cheer : POSE.peace, k); m.setFace('genius');
-    once('kw3', 3.8, ()=>{ SFX2.cheer(); popAt('高智商天才就是我！', W, 9.5, 'big'); });
-    once('kw4', 4.9, ()=>popAt('我才19歲欸～', W, 9.5, 'big'));
+  R.ktId.visible = false; R.ktTab.visible = false;
+  if (R.t < 1.35){                                                               // 1) spike it straight at the loser
+    applyPose(m, R.t < .5 ? POSE.spikeWind : POSE.spikeHit, k); m.setFace(R.t < .5 ? 'normal' : 'shout');
+    m.props.ball.visible = R.t < .5;
+    once('ktw0', .08, ()=>popAt('最後一球！', W, 9, 'big'));
+    once('ktw1', .5, ()=>{ SFX.batCrack(); popAt('扣殺——！', W, 9.5, 'big'); b.visible = true; });
+    if (R.t >= .5){
+      const u = Math.min(1, (R.t - .5)/.62);
+      b.position.set(wp.x + 1 + (lp.x - wp.x - 1)*u, RS_Y + 7 - 2.2*u + 4.4*u*(1-u), wp.z + (lp.z - wp.z)*u);
+      b.rotation.z -= dt*22;
+    }
+    once('ktw2', 1.12, ()=>{ SFX.soft(); G.shake = reduce ? .1 : .5; burst(lp.x, RS_Y + 6.6, 0xffffff, 12, 7); pop('咚！', lp.x, RS_Y + 8.5, 'big'); });
+  } else if (R.t < 3.5){                                                         // 2) three-second poster sprint
+    applyPose(m, POSE.piano, k); m.setFace('genius');
+    R.ktTab.visible = true; R.ktTab.rotation.z = -.1 + Math.sin(R.t*30)*.035;
+    R.ktScr.material.map = ktDraftTexes[Math.floor(R.t*11) % ktDraftTexes.length]; R.ktScr.material.needsUpdate = true;
+    if (Math.random() < dt*22) burst(wp.x + 1.6 + (Math.random()-.5), RS_Y + 4.5 + Math.random()*2.5, [0xff8fc4,0xffd166,0x8ad7ff][Math.floor(Math.random()*3)], 1, 4);
+    once('ktw3', 1.45, ()=>{ SFX.ktSnap(); popAt('社長：美宣交給你！', W, 9.5); });
+    once('ktw4', 2.1, ()=>{ SFX.ktSnap(); popAt('三、二、一…', W, 9.5, 'big'); });
+    once('ktw5', 3.0, ()=>{ SFX.ktSnap(); popAt('完稿！', W, 9.5, 'big'); });
+    if (b.visible){ b.position.y = Math.max(RS_Y + .8, b.position.y - dt*6); b.rotation.z -= dt*3; }
+  } else if (R.t < 4.9){                                                         // 3) the poster drops in
+    applyPose(m, POSE.cheer, k); m.setFace('grin');
+    once('ktw6', 3.52, ()=>{ ban.visible = true; SFX.whistle(); });
+    const u = Math.min(1, (R.t - 3.52)/.55);
+    ban.position.y = RS_Y + 24 - 15.6*(u*(2 - u)); ban.rotation.z = Math.sin(R.t*7)*.07*(1 - u) + Math.sin(R.t*2)*.02;
+    once('ktw7', 4.05, ()=>{ SFX2.cheer(); G.shake = reduce ? .1 : .35; pop('♥ +1', wp.x + 3.4, RS_Y + 10, 'red'); });
+    once('ktw8', 4.35, ()=>pop('♥ +99', wp.x + 5.2, RS_Y + 12, 'red'));
+    once('ktw9', 4.62, ()=>{ SFX.ktSnap(); pop('♥ +9999！', wp.x + 7, RS_Y + 14, 'big'); });
+  } else {                                                                       // 4) and the ID card
+    applyPose(m, POSE.thumbs, k); m.setFace('genius'); R.ktId.visible = true;
+    R.ktId.rotation.z = .08 + Math.sin(R.t*3)*.05;
+    ban.position.y = RS_Y + 8.4 + Math.sin(R.t*2)*.12; ban.rotation.z = Math.sin(R.t*2)*.02;
+    once('ktwa', 4.95, ()=>{ SFX.ktBrain(); popAt('大二，19 歲，有問題嗎？', W, 10, 'big'); });
   }
-  if (R.t > 2.3){ const u = Math.min(1, (R.t - 2.3)/.35); R.pol.scale.setScalar(Math.max(.001, u*(1 + Math.sin(u*Math.PI)*.25))); R.pol.position.y = RS_Y + 7.2 + Math.sin(R.t*2)*.15; }
 }
-// lose: a volleyball bonks her head, she sobs about being only 19
+// lose: she misses the ball, then every club dumps a design job on her until she is buried
 function ktLoseSetup(R){
   const Lz = R.Lz, lp = Lz.m.holder.position;
   Lz.m.body.rotation.y = 0;
-  const b = ktBall(1.6); b.position.set(lp.x, RS_Y + 14, lp.z); scene.add(b); R.items.push(b); R.kb = b; R.kbx = 0;
+  const b = ktBall(1.6); b.position.set(lp.x, RS_Y + 16, lp.z); scene.add(b); R.items.push(b); R.ktB = b; R.ktBx = lp.x;
+  R.ktP = KT_REQ.map((_, i)=>{ const p = ktReqPaper(i); p.position.set(lp.x, RS_Y + 20, lp.z - .1); p.visible = false; scene.add(p); R.items.push(p); return p; });
+  R.ktDrop = [.95, 1.75, 2.55, 3.35];
 }
 function ktLoseUpdate(R, dt, k){
-  const Lz = R.Lz, m = Lz.m, hp = m.holder.position, b = R.kb;
+  const Lz = R.Lz, m = Lz.m, hp = m.holder.position, b = R.ktB;
   for (const n in m.props) m.props[n].visible = false;
-  if (R.t < 1.0){
-    applyPose(m, POSE.stand, k); m.setFace('normal');
-    once('kl0', .1, ()=>popAt('這球我接得到！', Lz, 8.5, 'blue'));
-  } else {
-    applyPose(m, POSE.sob, k); m.setFace('cry');
-    once('kl2', 1.5, ()=>popAt('我才19歲…怎麼就輸了…', Lz, 8.5, 'blue'));
-    once('kl3', 3.0, ()=>popAt('美宣還沒交稿…', Lz, 8.5, 'blue'));
-    once('kl4', 4.3, ()=>popAt('IQ 200 也救不了排球……', Lz, 8.5, 'blue'));
-  }
-  if (R.t < .5){ const u = R.t/.5; b.position.y = RS_Y + 14 - u*u*6.5; b.position.x = hp.x; }
-  else if (R.t < 1.5){ const u = R.t - .5; b.position.y = RS_Y + 0.8 + 6.7*(1-u) + 6*u*(1-u); b.position.x = hp.x + 4.5*u; R.kbx = b.position.x; b.rotation.z -= dt*5; }
-  else { b.position.y = RS_Y + 0.8; R.kbx += dt*2*Math.max(0, 1 - (R.t - 1.5)/2); b.position.x = R.kbx; b.rotation.z -= dt*3; }
-  once('kl1', .5, ()=>{ SFX.soft(); popAt('砰！', Lz, 8, 'big'); burst(hp.x, hp.y + 7, 0xffffff, 8, 5); });
+  const landed = R.ktDrop.filter(t=>R.t > t + .32).length;
+  if (R.t < .95){ applyPose(m, POSE.stand, k); m.setFace('normal'); once('ktl0', .06, ()=>popAt('這球我接得到！', Lz, 8.5, 'blue')); }
+  else if (R.t < 4.0){ applyPose(m, landed >= 3 ? POSE.squat : landed >= 2 ? POSE.hurt : POSE.stand, k); m.setFace(landed >= 2 ? 'dizzy' : 'normal'); }
+  else { applyPose(m, POSE.sob, k); m.setFace('cry'); }
+  // the ball she never touched
+  if (R.t < .45){ const u = R.t/.45; b.position.y = RS_Y + 16 - u*u*8.6; }
+  else if (R.t < 1.3){ const u = (R.t - .45)/.85; b.position.y = RS_Y + 7.4 - 6.6*u + 5*u*(1-u); R.ktBx += dt*4.6; b.position.x = R.ktBx; b.rotation.z -= dt*6; }
+  else { b.position.y = RS_Y + .8; R.ktBx += dt*2.2*Math.max(0, 1 - (R.t - 1.3)/2.2); b.position.x = R.ktBx; b.rotation.z -= dt*2.5; }
+  once('ktl1', .45, ()=>{ SFX.soft(); popAt('砰！', Lz, 8, 'big'); burst(hp.x, RS_Y + 6.6, 0xffffff, 9, 6); });
+  // then the requests pile up on her head
+  const sink = Math.min(1.15, landed*.3);
+  R.ktDrop.forEach((t0, i)=>{
+    const p = R.ktP[i];
+    if (R.t < t0) return;
+    p.visible = true;
+    const stackY = RS_Y + 7.3 - sink + i*.6, u = Math.min(1, (R.t - t0)/.32);
+    if (R.t > 4.6){                                                              // 5) the pile slides off
+      const v = R.t - 4.6;
+      p.position.x = hp.x + (i%2 ? 1 : -1)*(1.4 + i*.5)*v*2.6;
+      p.position.y = Math.max(RS_Y + .5, stackY - 9*v*v);
+      p.rotation.z += dt*(i%2 ? 4.5 : -4.5);
+      return;
+    }
+    p.position.set(hp.x + (i - 1.5)*.26, RS_Y + 20 - (20 - (stackY - RS_Y))*(u*(2 - u)), hp.z - .1);
+    p.rotation.z = (i%2 ? .07 : -.06) + (1 - u)*(i%2 ? 1.6 : -1.6);
+  });
+  R.ktDrop.forEach((t0, i)=>{
+    once('ktlp' + i, t0 + .3, ()=>{
+      SFX.soft(); G.shake = reduce ? .05 : .22 + i*.05;
+      pop(KT_REQ[i][0] + '：' + KT_REQ[i][1], hp.x, RS_Y + 10.5 + i*.7, i===3 ? 'big' : 'blue');
+      burst(hp.x, RS_Y + 6.4 - sink, 0xfdfcf6, 5, 4);
+    });
+  });
+  once('ktl2', 4.05, ()=>popAt('我才19歲…怎麼什麼都找我…', Lz, 9, 'blue'));
+  once('ktl3', 4.62, ()=>{ SFX.crash(); G.shake = reduce ? .1 : .6; popAt('嘩啦——！', Lz, 9.5, 'big'); });
+  once('ktl4', 5.0, ()=>popAt('跳級…沒教我怎麼拒絕……', Lz, 9, 'blue'));
 }
 
 registerChar('kattisbbb', {
