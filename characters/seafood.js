@@ -343,6 +343,7 @@ function seafoodLoseUpdate(R, dt, k){
 }
 registerChar('seafood', {
   stats: { name:'雲嵐', en:'Seafood Master', tag:'海鮮狂熱・日文系・目標N1', weight:0.85, run:16, air:12.5, jumpV:33, djV:29, jumps:2 },
+  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#5fb6ff','#ffffff',0xe0483c); h.position.set(0.05,0.66,-0.02); c.head.add(h); } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.08,.1,.26], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:5, kb:8, sc:.7, ang:38, text:'おいしい！', dash:5, sfx:'chomp'},

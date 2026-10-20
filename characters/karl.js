@@ -174,6 +174,131 @@ function buildCar(col){
   g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.15,0.25,3.0), L({color:0xcfd4da})),3.25,0.8,0));
   return g;
 }
+/* ---------- 奶龍模型（黃色玩偶服限定；原版白狗完全不受影響） ---------- */
+// 側向技能召喚：朝 +X。勝利展示另有 buildKarlVictoryDragon()（朝 +Z），兩者不混用。
+function buildKarlBabyDragon(){
+  const g = new THREE.Group();
+  const yellow = L({color:0xffc63b, roughness:.88});
+  const yellowSoft = L({color:0xffd257, roughness:.90});
+  const tummy = L({color:0xf6e5c7, roughness:.99});
+  const eyeWhite = L({color:0xfffbf4, roughness:.94});
+  const greenOuter = L({color:0x7cc55b, roughness:.72});
+  const greenInner = L({color:0x228343, roughness:.62});
+  const blackEye = L({color:0x151515, roughness:.16});
+  const mouthDark = L({color:0x5e1820, roughness:1});
+  const tongue = L({color:0xee8ea0, roughness:1});
+  const toeMat = L({color:0x6a4d2d, roughness:.92});
+  const shine = new THREE.MeshBasicMaterial({color:0xffffff});
+  function oval(p, mat, x,y,z, sx,sy,sz, n=24){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(1,n,16),mat);
+    m.position.set(x,y,z); m.scale.set(sx,sy,sz); p.add(m); return m;
+  }
+  const profile=[
+    [.0,.14],[.46,.20],[.76,.33],[.97,.58],[1.11,.96],[1.16,1.30],[1.14,1.60],
+    [1.06,1.90],[1.02,2.18],[1.06,2.56],[1.12,2.95],[1.08,3.25],[.90,3.56],[.62,3.78],[.30,3.92],[0,3.97]
+  ];
+  const curve=new THREE.CatmullRomCurve3(profile.map(([r,y])=>new THREE.Vector3(r,y,0)),false,'catmullrom',.48);
+  const pts=curve.getPoints(120).map(p=>new THREE.Vector2(Math.max(0,p.x),p.y));
+  const body=new THREE.Mesh(new THREE.LatheGeometry(pts,56),yellow);
+  body.scale.z=.84; g.add(body);
+  oval(g,tummy,.78,1.28,0,.11,1.18,.84,34);
+  oval(g,yellowSoft,1.04,2.72,0,.22,.20,.34,20);
+  oval(g,eyeWhite,1.05,3.02,.30,.10,.28,.25,20);
+  oval(g,greenOuter,1.11,3.02,.32,.074,.220,.188,20);
+  oval(g,greenInner,1.14,3.02,.33,.058,.176,.145,20);
+  oval(g,blackEye,1.17,3.03,.34,.034,.133,.104,18);
+  oval(g,shine,1.20,3.13,.375,.011,.034,.026,10);
+  oval(g,eyeWhite,.96,2.96,-.21,.080,.215,.180,18);
+  oval(g,greenOuter,1.00,2.96,-.22,.057,.167,.136,18);
+  oval(g,greenInner,1.03,2.96,-.22,.044,.130,.105,18);
+  oval(g,blackEye,1.05,2.97,-.22,.024,.096,.076,16);
+  oval(g,shine,1.07,3.06,-.21,.008,.024,.020,10);
+  oval(g,mouthDark,1.10,2.38,.02,.050,.30,.40,20);
+  oval(g,tongue,1.19,2.16,.05,.040,.22,.26,18);
+  oval(g,tongue,1.31,2.04,.05,.016,.13,.13,16);
+  for(const side of [-1,1]){
+    const arm=oval(g,yellowSoft,.22,1.70,side*.88,.36,.24,.19,22);
+    arm.rotation.z=side>0?-0.24:0.24;
+    arm.rotation.x=side>0?0.52:-0.52;
+    arm.rotation.y=side>0?-0.16:0.16;
+  }
+  const legs=[];
+  for(const side of [-1,1]){
+    const leg=new THREE.Group();
+    leg.position.set(.18,.29,side*.36); g.add(leg); legs.push(leg);
+    oval(leg,yellowSoft,0,0,0,.27,.35,.28,22);
+    oval(leg,yellow,0,-.18,.09,.29,.14,.34,20);
+    for(const dz of [-.16,0,.16]) oval(leg,toeMat,.10,-.21,.18+dz,.052,.072,.072,10);
+  }
+  const tailBase = new THREE.Group();
+  tailBase.position.set(-1.02,1.16,0); g.add(tailBase);
+  tailBase.rotation.z=.20; tailBase.rotation.y=.10;
+  oval(tailBase,yellow,-.02,0,0,.17,.15,.30,18);
+  oval(tailBase,yellowSoft,-.25,.06,0,.11,.10,.23,18);
+  body.onBeforeRender=()=>{
+    const t=performance.now()*.016;
+    legs.forEach((leg,i)=>leg.rotation.z=Math.sin(t+(i?Math.PI:0))*.14);
+    tailBase.rotation.x=Math.sin(t*.5)*.10;
+  };
+  return g;
+}
+function buildKarlVictoryDragon(){
+  const g = new THREE.Group();
+  const yellow=L({color:0xffc741,roughness:.90});
+  const belly=L({color:0xf4e4c3,roughness:1});
+  const ivory=L({color:0xfffaf2,roughness:.92});
+  const green=L({color:0x308b41,roughness:.5});
+  const black=L({color:0x151715,roughness:.18});
+  const mouthM=L({color:0x6e2028,roughness:1});
+  const pink=L({color:0xef869c,roughness:.95});
+  const toes=L({color:0x795834,roughness:.9});
+  const shine=new THREE.MeshBasicMaterial({color:0xffffff});
+  function oval(parent,mat,x,y,z,sx,sy,sz,n=28){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(1,n,18),mat);
+    m.position.set(x,y,z);m.scale.set(sx,sy,sz);parent.add(m);return m;
+  }
+  const profile=[[0,.17],[.50,.22],[.83,.43],[1.05,.75],[1.17,1.13],
+    [1.16,1.50],[1.09,1.84],[1.03,2.13],[1.06,2.48],
+    [1.13,2.89],[1.12,3.23],[.96,3.57],[.74,3.82],[.43,4.01],[0,4.07]];
+  const curve=new THREE.CatmullRomCurve3(profile.map(([r,y])=>new THREE.Vector3(r,y,0)),false,'catmullrom',.42);
+  const pts=curve.getPoints(110).map(p=>new THREE.Vector2(Math.max(0,p.x),p.y));
+  const shell=new THREE.Mesh(new THREE.LatheGeometry(pts,60),yellow);
+  shell.scale.z=.88;g.add(shell);
+  oval(g,belly,0,1.18,1.009,.76,.79,.075,38);
+  for(const side of [-1,1]){
+    oval(g,ivory,side*.43,3.16,.976,.245,.27,.075,30);
+    oval(g,green,side*.43,3.16,1.040,.190,.211,.052,28);
+    oval(g,black,side*.43,3.16,1.084,.151,.171,.038,26);
+    oval(g,shine,side*.37,3.24,1.112,.040,.051,.013,12);
+  }
+  oval(g,mouthM,0,2.54,1.038,.40,.315,.072,34);
+  oval(g,pink,0,2.32,1.110,.220,.218,.048,28);
+  oval(g,pink,0,2.19,1.145,.145,.142,.038,24);
+  for(const side of [-1,1]){
+    const arm=oval(g,yellow,side*1.02,1.78,.08,.255,.47,.29,24);
+    arm.rotation.z=side*.14;
+    oval(g,yellow,side*.41,.29,.10,.33,.39,.33,24);
+    oval(g,yellow,side*.41,.12,.37,.35,.15,.41,24);
+    for(const dx of [-.15,0,.15]) oval(g,toes,side*.41+dx,.09,.71,.053,.060,.068,12);
+  }
+  const tail=oval(g,yellow,0,.99,-1.04,.30,.22,.38,24);
+  tail.rotation.x=-.26;
+  return g;
+}
+// 飛行拖尾：沿用 buildDog() 既有的 onBeforeRender 技巧，節流產生星屑（spark 本身 .18s 後自動消失，不需手動清理）
+function karlMilkTrail(dragon, face){
+  const body = dragon.children[0];
+  const orig = body.onBeforeRender ? body.onBeforeRender.bind(body) : null;
+  let n = 0;
+  body.onBeforeRender = function(renderer, sceneArg, camera){
+    if (orig) orig(renderer, sceneArg, camera);
+    if (reduce) return;
+    n++;
+    if (n % 6 === 0){
+      spark(dragon.position.x - face*0.55, dragon.position.y + 1.6 + Math.random()*0.5, .5 + Math.random()*.3);
+    }
+  };
+}
 
 // 白狗's final 「活著真好」: falling rocks → coral berries → the car, all gifted to the opponent
 function updateKarlFinal(F, dt){
@@ -222,8 +347,88 @@ function karlFinal(f, opp){
     const car = buildCar(0xd8d4cc); car.scale.set(dir,1,1); car.position.set(f.x - dir*48, 0, -0.6); grp.add(car);
     G.finals.push({type:'karl', owner:f, target:opp, dir, t:0, mesh:grp, car, rocks:[], step:0, update:updateKarlFinal});
 }
+// 以「實際選中的造型名稱」判斷，不假設 skin 的索引值
+function karlIsMilk(f){
+  const skins = CHARS.karl && CHARS.karl.skins;
+  return !!(f && f.m && f.m.skin > 0 && skins && skins[f.m.skin-1] && skins[f.m.skin-1].name === '黃色玩偶服');
+}
+// 原版白狗：F=ma！不變。黃色玩偶服：下必殺／下空中改成跟結尾一樣的搖手台詞（由 start:karlBookDance 切換 kDanceSide）
+function karlBookOrDanceText(f){ return karlIsMilk(f) ? (f.kDanceSide ? '我是奶龍！' : '我才是奶龍！') : 'F=ma！'; }
+// 舉書後的四組搖手舞（勝利）：右／左／右／左，每組上下搖兩下，字幕交替
+function karlMilkDragonWinDance(R, dt, k){
+  const W=R.W, m=W.m;
+  const start=4.85, rise=.22, dur=.50, t=R.t-start;
+  const danceT=Math.max(0,t-rise);
+  const idx=Math.min(3,Math.floor(danceT/dur));
+  const activeRight=idx%2===0;
+  const fraction=Math.min(.9999,(danceT%dur)/dur);
+  const doubleBounce=Math.pow(Math.sin(fraction*2*Math.PI),2);
+  const dancing=t>=rise && danceT<dur*4;
+  once('kMilkDanceStart',start,()=>{
+    SFX2.cheer(); popAt('奶龍跳舞！',W,8.4,'big');
+    if (R.kBook){ R.kBook.position.set(1.7,5.9,-.45); R.kBook.scale.setScalar(.62); }   // 書留在場上，移到旁邊讓雙手露出來
+  });
+  const lift=t<rise ? Math.sin(Math.max(0,t/rise)*Math.PI)*.85
+    : (dancing ? Math.abs(Math.sin(fraction*2*Math.PI))*.10 : 0);
+  m.holder.position.y=RS_Y+lift;
+  m.holder.rotation.z=dancing ? Math.sin(fraction*2*Math.PI)*.035 : 0;
+  const raised=-2.38-doubleBounce*.48, relax=-.35;
+  const shR=dancing && activeRight ? raised : relax;
+  const shL=dancing && !activeRight ? raised : relax;
+  const step=dancing?Math.sin(fraction*2*Math.PI)*.18:0;
+  const pose=P({
+    rSh:[shR,0,-.24],lSh:[shL,0,.24], rEl:[-.22],lEl:[-.22],
+    rHp:[-.15+step,0,-.04],lHp:[-.15-step,0,.04],
+    rKn:[.30+Math.max(0,step)*.3],lKn:[.30+Math.max(0,-step)*.3],
+    chest:[-.03,0,dancing?step*.15:0], head:[-.05,0,dancing?-step*.12:0],drop:-.08
+  });
+  applyPose(m, t<rise ? POSE.cheer : pose, k);
+  once('kMilkDance1',5.07,()=>popAt('我是奶龍！',W,8.5,'big'));
+  once('kMilkDance2',5.57,()=>popAt('我才是奶龍！',W,8.5,'big'));
+  once('kMilkDance3',6.07,()=>popAt('我是奶龍！',W,8.5,'big'));
+  once('kMilkDance4',6.57,()=>popAt('我才是奶龍！',W,8.5,'big'));
+}
+// 撞車落地後的四組搖手舞（戰敗），沿用落地後實際停下的位置，而不是寫死座標
+function karlMilkDragonDance(R, dt, k){
+  const f = R.Lz, m = f.m, hp = m.holder.position;
+  if (R.milkLandX === undefined){ R.milkLandX = hp.x; R.milkLandZ = hp.z; }
+  const t = Math.max(0, R.t - 5.15);
+  if (!R.milkDanceStart){
+    R.milkDanceStart = true;
+    R.kCar.visible = false; R.kHit.visible = false;
+    if (R.stars) R.stars.forEach(o=>o.visible = false);
+    m.holder.rotation.set(0,-.12,0); m.setFace('normal'); SFX2.cheer();
+  }
+  const riseT=.30, beatDur=.50, beatT=Math.max(0,t-riseT);
+  const beatIndex=Math.min(3,Math.floor(beatT/beatDur));
+  const activeRight=beatIndex%2===0;
+  const fraction=Math.min(1,(beatT%beatDur)/beatDur);
+  const twoShakes=Math.pow(Math.sin(fraction*2*Math.PI),2);
+  const dancing=t>=riseT && t<riseT+beatDur*4;
+  const r=Math.min(1,t/riseT), ease=r*r*(3-2*r);
+  const lift=t<riseT ? Math.sin(ease*Math.PI)*1.1 : (dancing?Math.abs(Math.sin(fraction*2*Math.PI))*.10:0);
+  hp.set(R.milkLandX, RS_Y+lift, R.milkLandZ);
+  m.holder.rotation.z=dancing?Math.sin(fraction*2*Math.PI)*.035:0;
+  m.holder.rotation.y=-.12;
+  const raised=-2.38-twoShakes*.48, relax=-.35;
+  const rightShoulder=dancing && activeRight ? raised : relax;
+  const leftShoulder=dancing && !activeRight ? raised : relax;
+  const step=dancing?Math.sin(fraction*2*Math.PI)*.18:0;
+  const pose=P({
+    rSh:[rightShoulder,0,-.24], lSh:[leftShoulder,0,.24], rEl:[-.22],lEl:[-.22],
+    rHp:[-.15+step,0,-.04], lHp:[-.15-step,0,.04],
+    rKn:[.30+Math.max(0,step)*.3],lKn:[.30+Math.max(0,-step)*.3],
+    chest:[-.03,0,dancing?step*.15:0], head:[-.05,0,dancing?-step*.12:0], drop:-.08
+  });
+  applyPose(m,t<riseT?POSE.squat:pose,k);
+  once('milkDragon1',5.48,()=>popAt('我是奶龍！',f,8.5,'big'));
+  once('milkDragon2',5.98,()=>popAt('我才是奶龍！',f,8.5,'big'));
+  once('milkDragon3',6.48,()=>popAt('我是奶龍！',f,8.5,'big'));
+  once('milkDragon4',6.98,()=>popAt('我才是奶龍！',f,8.5,'big'));
+}
 function karlWinSetup(R){
   const W = R.W;
+    R.milk = karlIsMilk(W);                                                // 只影響外觀；分支判斷集中在這裡
     const bush = new THREE.Group();
     bush.add(at(new THREE.Mesh(new THREE.SphereGeometry(1.4,8,6), L({color:0x3f7a2c})),0,1.2,0));
     for (let i=0;i<9;i++){ const b = berryBunch(.7); b.position.set(Math.cos(i*2.4)*1.1, 1.1+Math.sin(i*1.7)*.8, Math.sin(i*2.4)*1.1+.2); bush.add(b); }
@@ -231,17 +436,21 @@ function karlWinSetup(R){
     shown.position.set(0, 6.5, 0.6); shown.scale.setScalar(.001); W.m.holder.add(shown); R.items.push(shown); R.kBook = shown;
     bush.position.set(-0.2, RS_Y, 2.4); bush.scale.setScalar(.001); scene.add(bush); R.items.push(bush); R.bush = bush;
     R.dogs = [];
-    for (let i=0;i<7;i++){ const d = buildDog(); d.i = i; const side = i%2 ? 1 : -1;
+    // 黃色玩偶服：場景初始化即建立正面奶龍群，不先生成小狗再替換；原版白狗完全不變
+    for (let i=0;i<7;i++){ const d = R.milk ? {g: buildKarlVictoryDragon()} : buildDog(); d.i = i; const side = i%2 ? 1 : -1;
       d.g.position.set(-3.5 + side*(20 + i*1.5), RS_Y, -1 + (i%3)*1.2); scene.add(d.g); R.items.push(d.g); R.dogs.push(d); }
 }
 function karlLoseSetup(R){
+    R.milk = karlIsMilk(R.Lz);
     const car = buildCar(0x4a6fa8); car.rotation.y = -Math.PI/2; car.position.set(9.5, RS_Y, -4.1); scene.add(car); R.items.push(car); R.kCar = car;
     const hit = buildCar(0xc8402c); hit.rotation.y = Math.PI; hit.position.set(9.5+42, RS_Y, -4.1); scene.add(hit); R.items.push(hit); R.kHit = hit;
 }
 // 白狗 wins: eyes the poison berries, burns them instead, then white dogs swarm in
 function karlWinUpdate(R, dt, k){
   const W = R.W, wp = W.m.holder.position, B = R.bush;
-  if (R.t < 1.9){
+  if (R.milk && R.t >= 4.85){
+    karlMilkDragonWinDance(R, dt, k);
+  } else if (R.t < 1.9){
     B.scale.setScalar(Math.max(.001, Math.min(1, R.t/.4)));
     applyPose(W.m, R.t > .4 ? POSE.ponder : STANCE, k);
     W.m.props.berries.visible = R.t > .4;
@@ -264,7 +473,7 @@ function karlWinUpdate(R, dt, k){
     W.m.body.position.y = lift ? 0 : Math.abs(Math.sin(R.t*14))*0.15;
     if (lift){ const u = Math.min(1, (R.t - 4.0)/.3); R.kBook.scale.setScalar(Math.max(.001, u*(1 + Math.sin(u*Math.PI)*.25))); R.kBook.position.y = 6.5 + Math.sin(R.t*3)*.1; }
     once('kbook', 4.5, ()=>{ SFX2.fanfare(); popAt('活著真好！', W, 8.6, 'big'); });
-    once('kdog', 3.0, ()=>{ SFX.bark(); popAt('白狗們～！', W, 8.5, 'big'); });
+    once('kdog', 3.0, ()=>{ SFX.bark(); popAt(R.milk ? '奶龍們～！' : '白狗們～！', W, 8.5, 'big'); });
     once('kdog2', 3.5, ()=>{ SFX.bark(); SFX2.cheer(); });
   }
   R.dogs.forEach(d=>{
@@ -276,13 +485,15 @@ function karlWinUpdate(R, dt, k){
     p.x += (tx - p.x)*kk; p.z += (tz - p.z)*kk;
     p.y = RS_Y + Math.abs(Math.sin(R.t*10 + d.i))*.4;
     const dx = p.x - ox, dz = p.z - oz;
-    if (Math.abs(dx) + Math.abs(dz) > 1e-4) d.g.rotation.y = Math.atan2(-dz, dx);
+    // 小狗模型朝 +X；正面奶龍模型朝 +Z，面向角度要多轉 90 度才會對著移動方向
+    if (Math.abs(dx) + Math.abs(dz) > 1e-4) d.g.rotation.y = Math.atan2(-dz, dx) + (R.milk ? Math.PI/2 : 0);
     if (R.t > 3.6 && Math.random() < dt*.8){ const h = spriteOf(loveTex, 1.1); h.position.set(p.x, p.y + 3, p.z); scene.add(h); R.puffs.push({o:h, life:1.2, vy:3, grow:.2}); }
   });
 }
 // 白狗 loses: riding in the back seat, another car slams in — concussion
 function karlLoseUpdate(R, dt, k){
   const Lz = R.Lz, hp = Lz.m.holder.position, C = R.kCar, H = R.kHit;
+  if (R.milk && R.landed && R.t >= 5.15){ karlMilkDragonDance(R, dt, k); return; }
   if (!R.flyT){
     Lz.m.holder.rotation.set(0,0,0); hp.set(9.5, RS_Y + 0.55, -5);
     applyPose(Lz.m, POSE.sit, k);
@@ -430,32 +641,57 @@ function karlCostumePortrait(g){
 })();
 registerChar('karl', {
   stats: { name:'白狗', en:'Karl', tag:'樂天大笑・物理・跑步・活著真好', weight:1.0, run:15.5, air:11.5, jumpV:30, djV:26, jumps:2 },
-  skins: [{ name:'黃色玩偶服', apply: karlCostume, portrait: karlCostumePortrait }],
+  skins: [
+    { name:'黃色玩偶服', apply: karlCostume, portrait: karlCostumePortrait },
+    { name:'生日帽', apply(c){ const h = birthdayHat('#4fa3ff','#ffe066',0xff5fa2); h.position.set(0.05,0.82,-0.02); c.head.add(h); } },
+  ],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['laughIn','laugh'], box:[1.5,3.6,2.0], dmg:6, kb:8, sc:.7, ang:40, text:'哈哈！', sfx:'laughShort'},
     side:{t:[.18,.18,.32], pose:['sprint','sprint'], box:[1.9,3.4,1.6], dmg:14, kb:11, sc:1.05, ang:36, dash:26, text:'衝啊！', sfx:'swing'},
     up:{t:[.16,.12,.3], pose:['climbUp2','climbUp'], box:[0.4,6.6,1.8], dmg:12, kb:11, sc:1, ang:88, text:'攀岩！'},
-    down:{t:[.22,.1,.32], pose:['bookUp','bookSlam'], box:[1.9,0.9,1.7], dmg:11, kb:9, sc:.85, ang:70, prop:'book', text:'F=ma！', sfx:'spike'},
+    down:{t:[.22,.1,.32], pose:['bookUp','bookSlam'], box:[1.9,0.9,1.7], dmg:11, kb:9, sc:.85, ang:70, prop:'book', text:karlBookOrDanceText, sfx:'spike', start:'karlBookDance'},
     nair:{t:[.06,.2,.15], pose:['nair','nair'], box:[0,3,2.1], dmg:7, kb:6, sc:.6, ang:45, air:1},
     fair:{t:[.12,.1,.2], pose:['batWind','batHit'], box:[2.3,3.4,1.5], dmg:10, kb:8, sc:.9, ang:40, air:1, prop:'book', sfx:'swing'},
     uair:{t:[.1,.12,.2], pose:['air','climbUp'], box:[0.3,6.3,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
-    dair:{t:[.18,.1,.25], pose:['bookUp','bookSlam'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'book', sfx:'spike'},
+    dair:{t:[.18,.1,.25], pose:['bookUp','bookSlam'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'book', sfx:'spike', start:'karlBookDance'},
     nB:{t:[.22,.05,.28], pose:['throwWind','throwHit'], prop0:'berries', fire:[[.22,'berry']], air:1, sfx:'swing'},
-    sB:{t:[.15,.1,.3], pose:['throwWind','throwHit'], fire:[[.15,'whiteDog']], air:1},
+    sB:{t:[.15,.1,.3], pose:['throwWind','throwHit'], fire:[[.15,'whiteDog']], air:1, start:'karlDogWindup'},
     uB:{t:[.05,.55,.1], pose:['climbUp','climbUp2'], poseSwitch:.3, start:'climbJump', box:[0.4,4.8,1.7], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1},
     dB:{t:[.2,.45,.3], pose:['selfie','selfie'], prop:'phone', box:[1.6,3.8,2.6], dmg:4, kb:2, sc:.1, ang:50, onHit:'cringe', air:1, text:'對不起……我喜歡你', textCls:'blue', sfx:'sob'},
   },
   fire: {
   berry(f){ proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*16, vy:10, g:34, r:.8, life:2, bounce:1, dmg:5, kb:4, sc:.4, ang:45, onHit:'poison', mesh:berryBunch(1.2), spin:1}); pop('吃吃看？', f.x, f.y+7); },
-  whiteDog(f){ const d = buildDog(); d.g.scale.set(f.face,1,1); proj({owner:f, x:f.x+f.face*1.8, y:f.y, vx:f.face*28, vy:0, g:0, wave:.5, r:1.4, life:.75, dmg:9, kb:10, sc:.8, ang:35, mesh:d.g}); pop('白狗！汪！', f.x, f.y+7); SFX.bark(); },
+  whiteDog(f){
+    if (karlIsMilk(f)){                                                    // 黃色玩偶服：召喚小奶龍（側向模型），原傷害/速度/擊退不變
+      const dragon = buildKarlBabyDragon(); dragon.scale.set(f.face,1,1);
+      karlMilkTrail(dragon, f.face);                                       // 特效第 2 層：飛行拖尾（節流、自動清理）
+      proj({owner:f, x:f.x+f.face*1.8, y:f.y, vx:f.face*28, vy:0, g:0, wave:.5, r:1.4, life:.75, dmg:9, kb:10, sc:.8, ang:35, mesh:dragon, onHit:'karlMilkImpact'});
+      pop('小奶龍！衝呀！', f.x, f.y+7, 'big'); SFX.swing();
+      burst(f.x+f.face*1.0, f.y+1, 0xffe066, 5, 5);
+      return;
+    }
+    const d = buildDog(); d.g.scale.set(f.face,1,1); proj({owner:f, x:f.x+f.face*1.8, y:f.y, vx:f.face*28, vy:0, g:0, wave:.5, r:1.4, life:.75, dmg:9, kb:10, sc:.8, ang:35, mesh:d.g}); pop('白狗！汪！', f.x, f.y+7); SFX.bark();
+  },
   },
   start: {
   climbJump(f){ f.vy = 32; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; pop('攀岩！', f.x, f.y+7); burst(f.x, f.y+1, 0x8a7a62, 8, 8); },
+  karlBookDance(f){ if (karlIsMilk(f)) f.kDanceSide = !f.kDanceSide; },   // 原版白狗完全不受影響；僅黃色玩偶服切換搖手側
+  karlDogWindup(f){                                                        // 特效第 1 層：出招前的小小預備動作（不改碰撞判定、不影響原版小白狗）
+    if (!karlIsMilk(f)) return;
+    burst(f.x + f.face*0.6, f.y + 0.3, 0xffe066, 6, 4);
+    spark(f.x + f.face*0.6, f.y + 1.2, .6);
+    SFX.soft();
+  },
   },
   onhit: {
   poison(a,v){ v.slowT = 2.5; v.state = 'stun'; v.stunT = .45; v.move = null; pop('中毒了！', v.x, v.y+7.5, 'red'); burst(v.x, v.y+5, 0x7fd060, 8, 5); },
   cringe(a,v){ v.state = 'stun'; v.stunT = .8; v.move = null; v.vx *= .3; pop('好尷尬……', v.x, v.y+7.5, 'blue'); },
+  karlMilkImpact(a,v){                                                     // 特效第 3 層：命中瞬間；只用在奶龍召喚物，不影響原版小白狗
+    burst(v.x, v.y+2.5, 0xffd65d, 9, 6); spark(v.x, v.y+2.5, 1.4);
+    pop('奶龍衝擊！', v.x, v.y+6, 'big');
+    G.shake = Math.max(G.shake, reduce ? .15 : .5);
+  },
   },
   build: buildKarl, face: kFaces.normal, portraitBg: '#e9e4da',
   portrait(g){
@@ -471,8 +707,15 @@ registerChar('karl', {
   poses: {
     kSofa: P({rHp:[-1.55,0,-0.1], lHp:[-1.55,0,0.1], rKn:[1.45], lKn:[1.5], chest:[0.15], head:[0.2,0,0.08], rSh:[-0.5,0,-0.15], rEl:[-1.1], lSh:[0,0,0.45], lEl:[-0.3], drop:-1.0}),
     kSip:  P({rHp:[-1.55,0,-0.1], lHp:[-1.55,0,0.1], rKn:[1.45], lKn:[1.5], chest:[-0.05], head:[-0.55], rSh:[-2.2,0,0.45], rEl:[-1.95], lSh:[0,0,0.45], lEl:[-0.3], drop:-1.0}),
+    karlWaveR: P({rSh:[-2.3,0,-0.2], lSh:[-0.35,0,0.2], rEl:[-0.25], lEl:[-0.25], chest:[-0.05,0,0.08], head:[-0.05,0,0.06], drop:-0.05}),
+    karlWaveL: P({rSh:[-0.35,0,-0.2], lSh:[-2.3,0,0.2], rEl:[-0.25], lEl:[-0.25], chest:[-0.05,0,-0.08], head:[-0.05,0,-0.06], drop:-0.05}),
   },
   animate(f, m, s, t, dt){
+    // 黃色玩偶服限定：下必殺／下空中（原本的 F=ma 書本招）改成搖手舞＋跟結尾動畫一樣的台詞；box/dmg/kb/timing 完全不變，原版白狗不受影響
+    if (s==='move' && (f.moveId==='down' || f.moveId==='dair') && karlIsMilk(f)){
+      applyPose(m, f.kDanceSide ? POSE.karlWaveR : POSE.karlWaveL, 1 - Math.exp(-dt*26));
+      f.kSipT = 0; return;
+    }
     if (s!=='shield'){ f.kSipT = 0; return; }
     f.kSipT = (f.kSipT || 0) + dt;
     const sip = (f.kSipT % 2.2) > 1.3;                                       // slump… sip… slump…
@@ -484,4 +727,5 @@ registerChar('karl', {
   selectSfx: ()=>SFX.bark(),
   winSub: '"Life is good!"',
   final: karlFinal, winSetup: karlWinSetup, winUpdate: karlWinUpdate, loseSetup: karlLoseSetup, loseUpdate: karlLoseUpdate, longWin: true, longLose: true,
+  resultExtra(f){ return karlIsMilk(f) ? 1700 : 0; },   // 黃色玩偶服的奶龍搖手舞比原版演出長，只為它延長結算時間
 });

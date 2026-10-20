@@ -671,7 +671,7 @@ class Fighter{
         const prev = this.moveT; this.moveT += dt;
         if (prev < st && this.moveT >= st){
           if (m.dash) this.vx = this.face*m.dash;
-          if (m.text) pop(m.text, this.x, this.y+7, m.textCls);
+          if (m.text) pop(typeof m.text==='function' ? m.text(this) : m.text, this.x, this.y+7, typeof m.textCls==='function' ? m.textCls(this) : m.textCls);
           if (m.sfx) SFX[m.sfx]();
           if (m.cry) this.sobbing = m.t[1]+m.t[2];
         }
@@ -1015,7 +1015,7 @@ function startResults(){
   G.fighters.forEach(f=>{ f.marker.visible = false; f.aura.visible = false; f.shieldMesh.visible = false; });
   G.sepiaT = 0; G.slowmo = 0; G.zoom = 0;
   RS.visible = true; scene.fog.near = 400; scene.fog.far = 900;
-  const party = G.fighters.length > 1 && G.fighters.every(f=>f.m.skin > 0);
+  const party = G.fighters.length > 1 && G.fighters.every(f=>skinName(f.kind, f.m.skin) === '生日帽');
   // ---- easter egg: everyone picked the birthday-hat skin -> cake party instead of a winner ----
   if (party){
     burstDisc.material = burstMats[2];
@@ -1048,7 +1048,8 @@ function startResults(){
   if (CW.winSetup) CW.winSetup(RES);
   if (CL.loseSetup) CL.loseSetup(RES);
   SFX.ko();
-  setTimeout(()=>{ if (G.mode==='result'){ overEl.hidden = false; } }, (CW.longWin || CL.longLose) ? 5800 : 3800);
+  const resultExtra = (CW.resultExtra ? CW.resultExtra(W) : 0) + (CL.resultExtra ? CL.resultExtra(Lz) : 0);   // 讓個別造型（如奶龍搖手舞）在必要時延長結算時間，其他角色預設不受影響
+  setTimeout(()=>{ if (G.mode==='result'){ overEl.hidden = false; } }, ((CW.longWin || CL.longLose) ? 5800 : 3800) + resultExtra);
 }
 function clearResults(){
   if (!RES) return;
@@ -1891,7 +1892,7 @@ function toMenu(){
 }
 function showOver(){
   const w = G.winner;
-  const party = G.fighters.length > 1 && G.fighters.every(f=>f.m.skin > 0);
+  const party = G.fighters.length > 1 && G.fighters.every(f=>skinName(f.kind, f.m.skin) === '生日帽');
   document.getElementById('winTxt').textContent = party ? '生日快樂！大家一起吃蛋糕' : `${w.D.name} 獲勝！`;
   document.getElementById('winSub').textContent = party ? 'HAPPY BIRTHDAY! 🎂' : (CHARS[w.kind].winSub || 'GAME!');
   startResults();
