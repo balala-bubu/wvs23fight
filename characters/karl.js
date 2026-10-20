@@ -175,7 +175,7 @@ function buildCar(col){
   return g;
 }
 /* ---------- 奶龍模型（黃色玩偶服限定；原版白狗完全不受影響） ---------- */
-// 側向技能召喚：朝 +X。勝利展示另有 buildKarlVictoryDragon()（朝 +Z），兩者不混用。
+// 原本側向技能專用的模型（朝 +X）。目前技能已改用下方跟結算畫面相同的 buildKarlVictoryDragon()，這裡保留不刪，以防之後要改回來。
 function buildKarlBabyDragon(){
   const g = new THREE.Group();
   const yellow = L({color:0xffc63b, roughness:.88});
@@ -663,8 +663,8 @@ registerChar('karl', {
   fire: {
   berry(f){ proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*16, vy:10, g:34, r:.8, life:2, bounce:1, dmg:5, kb:4, sc:.4, ang:45, onHit:'poison', mesh:berryBunch(1.2), spin:1}); pop('吃吃看？', f.x, f.y+7); },
   whiteDog(f){
-    if (karlIsMilk(f)){                                                    // 黃色玩偶服：召喚小奶龍（側向模型），原傷害/速度/擊退不變
-      const dragon = buildKarlBabyDragon(); dragon.scale.set(f.face,1,1);
+    if (karlIsMilk(f)){                                                    // 黃色玩偶服：召喚奶龍（與結算畫面同一顆模型），原傷害/速度/擊退不變
+      const dragon = buildKarlVictoryDragon(); dragon.rotation.y = f.face>0 ? Math.PI/2 : -Math.PI/2;   // 模型朝 +Z，轉向飛行方向
       karlMilkTrail(dragon, f.face);                                       // 特效第 2 層：飛行拖尾（節流、自動清理）
       proj({owner:f, x:f.x+f.face*1.8, y:f.y, vx:f.face*28, vy:0, g:0, wave:.5, r:1.4, life:.75, dmg:9, kb:10, sc:.8, ang:35, mesh:dragon, onHit:'karlMilkImpact'});
       pop('小奶龍！衝呀！', f.x, f.y+7, 'big'); SFX.swing();
