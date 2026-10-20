@@ -1479,7 +1479,7 @@ function leavePad(){
   try { rvVid.pause(); rvVid.srcObject = null; } catch(_){}
   rvVid.hidden = true; rvHud.hidden = true; rvBan.hidden = true;
   document.body.classList.remove('pad'); document.body.classList.remove('remote'); for (const k in TS) TS[k] = false;
-  padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr('scrOnline');
+  padUI.hidden = true; touchEl.hidden = true; G.mode = 'menu'; padReady = false; showScr(joinRemote ? 'scrOnline' : 'scrTitle');
 }
 const padKPrev = {};
 function padKeys(){
@@ -1523,13 +1523,17 @@ function padTick(){
     padSlotEl.style.color = slot >= 0 ? 'var(--p'+(slot+1)+')' : 'var(--ink)';
     pFin.classList.toggle('ready', ready);
     document.querySelectorAll('[data-pick]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===padPick)));
+    const selecting = !!(hp && slot >= 0 && hp.st==='select');
     const ps = document.getElementById('padStart');
-    ps.hidden = !(hp && slot >= 0 && (hp.st==='select' || hp.st==='over'));
-    ps.textContent = hp && hp.st==='over' ? '再來一局' : (padReady ? '取消準備' : '準備好了');
+    ps.hidden = !(hp && slot >= 0 && hp.st==='over');
     document.getElementById('padSel').hidden = !(hp && slot >= 0 && hp.st==='over');
-    document.querySelector('.pTop .seg').hidden = !(hp && slot >= 0 && hp.st==='select');
+    const box = document.getElementById('padSelBox'), go = document.getElementById('padGo');
+    box.hidden = !selecting; box.classList.toggle('lock', padReady);
+    padUI.classList.toggle('selecting', selecting);
+    padUI.style.setProperty('--pc', slot >= 0 ? 'var(--p'+(slot+1)+')' : 'var(--gold)');
+    go.textContent = padReady ? '取消準備' : '準備好了';
     const sk = document.getElementById('padSkins'), n = padPick && CHARS[padPick] ? skinCount(padPick) : 0;
-    sk.hidden = !(hp && slot >= 0 && hp.st==='select' && !padReady && n > 1);
+    sk.hidden = !(selecting && !padReady && n > 1);
     if (!sk.hidden){
       if (sk.dataset.k !== padPick){ sk.dataset.k = padPick; sk.innerHTML = '';
         for (let j=0;j<n;j++){ const b = document.createElement('button'); b.textContent = skinName(padPick, j); b.onclick = ()=>{ padSkin = j; if (party) party.lastUI = ''; }; sk.appendChild(b); } }
@@ -1615,11 +1619,32 @@ const selEl = document.getElementById('sel'), pauseEl = document.getElementById(
 let rulesFrom = 'scrTitle';
 function showScr(id){
   ['scrTitle','scrOnline','scrRules'].forEach(k=>{ document.getElementById(k).hidden = k!==id; });
-  menuEl.hidden = false; selEl.hidden = true; joinUI.hidden = true;
+  menuEl.hidden = false; selEl.hidden = true; joinUI.hidden = true; menuEl.classList.remove('splash');
+}
+// opening screen: logo + "press start"; first tap / Enter / Space opens the menu (and unlocks audio)
+function leaveSplash(){ if (!menuEl.classList.contains('splash')) return; audioOn(); menuEl.classList.remove('splash'); try{ SFX.whistle && SFX.whistle(); }catch(_){} }
+menuEl.addEventListener('click', leaveSplash);
+addEventListener('keydown', e=>{ if (e.key==='Enter' || e.key===' ') leaveSplash(); });
+// remember the last rules (people play the same setup every time)
+const RULES_KEY = 'wvs.rules';
+function loadRules(){
+  try {
+    const r = JSON.parse(localStorage.getItem(RULES_KEY) || 'null'); if (!r) return;
+    if ([2,3,4].includes(r.count)) sel.count = r.count;
+    if ([1,2,3,5].includes(r.stocks)) sel.stocks = r.stocks;
+    if (r.map && MAPS[r.map]) sel.map = r.map;
+    if (r.mode==='cpu' || r.mode==='2p') sel.mode = r.mode;
+  } catch(_){}
+}
+let rulesLoaded = false, soloMode = 'cpu';
+function saveRules(){
+  if (!rulesLoaded) return;
+  if (sel.mode==='cpu' || sel.mode==='2p') soloMode = sel.mode;
+  try { localStorage.setItem(RULES_KEY, JSON.stringify({count:sel.count, stocks:sel.stocks, map:sel.map, mode:soloMode})); } catch(_){}
 }
 document.getElementById('goSolo').onclick = ()=>{ audioOn(); sel.mode = sel.mode==='2p' ? '2p' : 'cpu'; rulesFrom = 'scrTitle'; document.getElementById('rulesH').textContent = '自己玩 · 規則'; document.getElementById('modeRow').hidden = false; syncMenu(); showScr('scrRules'); };
 document.getElementById('goOnline').onclick = ()=>{ audioOn(); showScr('scrOnline'); };
-document.getElementById('goHost').onclick = ()=>{ sel.mode = 'party'; sel.remote = false; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
+document.getElementById('goHost').onclick = ()=>{ audioOn(); sel.mode = 'party'; sel.remote = false; rulesFrom = 'scrTitle'; document.getElementById('rulesH').textContent = '開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
 document.getElementById('goRHost').onclick = ()=>{ audioOn(); sel.mode = 'party'; sel.remote = true; rulesFrom = 'scrOnline'; document.getElementById('rulesH').textContent = '遠端開房 · 規則'; document.getElementById('modeRow').hidden = true; syncMenu(); showScr('scrRules'); };
 document.querySelectorAll('[data-back]').forEach(b=>b.onclick = ()=>showScr(b.dataset.back));
 document.getElementById('rulesBack').onclick = ()=>{ leaveParty(); showScr(rulesFrom); };
@@ -1630,16 +1655,17 @@ document.querySelectorAll('[data-count]').forEach(b=>b.onclick = ()=>{ sel.count
 document.querySelectorAll('[data-stocks]').forEach(b=>b.onclick = ()=>{ sel.stocks = +b.dataset.stocks; syncMenu(); });
 document.getElementById('joinBtn').onclick = joinAsPad;
 codeIn.addEventListener('keydown', e=>{ if (e.key==='Enter') joinAsPad(); });
-document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr('scrOnline'); };
+document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr(joinRemote ? 'scrOnline' : 'scrTitle'); };
 document.getElementById('padLeave').onclick = leavePad;
 document.getElementById('padSel').onclick = ()=>{ padC.sel++; padReady = false; if (party) party.lastUI = ''; };
-document.getElementById('padStart').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; };
+document.getElementById('padStart').onclick = document.getElementById('padGo').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(15); }catch(_){} };
 function syncMenu(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===sel.mode)));
   document.querySelectorAll('[data-map]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.map===sel.map)));
   document.querySelectorAll('[data-count]').forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.count===sel.count)));
   document.querySelectorAll('[data-stocks]').forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.stocks===sel.stocks)));
   document.getElementById('help2').hidden = sel.mode!=='2p';
+  saveRules();
 }
 syncMenu();
 
@@ -1746,7 +1772,7 @@ function cancelSel(i){
 function backFromSelect(){
   selEl.hidden = true; RS.visible = false; applyMap(sel.map); G.mode = 'menu';
   rebuildAll();
-  if (sel.mode==='party'){ leaveParty(); showScr('scrOnline'); } else showScr('scrRules');
+  if (sel.mode==='party'){ leaveParty(); showScr(sel.remote ? 'scrOnline' : 'scrTitle'); } else showScr('scrRules');
 }
 function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = 1.4; banner('準備開戰！'); } }
 function renderSel(){
@@ -1990,13 +2016,19 @@ function tick(){
 function boot(){
   ROSTER.push(...CHAR_ORDER, 'random');
   sel.p = sel.p.map((k,i)=>CHARS[k] ? k : CHAR_ORDER[i % CHAR_ORDER.length]);
+  loadRules(); rulesLoaded = true;
   if (!MAPS[sel.map]) sel.map = MAP_ORDER[0];
+  menuEl.classList.add('splash');
   const ms = document.getElementById('mapSeg');
   MAP_ORDER.forEach(id=>{ const b = document.createElement('button'); b.dataset.map = id; b.textContent = MAPS[id].name; b.setAttribute('aria-pressed','false');
     b.onclick = ()=>{ sel.map = id; applyMap(id); syncMenu(); }; ms.appendChild(b); });
-  const ps = document.getElementById('padPicks');
-  CHAR_ORDER.forEach(k=>{ const b = document.createElement('button'); b.dataset.pick = k; b.textContent = CH[k].name; b.setAttribute('aria-pressed','false');
-    b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; }; ps.appendChild(b); });
+  // phone controller: one big portrait card per character (rows scale with the roster size)
+  const pg = document.getElementById('padGrid');
+  pg.style.setProperty('--cols', Math.min(6, Math.max(4, Math.ceil(CHAR_ORDER.length/2))));
+  CHAR_ORDER.forEach(k=>{
+    const b = document.createElement('button'); b.className = 'pcard'; b.dataset.pick = k; b.setAttribute('aria-pressed','false'); b.setAttribute('aria-label', CH[k].name);
+    b.appendChild(portraitCanvas(k)); const nm = document.createElement('span'); nm.textContent = CH[k].name; b.appendChild(nm);
+    b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(10); }catch(_){} }; pg.appendChild(b); });
   buildPortraits();
   applyMap(sel.map); rebuildAll(); syncMenu();
   tick();
