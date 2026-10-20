@@ -268,42 +268,103 @@ function hqStumble(t){
 
 // ---------------- ultimate: scuba + reels spam ----------------
 const HQ_REEL_LINES = ['轉傳給你','這個超好笑','已讀不回','看完這個','第47則 Reels','Scuba!'];
+// 大招「Scuba！Reels 洗版！」三段：
+//   1 跳起來 → Reels 繞著他轉成一圈，把靠近的人慢慢吸過來
+//   2 洗版    → 環上的 Reels 一波波朝最近的人射出去，每中一次就疊一層「已讀」
+//   3 已讀全部 → 疊愈多層炸愈痛，全場震一下
+const HQ_SPAM_LINES = ['這個超好笑','轉傳給你','看完這個','還有這個','最後一個','真的最後一個'];
 function hqFinal(f, opp){
-  f.finalT = 3.0; banner('Scuba！Reels 洗版！'); SFX.whistle(); pop('這個你一定要看', f.x, f.y+7.5, 'big');
-  const reels = [];
-  G.finals.push({type:'reels', owner:f, t:0, spawn:0, big:false, reels, update:hqFinalUpdate, dispose:(F)=>F.reels.forEach(r=>scene.remove(r.o))});
-}
-function hqFinalUpdate(F, dt, t){
-  const f = F.owner;
-  F.spawn -= dt;
-  if (t < 2.5 && F.spawn <= 0){
-    F.spawn = .1;
-    const o = spriteOf(hqReelTex, 1.6), dir = Math.random() < .5 ? -1 : 1;
-    o.position.set(f.x, f.y+4.5, .6); scene.add(o);
-    F.reels.push({o, x:f.x, y:f.y+4.5, vx:dir*(10+Math.random()*16), vy:6+Math.random()*10, life:1.8, hit:new Set()});
-    if (Math.random() < .35) SFX.note(Math.floor(Math.random()*3));
+  f.finalT = 4.2; banner('Scuba！Reels 洗版！'); SFX.whistle(); pop('這個你一定要看', f.x, f.y+7.5, 'big');
+  const ring = [];
+  for (let i=0;i<8;i++){
+    const o = spriteOf(hqReelTex, 1.5, [0xffffff,0x7fd0ff,0xffd166][i%3]); o.position.set(f.x, f.y+4.5, .6); scene.add(o);
+    ring.push({o, a:i/8*Math.PI*2, flying:false, vx:0, vy:0, x:f.x, y:f.y+4.5, hit:new Set()});
   }
-  for (let i=F.reels.length-1;i>=0;i--){
-    const r = F.reels[i];
-    r.life -= dt; r.vy -= 22*dt; r.x += r.vx*dt; r.y += r.vy*dt; r.o.position.set(r.x, r.y, .6); r.o.material.rotation += dt*6;
-    for (const v of G.fighters){
-      if (v===f || r.hit.has(v) || !v.hittable()) continue;
-      if (Math.abs(v.x - r.x) < 1.8 && Math.abs(v.y+3 - r.y) < 3.4){
-        r.hit.add(v); v.pct += 3; v.meter = Math.min(100, v.meter+2);
-        const dir = Math.sign(v.x - f.x) || f.face; launch(v, 0, 0, dir); v.vx = dir*5; v.vy = 7; v.hitstun = .35;
-        SFX.soft(); spark(v.x, v.y+3, 1.4); if (Math.random() < .5) pop(HQ_REEL_LINES[(Math.random()*HQ_REEL_LINES.length)|0], v.x, v.y+7, 'blue');
+  G.finals.push({type:'reels', owner:f, t:0, phase:0, volley:0, ring, stacks:new Map(), lineN:0,
+                 update:hqFinalUpdate, dispose:(F)=>F.ring.forEach(r=>scene.remove(r.o))});
+}
+function hqStack(F, v, n){ F.stacks.set(v, (F.stacks.get(v) || 0) + n); }
+function hqFinalUpdate(F, dt){
+  const t = F.t;                                                                 // F.t 是這個大招的經過時間；核心傳進來的第三個參數是全域時鐘，不能拿來計時
+  const f = F.owner, cx = f.x, cy = f.y + 4.6;
+
+  // ---- phase 1: 繞圈吸人 ----
+  if (t < 1.2){
+    const grow = .6 + t*2.6;
+    F.ring.forEach((r,i)=>{
+      r.a += dt*3.2; r.x = cx + Math.cos(r.a)*grow*2.3; r.y = cy + Math.sin(r.a)*grow*1.5;
+      r.o.position.set(r.x, r.y, .6); r.o.material.rotation += dt*4;
+      const sc = 1.5 + Math.sin(t*8+i)*.2; r.o.scale.set(sc,sc,1);
+    });
+    for (const v of G.fighters){                                                  // 靠近的人被舞步吸過去
+      if (v===f || !v.hittable()) continue;
+      const d = v.x - cx;
+      if (Math.abs(d) < 16 && Math.abs(v.y - f.y) < 10){ v.vx -= Math.sign(d)*34*dt; if (Math.random() < dt*3) drip(v.x, v.y+4, 0xff8fc0); }
+    }
+    if (Math.random() < dt*6) spark(cx + (Math.random()-.5)*6, cy + (Math.random()-.5)*4, .8);
+    return false;
+  }
+
+  // ---- phase 2: 一波波射出去 ----
+  if (t < 3.2){
+    F.volley -= dt;
+    if (F.volley <= 0){
+      F.volley = .26;
+      const idle = F.ring.filter(r=>!r.flying);
+      if (idle.length){
+        const r = idle[0], tgt = nearestFoe(f);
+        if (tgt){
+          const dx = tgt.x - r.x, dy = (tgt.y+3) - r.y, len = Math.hypot(dx,dy) || 1;
+          r.flying = true; r.vx = dx/len*30; r.vy = dy/len*30; r.hit.clear();
+          SFX.note(F.lineN % 3);
+          pop(HQ_SPAM_LINES[F.lineN % HQ_SPAM_LINES.length], f.x + f.face*2, f.y+7, 'blue'); F.lineN++;
+        }
       }
     }
-    if (r.life <= 0 || r.y < -30){ scene.remove(r.o); F.reels.splice(i,1); }
   }
-  if (t > 2.6 && !F.big){
-    F.big = true; SFX.boom(); G.shake = reduce ? .2 : 1.2; G.freeze = .12; pop('已讀！', f.x, f.y+8, 'big');
+  F.ring.forEach((r,i)=>{
+    if (!r.flying){
+      r.a += dt*3.2; r.x = cx + Math.cos(r.a)*3.4; r.y = cy + Math.sin(r.a)*2.2;
+      r.o.position.set(r.x, r.y, .6); r.o.material.rotation += dt*4;
+      return;
+    }
+    r.x += r.vx*dt; r.y += r.vy*dt; r.o.position.set(r.x, r.y, .6); r.o.material.rotation += dt*10;
     for (const v of G.fighters){
-      if (v===f || !v.hittable() || Math.abs(v.x - f.x) > 18) continue;
-      v.pct += 8; launch(v, 28 + v.pct*.11, 48, Math.sign(v.x - f.x) || f.face); SFX.hit(40); spark(v.x, v.y+3, 4);
+      if (v===f || r.hit.has(v) || !v.hittable()) continue;
+      if (Math.abs(v.x - r.x) < 2.0 && Math.abs(v.y+3 - r.y) < 3.4){
+        r.hit.add(v); hqStack(F, v, 1); v.pct += 3; v.meter = Math.min(100, v.meter+2);
+        const dir = Math.sign(v.x - f.x) || f.face; launch(v, 0, 0, dir); v.vx = dir*4; v.vy = 6; v.hitstun = .3;
+        SFX.soft(); spark(v.x, v.y+3, 1.5);
+        const n = F.stacks.get(v);
+        pop('已讀 ×'+n, v.x, v.y+7, n >= 4 ? 'red' : 'blue');
+        r.flying = false; r.x = cx; r.y = cy;                                      // 回到環上再射一次
+      }
+    }
+    if (Math.abs(r.x - cx) > 34 || r.y < -10){ r.flying = false; r.x = cx; r.y = cy; }
+  });
+
+  // ---- phase 3: 已讀全部 ----
+  if (t >= 3.2 && F.phase === 0){
+    F.phase = 1;
+    banner('已讀全部！'); SFX.boom(); G.shake = reduce ? .2 : 1.4; G.freeze = .14; G.flash = .2;
+    pop('已讀！', f.x, f.y+8.5, 'big');
+    F.ring.forEach(r=>{ r.flying = false; });
+    for (const v of G.fighters){
+      if (v===f || !v.hittable() || Math.abs(v.x - f.x) > 20) continue;
+      const n = F.stacks.get(v) || 0;                                              // 疊愈多層炸愈痛
+      v.pct += 6 + n*2.5;
+      launch(v, 26 + n*3 + v.pct*.11, 46, Math.sign(v.x - f.x) || f.face);
+      SFX.hit(40); spark(v.x, v.y+3, 4.5); burst(v.x, v.y+3, 0xff8fc0, 10 + n*2, 9);
+      if (n >= 4) pop('整天都在傳…', v.x, v.y+9, 'red');
     }
   }
-  return t > 3.0 && F.reels.length === 0;
+  if (F.phase === 1){
+    F.ring.forEach((r,i)=>{                                                        // 收尾：Reels 散開淡出
+      r.x += Math.cos(i/8*Math.PI*2)*18*dt; r.y += Math.sin(i/8*Math.PI*2)*12*dt + 6*dt;
+      r.o.position.set(r.x, r.y, .6); const sc = Math.max(0, 1.5 - (t-3.2)*1.6); r.o.scale.set(sc,sc,1);
+    });
+  }
+  return t > 4.2;
 }
 
 // ---------------- results ----------------

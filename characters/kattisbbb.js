@@ -137,9 +137,68 @@ function buildKattis(parent){
 }
 
 /* ---------- ultimate: 高智商天才 → 我很年輕爆炸 ---------- */
+// 大招「高智商天才」：變天才期間腦袋會自己冒出「靈感」繞著她轉，
+// 每顆靈感會自動飛去打最近的人；沒用完的靈感最後一起爆，用得愈多最後炸得愈大。
+// 大招期間頭後面的腦波特效：發亮的大腦 + 放射光線（自己畫的，沒有外部素材）
+const ktBrainTex = tex(128,128,(g)=>{
+  g.clearRect(0,0,128,128);
+  const glow = g.createRadialGradient(64,64,6,64,64,60);
+  glow.addColorStop(0,'rgba(150,240,255,.95)'); glow.addColorStop(.55,'rgba(60,170,255,.45)'); glow.addColorStop(1,'rgba(30,90,200,0)');
+  g.fillStyle=glow; g.fillRect(0,0,128,128);
+  g.strokeStyle='#bdf4ff'; g.lineWidth=4; g.lineCap='round';
+  g.beginPath(); g.ellipse(64,58,38,30,0,0,Math.PI*2); g.stroke();                 // 腦的外廓
+  g.beginPath(); g.moveTo(64,28); g.lineTo(64,88); g.stroke();                     // 中線
+  g.lineWidth=3; g.strokeStyle='rgba(190,245,255,.9)';
+  for (let i=0;i<4;i++){                                                            // 腦迴
+    const y = 38+i*13;
+    g.beginPath(); g.moveTo(32,y); g.bezierCurveTo(44,y-8,52,y+8,62,y-2); g.stroke();
+    g.beginPath(); g.moveTo(96,y); g.bezierCurveTo(84,y-8,76,y+8,66,y-2); g.stroke();
+  }
+  g.fillStyle='#eaffff';                                                            // 幾個發亮的神經節點
+  [[42,44],[86,50],[56,70],[78,76],[64,34]].forEach(([x,y])=>{ g.beginPath(); g.arc(x,y,3.4,0,7); g.fill(); });
+  g.beginPath(); g.ellipse(64,96,20,10,0,0,Math.PI*2); g.strokeStyle='#9fe6ff'; g.lineWidth=4; g.stroke();   // 腦幹
+});
+const ktRayTex = tex(64,16,(g)=>{
+  const gr = g.createLinearGradient(0,0,64,0);
+  gr.addColorStop(0,'rgba(190,250,255,.95)'); gr.addColorStop(.45,'rgba(90,200,255,.5)'); gr.addColorStop(1,'rgba(60,160,255,0)');
+  g.fillStyle=gr; g.beginPath(); g.moveTo(0,8); g.lineTo(10,2); g.lineTo(64,7.2); g.lineTo(64,8.8); g.lineTo(10,14); g.closePath(); g.fill();
+});
+function ktBrainFx(){
+  const g = new THREE.Group();
+  const halo = spriteOf(ktBrainTex, 4.6); halo.material.opacity = .85; g.add(halo);
+  const rays = [];
+  for (let i=0;i<10;i++){                                                           // 放射狀光線，長度各自呼吸
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.4,1.1), new THREE.MeshBasicMaterial({map:ktRayTex, color:0x8fe8ff, transparent:true, opacity:.75, depthWrite:false, fog:false}));
+    m.position.z = -.05; g.add(m); rays.push({m, a:i/10*Math.PI*2, ph:Math.random()*6.28});
+  }
+  g.userData = {halo, rays};
+  return g;
+}
+function ktBrainFxUpdate(fx, f, t, fade){
+  const U = fx.userData;
+  fx.position.set(f.x - f.face*0.9, f.y + 6.4, -0.7);                               // 頭後面，稍微偏後，不擋住臉
+  const pulse = 1 + Math.sin(t*6)*.07;
+  U.halo.scale.set(4.6*pulse*fade, 4.6*pulse*fade, 1); U.halo.material.opacity = .85*fade;
+  U.halo.material.rotation = Math.sin(t*1.3)*.08;
+  U.rays.forEach((r,i)=>{
+    r.a += 0.55*0.016;
+    const len = (.5 + Math.abs(Math.sin(t*3.2 + r.ph))*.5) * fade;
+    r.m.scale.set(len, fade, 1);
+    r.m.position.set(Math.cos(r.a)*2.5*len, Math.sin(r.a)*2.5*len, -.05);
+    r.m.rotation.z = r.a;
+    r.m.material.opacity = (.3 + Math.abs(Math.sin(t*3.2 + r.ph))*.4) * fade;
+  });
+}
+function ktIdeaOrb(){
+  const g = new THREE.Group();
+  g.add(spriteOf(starTex, 1.9, 0xffe066));
+  const core = spriteOf(starTex, 1.0, 0xffffff); core.position.z = .05; g.add(core);
+  return g;
+}
 function ktFinal(f, opp){
-  const GEN = 7.5, base = CH.kattisbbb;
+  const GEN = 6.6, base = CH.kattisbbb;
   f.finalT = .8; banner('高智商天才！'); SFX.ktBrain(); pop('IQ 200！', f.x, f.y+7.5, 'big');
+  G.flash = .18;
   f.D = Object.assign({}, base, {run:base.run*1.18, air:base.air*1.1});
   const rm1 = new THREE.MeshBasicMaterial({color:0xff7ac8, transparent:true, opacity:.8, side:THREE.DoubleSide, depthWrite:false, fog:false});
   const rm2 = new THREE.MeshBasicMaterial({color:0xffe066, transparent:true, opacity:.8, side:THREE.DoubleSide, depthWrite:false, fog:false});
@@ -147,31 +206,75 @@ function ktFinal(f, opp){
   boom.add(new THREE.Mesh(new THREE.RingGeometry(.86,1,32), rm1)); boom.add(new THREE.Mesh(new THREE.RingGeometry(.6,.7,32), rm2));
   boom.visible = false; scene.add(boom);
   const lab = new THREE.Sprite(new THREE.SpriteMaterial({map:ktYoungTex, transparent:true, fog:false})); lab.visible = false; scene.add(lab);
-  G.finals.push({owner:f, target:opp, t:0, hit:new Set(), booming:false, bt:0, update(F, dt){
+  const brainFx = ktBrainFx(); scene.add(brainFx);
+  G.finals.push({owner:f, target:opp, t:0, hit:new Set(), booming:false, bt:0, orbs:[], spawn:.7, used:0, update(F, dt){
     if (f.state==='dead') return true;
     if (F.t < GEN){
-      f.ktIQ = GEN - F.t;                                                           // big head, big eyes, faster attacks (see animate)
+      f.ktIQ = GEN - F.t;
+      brainFx.visible = true;                                                       // 頭後面的腦波特效（開頭淡入、結尾淡出）
+      ktBrainFxUpdate(brainFx, f, F.t, Math.min(1, F.t*3, (GEN - F.t)*2.2));                                                           // big head, big eyes, faster attacks (see animate)
       if (Math.random() < dt*10) burst(f.x + (Math.random()-.5)*2.5, f.y + 4 + Math.random()*4.5, 0xffe066, 1, 3);
+
+      F.spawn -= dt;                                                                // 靈感一顆顆冒出來，最多同時三顆
+      if (F.spawn <= 0 && F.orbs.length < 3 && F.t < GEN - 1.0){
+        F.spawn = 1.15;
+        const o = ktIdeaOrb(); scene.add(o);
+        F.orbs.push({o, a:Math.random()*6.28, wait:.75, flying:false, vx:0, vy:0, x:f.x, y:f.y+6, hit:new Set()});
+        SFX.ktSnap(); pop('想到了！', f.x, f.y+8, 'blue');
+      }
+      for (let i=F.orbs.length-1;i>=0;i--){
+        const r = F.orbs[i];
+        if (!r.flying){
+          r.wait -= dt; r.a += dt*2.6;
+          r.x = f.x + Math.cos(r.a)*2.6; r.y = f.y + 6.2 + Math.sin(r.a)*1.1;
+          r.o.position.set(r.x, r.y, .7); r.o.scale.setScalar(.8 + Math.sin(F.t*9+i)*.12);
+          if (r.wait <= 0){                                                         // 時間到就自己飛去打最近的人
+            const tgt = nearestFoe(f);
+            if (tgt){
+              const dx = tgt.x - r.x, dy = (tgt.y+3.2) - r.y, len = Math.hypot(dx,dy) || 1;
+              r.flying = true; r.vx = dx/len*34; r.vy = dy/len*34; F.used++;
+              SFX.note(1); pop('靈光一閃！', r.x, r.y+2, 'big');
+            } else r.wait = .6;
+          }
+          continue;
+        }
+        r.x += r.vx*dt; r.y += r.vy*dt; r.o.position.set(r.x, r.y, .7); r.o.rotation.z += dt*8;
+        if (Math.random() < dt*20) spark(r.x, r.y, .9);
+        let gone = Math.abs(r.x - f.x) > 40 || r.y < -12;
+        for (const v of G.fighters){
+          if (v===f || r.hit.has(v) || !v.hittable()) continue;
+          if (Math.abs(v.x - r.x) < 2.0 && Math.abs(v.y+3 - r.y) < 3.6){
+            r.hit.add(v); v.pct += 7;
+            launch(v, 14 + v.pct*.09, 52, Math.sign(v.x - r.x + .001) || f.face);
+            SFX.hit(26); spark(v.x, v.y+3, 3); burst(v.x, v.y+3.5, 0xffe066, 10, 8);
+            pop('被想到了！', v.x, v.y+7.5, 'big');
+            gone = true; break;
+          }
+        }
+        if (gone){ scene.remove(r.o); F.orbs.splice(i,1); }
+      }
       return false;
     }
     if (!F.booming){
-      F.booming = true; f.ktIQ = 0; f.D = base;
+      F.booming = true; f.ktIQ = 0; f.D = base; brainFx.visible = false;
+      F.orbs.forEach(r=>scene.remove(r.o)); F.orbs.length = 0;
       SFX.ktBoom(); G.shake = reduce ? .2 : 1.2; G.flash = .25; banner('我、很、年、輕！'); pop('我才19歲！！', f.x, f.y+8.5, 'big');
       boom.visible = true; lab.visible = true;
     }
     F.bt += dt;
-    const u = Math.min(1, F.bt/.5), R = 1 + u*10;
+    const bonus = Math.min(6, F.used*1.6);                                          // 用掉愈多靈感，最後的範圍愈大
+    const u = Math.min(1, F.bt/.5), R = 1 + u*(10 + bonus);
     boom.position.set(f.x, f.y+4, 0.5); boom.scale.setScalar(R); rm1.opacity = .8*(1 - u*.7); rm2.opacity = .8*(1 - u*.7);
     const ls = Math.min(1, u*3); lab.position.set(f.x, f.y+8.4, 1); lab.scale.set(7*ls, 3.5*ls, 1);
     for (const v of G.fighters){                                                   // everybody nearby feels old and dumb for 1 s
       if (v===f || F.hit.has(v) || !v.hittable()) continue;
       if (Math.abs(v.x - f.x) < R && Math.abs(v.y - f.y) < R*.8 + 2){
-        F.hit.add(v); v.pct += 6; v.state = 'stun'; v.stunT = 1.0; v.move = null; v.vx = (Math.sign(v.x - f.x) || 1)*5;
+        F.hit.add(v); v.pct += 6 + F.used*1.5; v.state = 'stun'; v.stunT = 1.0 + F.used*.12; v.move = null; v.vx = (Math.sign(v.x - f.x) || 1)*5;
         SFX.hit(20); spark(v.x, v.y+3, 4); pop('我老了…好笨…', v.x, v.y+8.5, 'blue');
       }
     }
     return F.bt > .9;
-  }, dispose(F){ scene.remove(boom); scene.remove(lab); f.ktIQ = 0; f.D = base; }});
+  }, dispose(F){ scene.remove(boom); scene.remove(lab); scene.remove(brainFx); F.orbs.forEach(r=>scene.remove(r.o)); f.ktIQ = 0; f.D = base; }});
 }
 
 /* ---------- results textures: design drafts, the finished poster, student ID, request slips ---------- */
