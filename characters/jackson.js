@@ -158,32 +158,61 @@ function buildJackson(parent){
   return c;
 }
 
-// ---------------- the original suited influencer (win / lose scenes) ----------------
-const hqSuitSkinM = L({color:0xe6b690}), hqSuitHairM = L({color:0x8a4a22}), hqSuitFaceM = L({map:tex(64,64,(g)=>{
-  speckle(g,64,64,'#e6b690',['#dfab84','#edc29c'],.3); shadeFace(g);
-  g.fillStyle='#4a2a14'; g.fillRect(12,24,14,3); g.fillRect(38,24,14,3);
-  g.fillStyle='#1d1310'; g.fillRect(16,34,8,6); g.fillRect(40,34,8,6); g.fillStyle='#fff'; g.fillRect(17,35,3,2); g.fillRect(41,35,3,2);
-  g.fillStyle='rgba(215,110,90,.35)'; g.fillRect(8,42,8,5); g.fillRect(48,42,8,5);
+// ---------------- the suited politician (win / lose scenes) ----------------
+// Model supplied by the user as an original 世志大亂鬥-native build (buildChar skeleton, canvas face, no GLB):
+// navy checked blazer, open white shirt (no necktie), dark side-parted hair, squarer face.
+const POLI_DARK = L({color:0x17243a}), POLI_SKIN = L({color:0xdda27b}), POLI_HAIR = L({color:0x302922}),
+      POLI_WHITE = L({color:0xf5f3ea}), POLI_SHOE = L({color:0x212128}), POLI_GOLD = L({color:0xd2b16e});
+const POLI_FACE = L({map:tex(64,64,(g)=>{
+  g.fillStyle='#dda27b'; g.fillRect(0,0,64,64);
+  g.fillStyle='rgba(255,232,201,.18)'; g.fillRect(7,8,50,15);
+  g.fillStyle='rgba(126,57,42,.13)'; g.fillRect(3,42,11,12); g.fillRect(50,42,11,12);
+  g.fillStyle='#493127';                                                            // dark flat brows
+  g.save(); g.translate(22,25); g.rotate(-.12); g.fillRect(-12,-3,22,5); g.restore();
+  g.save(); g.translate(42,25); g.rotate(.10); g.fillRect(-10,-3,22,5); g.restore();
+  for (const x of [22,43]){
+    g.fillStyle='#f6f4ec'; g.beginPath(); g.ellipse(x,35,8,6.8,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#56809a'; g.beginPath(); g.arc(x+1,35,3.4,0,Math.PI*2); g.fill();
+    g.fillStyle='#1b252e'; g.beginPath(); g.arc(x+1,35,1.9,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffffff'; g.fillRect(x+1,32,1.5,1.5);
+  }
+  g.fillStyle='rgba(124,75,52,.25)'; g.fillRect(31,38,3,9);
+  g.strokeStyle='#693f35'; g.lineWidth=2.2; g.beginPath(); g.moveTo(22,52); g.quadraticCurveTo(32,54,42,51); g.stroke();
+  g.strokeStyle='rgba(124,65,42,.24)'; g.lineWidth=1; g.beginPath(); g.moveTo(9,45); g.lineTo(13,47); g.moveTo(55,45); g.lineTo(51,47); g.stroke();
 })});
-const hqSuitFrontM = L({map:tex(32,32,(g)=>{ g.fillStyle='#1d2a4a'; g.fillRect(0,0,32,32); g.fillStyle='#f2f2f2'; g.beginPath(); g.moveTo(10,0); g.lineTo(22,0); g.lineTo(16,22); g.closePath(); g.fill(); g.fillStyle='#d8231f'; g.fillRect(13,2,6,3); g.fillStyle='#101a30'; g.fillRect(15,24,2,2); g.fillRect(15,28,2,2); })});
-const hqSuitColors = [0x1d2a4a,0x2d2d33,0x40302a,0x24402f,0x452a48];
+const POLI_JACKETS = [0x223351,0x2d2f3c,0x343f31,0x3a2b3f,0x1f3d44].map(c=>L({color:c}));
 function hqBuildSuit(i){
   const g = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(SC); g.add(body);
-  const jM = L({color:hqSuitColors[i%5]});
+  const navy = POLI_JACKETS[i % POLI_JACKETS.length];
   const c = buildChar({
-    skinM:hqSuitSkinM, faceM:hqSuitFaceM, headW:1.28, headH:1.08,
-    torsoMat:[jM,jM,jM,jM,hqSuitFrontM,jM], sleeveMat:()=>jM, sleeve:[0.7,0.95],
-    pantsM:L({color:0x15182a}), shoeM:L({color:0x15110f}), soleM:greySole,
-    collar(chest){ const bt = L({color:0xd8231f}); chest.add(at(rbox(0.22,0.2,0.1,.4,bt),-0.17,2.02,0.5)); chest.add(at(rbox(0.22,0.2,0.1,.4,bt),0.17,2.02,0.5)); chest.add(at(rbox(0.12,0.14,0.12,.4,bt),0,2.02,0.52)); },
-    hair(head){ const hm = hqSuitHairM;
-      head.add(at(rbox(1.3,0.5,1.14,.62,hm),0,0.46,-0.02)); head.add(at(rbox(1.26,0.9,0.5,.6,hm),0,0.06,-0.32));
-      head.add(at(rbox(0.9,0.3,0.7,.6,hm),0.1,0.7,0.15));                                // pompadour
+    skinM:POLI_SKIN, faceM:POLI_FACE, headW:1.15, headH:1.22,
+    torsoMat:navy, sleeveMat:()=>navy, sleeve:[.68,.9],
+    pantsM:POLI_DARK, shoeM:POLI_SHOE, soleM:POLI_SHOE,
+    collar(chest){                                                                  // open white shirt, no necktie
+      chest.add(at(rbox(.69,1.55,.085,.24,POLI_WHITE),0,1.28,.50));
+      [-1,1].forEach(s=>{
+        const lapel = rbox(.30,1.12,.09,.15,POLI_DARK); lapel.position.set(s*.47,1.55,.53); lapel.rotation.z = s*.20; chest.add(lapel);
+        const col = rbox(.26,.39,.12,.25,POLI_WHITE); col.position.set(s*.19,2.08,.58); col.rotation.z = -s*.32; chest.add(col);
+      });
+      chest.add(at(rbox(.24,.40,.12,.20,POLI_WHITE),0,1.82,.62));
+      chest.add(at(new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),POLI_GOLD),-.52,1.28,.54));
     },
-    face(head){ const hm = hqSuitHairM;
-      head.add(at(rbox(1.3,0.38,0.5,.6,hm),0,-0.4,0.3)); head.add(at(rbox(0.6,0.1,0.12,.5,hm),0,-0.12,0.52));   // full beard + moustache
+    hair(head){
+      head.add(at(rbox(1.28,.32,1.12,.56,POLI_HAIR),0,.78,-.09));
+      head.add(at(rbox(.34,.64,.95,.42,POLI_HAIR),-.55,.38,-.10));
+      head.add(at(rbox(.18,.40,.90,.5,POLI_HAIR),.61,.42,-.14));
+      for (let k=0;k<5;k++){                                                        // sweeping side-part fringe
+        const tuft = rbox(.32,.26,.30,.55,POLI_HAIR);
+        tuft.position.set(-.42+k*.20,.78-k*.028,.37); tuft.rotation.z = -.16+k*.045; head.add(tuft);
+      }
+      return {};
+    },
+    face(head){
+      head.add(at(rbox(.19,.26,.19,.5,POLI_SKIN),0,-.19,.58));                      // rounded nose
+      [-1,1].forEach(s=>head.add(at(rbox(.15,.27,.19,.45,POLI_SKIN),s*.65,-.10,-.04)));
     }
   }, body);
-  c.holder = g; c.body = body; c.props = {}; c.setOld = ()=>{}; c.setFace = ()=>{};
+  c.holder = g; c.body = body; c.props = {}; c.setFace = ()=>{}; c.setOld = ()=>{};
   return c;
 }
 
@@ -352,26 +381,47 @@ registerChar('jackson', {
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:6, kb:8, sc:.7, ang:38, text:'帥吧'},
-    side:{t:[.24,.1,.32], pose:['batWind','batHit'], box:[2.6,3.4,1.6], dmg:14, kb:12, sc:1.05, ang:36, prop:'phone', text:'傳給你！', sfx:'swing'},
+    side:{t:[.24,.1,.32], pose:['batWind','batHit'], box:[2.6,3.4,1.6], dmg:12, kb:11, sc:1.0, ang:36, prop:'phone', text:'傳給你！', sfx:'swing',
+          box2:{at:.38, dur:.1, box:[2.9,3.2,1.5], dmg:6, kb:9, sc:.8, ang:50}},   // 回手再補一下（已讀 + 回傳）
     up:{t:[.16,.12,.3], pose:['upWind','upHit'], box:[0.5,6.4,1.8], dmg:12, kb:11, sc:1, ang:88, sfx:'swing'},
-    down:{t:[.12,.22,.3], pose:['hqScubaA','hqScubaB'], poseSwitch:.2, box:[2.0,0.9,1.5], dmg:9, kb:8, sc:.7, ang:28, dash:13, text:'Scuba！'},
+    down:{t:[.12,.22,.3], pose:['hqScubaA','hqScubaB'], poseSwitch:.2, box:[2.0,0.9,1.5], dmg:9, kb:8, sc:.7, ang:28, dash:15, text:'Scuba！', fire:[[.12,'hqSlideFx']]},
     nair:{t:[.06,.2,.15], pose:['nair','nair'], box:[0,3,2.1], dmg:7, kb:6, sc:.6, ang:45, air:1},
     fair:{t:[.1,.1,.2], pose:['jabR','fair'], box:[2.1,3.4,1.4], dmg:9, kb:8, sc:.9, ang:40, air:1},
     uair:{t:[.1,.12,.2], pose:['air','block'], box:[0.3,6.4,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
     dair:{t:[.18,.1,.25], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1},
-    nB:{t:[.2,.05,.28], pose:['throwWind','throwHit'], prop0:'phone', fire:[[.2,'hqReel']], air:1, sfx:'swing'},
+    nB:{t:[.2,.05,.28], pose:['throwWind','throwHit'], prop0:'phone', fire:[[.2,'hqReel']], air:1, sfx:'swing'},   // 三種 Reels 輪流（粉：普通／藍：看到發呆／金：大擊飛）
     sB:{t:[.12,.25,.3], pose:['sprint','sprint'], prop:'phone', box:[1.8,3.6,1.4], dmg:8, kb:6, sc:.4, ang:40, dash:24, air:1, onHit:'hqDizzy', text:'看這個！'},
     uB:{t:[.05,.5,.1], pose:['hqScubaA','laughUp'], poseSwitch:.25, start:'hqUp', box:[0.4,5,1.7], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1, text:'Scuba跳！'},
-    dB:{t:[.12,.7,.3], pose:['hqSing','hqSing'], prop:'mic', fire:[[.12,'hqNote0'],[.3,'hqNote1'],[.48,'hqNote2'],[.66,'hqHigh']], air:1, text:'♪'},
+    dB:{t:[.12,.7,.3], pose:['hqSing','hqSing'], prop:'mic', fire:[[.12,'hqNote0'],[.3,'hqNote1'],[.48,'hqNote2'],[.66,'hqHigh']], air:1, text:'♪'},   // 最後那記高音會把人吸過來
   },
   fire: {
-    hqReel(f){ proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.4, vx:f.face*21, vy:0, g:0, r:.95, life:1.2, dmg:6, kb:6, sc:.5, ang:40, mesh:spriteOf(hqReelTex,1.6), spin:1}); pop(HQ_REEL_LINES[(Math.random()*HQ_REEL_LINES.length)|0], f.x, f.y+7); },
+    hqReel(f){
+      f.hqReelN = ((f.hqReelN || 0) + 1) % 3;                                     // 三種 Reels 輪流傳，每種手感不同
+      const kind = [
+        {col:0xffffff, dmg:6,  kb:6,  sc:.5, vx:21, txt:'這個超好笑'},
+        {col:0x7fd0ff, dmg:5,  kb:4,  sc:.3, vx:17, txt:'看完這個', onHit:'hqStare'},
+        {col:0xffd166, dmg:10, kb:12, sc:.8, vx:26, txt:'第47則 Reels'},
+      ][f.hqReelN];
+      proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.4, vx:f.face*kind.vx, vy:0, g:0, r:.95, life:1.2,
+            dmg:kind.dmg, kb:kind.kb, sc:kind.sc, ang:40, onHit:kind.onHit,
+            mesh:spriteOf(hqReelTex, f.hqReelN===2 ? 2.2 : 1.6, kind.col), spin:1});
+      pop(kind.txt, f.x, f.y+7, f.hqReelN===2 ? 'big' : null);
+      if (f.hqReelN===2) SFX.chord();
+    },
+    hqSlideFx(f){ burst(f.x - f.face*1.2, f.y+.6, 0xff8fc0, 6, 7); spark(f.x, f.y+1.4, 1.2); },
     hqNote0(f){ FIRE._hqNote(f,0); }, hqNote1(f){ FIRE._hqNote(f,1); }, hqNote2(f){ FIRE._hqNote(f,2); },
     _hqNote(f,i){ proj({owner:f, x:f.x+f.face*2.0, y:f.y+4+i*.4, vx:f.face*17, vy:0, g:0, wave:1.2, r:.85, life:1, dmg:4, kb:3, sc:.2, ang:45, mesh:spriteOf(hqNoteTex,1.4)}); SFX.note(i); },
-    hqHigh(f){ proj({owner:f, x:f.x+f.face*2.4, y:f.y+4.2, vx:f.face*20, vy:0, g:0, r:1.5, life:.9, dmg:7, kb:10, sc:.7, ang:45, mesh:spriteOf(hqNoteTex,2.6,0xffd27a)}); SFX.chord(); pop('We are～♪', f.x+f.face*2, f.y+7); },
+    hqHigh(f){ proj({owner:f, x:f.x+f.face*2.4, y:f.y+4.2, vx:f.face*20, vy:0, g:0, r:1.5, life:.9, dmg:7, kb:10, sc:.7, ang:45, onHit:'hqEncore', mesh:spriteOf(hqNoteTex,2.6,0xffd27a)}); SFX.chord(); pop('We are～♪', f.x+f.face*2, f.y+7); },
   },
   start: { hqUp(f){ f.vy = 31; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; burst(f.x, f.y+1, 0xff8fc0, 8, 8); } },
-  onhit: { hqDizzy(att, v){ v.state = 'stun'; v.stunT = .6; v.move = null; pop('看傻了', v.x, v.y+7.5, 'blue'); } },
+  onhit: {
+    hqDizzy(att, v){ v.state = 'stun'; v.stunT = .6; v.move = null; pop('看傻了', v.x, v.y+7.5, 'blue'); },
+    hqStare(att, v){ v.slowT = Math.max(v.slowT || 0, 2.2); pop('滑到忘記打了', v.x, v.y+7.5, 'blue'); burst(v.x, v.y+5, 0x7fd0ff, 6, 4); },
+    hqEncore(att, v){                                                              // 高音把人往宇的方向拉過來，方便接招
+      v.vx = Math.sign(att.x - v.x) * 16; v.vy = 9; v.state = 'hitstun'; v.hitstun = .4; v.move = null;
+      pop('安可！', v.x, v.y+7.5, 'big'); burst(v.x, v.y+4, 0xffd27a, 8, 6);
+    },
+  },
   poses: HQ_POSES,
   build: buildJackson, face: hqFaces.normal, portraitBg: '#8fb6d9',
   portrait(g){
@@ -395,6 +445,8 @@ registerChar('jackson', {
     if (s==='final'){ hqScubaDance(m, t, dt, f.face < 0); m.setFace('grin'); }
     else if (s==='shield'){                                              // use the arm nearest the camera
       applyPose(m, f.face > 0 ? POSE.hqEarR : POSE.hqEarL, 1 - Math.exp(-dt*20)); m.head.rotation.z += Math.sin(t*9)*.05; m.setFace('angry');
+      f.meter = Math.min(100, f.meter + dt*9);                                     // 偷聽的時候默默集氣
+      if (Math.random() < dt*2.5) spark(f.x - f.face*1.4, f.y + 4.6 + Math.random(), .7);
       const bd = m.props.bird;                                           // sits behind the head, on the hand's side, turned to face the camera
       bd.position.set((f.face > 0 ? -0.95 : 0.95), 0.55 + Math.sin(t*8)*.06, -0.5); bd.rotation.y = -m.holder.rotation.y;
       bd.userData.ears.forEach((e,i)=>{ e.rotation.y = Math.sin(t*10 + i*Math.PI)*.18; });

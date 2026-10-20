@@ -331,24 +331,44 @@ registerChar('kattisbbb', {
     jab3:{t:[.08,.1,.26], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:5, kb:8, sc:.7, ang:38, text:'快攻！', dash:5},
     side:{t:[.22,.1,.32], pose:['serveWind','serveHit'], box:[3.0,3.6,1.7], dmg:14, kb:12, sc:1.1, ang:36, prop:'ball', text:'發球！', sfx:'batCrack'},
     up:{t:[.14,.12,.28], pose:['upWind','upHit'], box:[0.5,7.2,1.8], dmg:12, kb:11, sc:1, ang:88, prop:'ball', text:'攔網！', sfx:'swing'},
-    down:{t:[.2,.1,.3], pose:['bookUp','bookSlam'], box:[2.0,0.9,1.8], dmg:11, kb:9, sc:.85, ang:70, prop:'pad', text:'交稿！', sfx:'swing'},
+    down:{t:[.2,.1,.3], pose:['bookUp','bookSlam'], box:[2.0,0.9,1.8], dmg:11, kb:9, sc:.85, ang:70, prop:'pad', text:'交稿！', sfx:'swing', fire:[[.3,'ktPapers']]},
     nair:{t:[.06,.2,.15], pose:['nair','nair'], box:[0,3,2.1], dmg:7, kb:6, sc:.6, ang:45, air:1},
     fair:{t:[.1,.1,.2], pose:['jabR','fair'], box:[2.3,3.5,1.4], dmg:9, kb:8, sc:.9, ang:40, air:1},
     uair:{t:[.1,.12,.2], pose:['air','upHit'], box:[0.3,6.8,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1, prop:'ball'},
     dair:{t:[.18,.1,.25], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'ball', text:'扣殺！', sfx:'batCrack'},
     nB:{t:[.2,.05,.28], pose:['serveWind','serveHit'], prop0:'ball', fire:[[.2,'ktServe']], air:1, sfx:'swing'},
-    sB:{t:[.14,.28,.3], pose:['dive','dive'], box:[2.1,3.0,1.5], dmg:9, kb:8, sc:.5, ang:40, dash:26, air:1, text:'魚躍救球！', sfx:'swing'},
+    sB:{t:[.14,.28,.3], pose:['dive','dive'], box:[2.1,3.0,1.5], dmg:9, kb:8, sc:.5, ang:40, dash:26, air:1, text:'魚躍救球！', sfx:'swing', fire:[[.14,'ktDiveFx']]},
     uB:{t:[.05,.55,.1], pose:['setUp','upHit'], poseSwitch:.3, prop:'ball', start:'ktUp', box:[0.4,5.2,1.7], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1, text:'跳發！'},
     dB:{t:[.15,.35,.35], pose:['selfie','selfie'], prop:'phone', box:[0,3.8,4.2], dmg:4, kb:3, sc:.2, ang:50, onHit:'ktFlash', air:1, text:'發限動！', sfx:'ktSnap'},
   },
   fire: {
-    ktServe(f){ proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*24, vy:3, g:12, r:.9, life:1.2, dmg:7, kb:7, sc:.5, ang:40, mesh:ktBall(1.6), spin:1}); },
+    ktServe(f){                                                                   // 平球與飄球輪流：飄球慢、會晃，命中後對手手忙腳亂
+      f.ktSpin = !f.ktSpin;
+      if (f.ktSpin){
+        proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*15, vy:2, g:4, wave:1.6, r:1.0, life:1.8, dmg:6, kb:6, sc:.45, ang:45, onHit:'ktScramble', mesh:ktBall(1.6), spin:1});
+        pop('飄球！', f.x, f.y+7, 'blue');
+      } else {
+        proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*24, vy:3, g:12, r:.9, life:1.2, dmg:7, kb:7, sc:.5, ang:40, mesh:ktBall(1.6), spin:1});
+      }
+    },
+    ktPapers(f){                                                                  // 交稿：稿子散出去
+      for (let i=0;i<3;i++){
+        const sheet = ktScreen(.7,1.0); sheet.material = sheet.material.clone();
+        proj({owner:f, x:f.x+f.face*1.2, y:f.y+3.4, vx:f.face*(9+i*4), vy:7-i*2.5, g:26, r:.7, life:1.1, dmg:4, kb:5, sc:.3, ang:50, mesh:sheet, spin:1});
+      }
+      burst(f.x+f.face*1.2, f.y+3.4, 0xf6f6f0, 7, 7);
+    },
+    ktDiveFx(f){                                                                  // 魚躍救球：救回一點防禦值，拖出一條痕跡
+      f.shieldHP = Math.min(50, f.shieldHP + 12);
+      burst(f.x - f.face*1.0, f.y+.5, 0xffffff, 8, 8); spark(f.x, f.y+1.6, 1.4);
+    },
   },
   start: {
     ktUp(f){ f.vy = 34; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; burst(f.x, f.y+1, 0xffffff, 8, 6); },
   },
   onhit: {
     ktFlash(a, v){ v.state = 'stun'; v.stunT = .5; v.move = null; pop('被閃到！', v.x, v.y+7.5, 'blue'); },
+    ktScramble(a, v){ v.slowT = Math.max(v.slowT || 0, 1.8); v.meter = Math.max(0, v.meter - 8); pop('接不到！', v.x, v.y+7.5, 'blue'); burst(v.x, v.y+4, 0xffe066, 6, 5); },
   },
   sfx: {
     ktSnap(){ tone(1800,.08,'square',.08); tone(900,.12,'sine',.08,1,.05); noise(.06,.2,4000); },
