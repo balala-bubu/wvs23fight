@@ -267,11 +267,127 @@ function tommyLoseUpdate(R, dt, k){
     if (R.t > 3.0){ applyPose(Lz.m, POSE.sit, k); once('sigh', 3.1, ()=>{ SFX2.sigh(); popAt('唉，年紀大了', Lz, 6.5, 'blue'); }); }
     else applyPose(Lz.m, age > .3 ? POSE.old : POSE.dizzy, k);
 }
+/* ---- 軍裝造型：軍樂隊制服（白胸襟、藏青長袖、金色穗帶／鈕釦／肩穗、白褲、白腰帶） ---- */
+const TMIL_NAVY = '#1f2358', TMIL_NAVY_C = ['#1a1e4e','#262b66','#161a44'];
+const TMIL_WHITE = '#ecebf3', TMIL_WHITE_C = ['#e2e1ec','#f5f4fa','#d8d7e4'];
+const TMIL_GOLD = '#e3b22a', TMIL_GOLD_L = '#f4d460', TMIL_GOLD_D = '#a87a12';
+let _tMil = null;
+function tMilFace(g){                                   // 正面照的臉：黑短髮（髮型沿用偷米的）、粗直眉、平靜的眼神、嘴巴抿著
+  speckle(g,64,64,T_SKIN,T_SKIN_C,.35); shadeFace(g);
+  g.fillStyle='rgba(215,105,85,.22)';
+  g.beginPath(); g.ellipse(15,42,6,4,0,0,7); g.fill();
+  g.beginPath(); g.ellipse(49,42,6,4,0,0,7); g.fill();
+  g.fillStyle='#161110';
+  g.fillRect(11,24,5,2); g.fillRect(16,25,5,2); g.fillRect(21,26,5,2);                 // 眉：外高內低，有點酷
+  g.fillRect(48,24,5,2); g.fillRect(43,25,5,2); g.fillRect(38,26,5,2);
+  [19.5,44.5].forEach(cx=>{
+    g.save(); g.beginPath(); g.ellipse(cx,35.5,6.5,2.8,0,0,7); g.clip();
+    g.fillStyle='#efe9e0'; g.fillRect(cx-8,32,16,7);
+    g.fillStyle='#2b1b13'; g.beginPath(); g.arc(cx,35.5,2.7,0,7); g.fill();
+    g.fillStyle='#fff'; g.fillRect(cx-1,34,1,1);
+    g.restore();
+    g.strokeStyle='#120d0b'; g.lineWidth=1.6; g.beginPath(); g.ellipse(cx,35.6,6.6,2.9,0,Math.PI*1.05,Math.PI*1.95); g.stroke();
+  });
+  g.fillStyle='rgba(120,70,45,.4)'; g.fillRect(29,35,6,5);
+  g.fillStyle='rgba(85,42,28,.75)'; g.fillRect(27,41,3,1); g.fillRect(34,41,3,1);
+  g.fillStyle='#6e342d'; g.fillRect(25,47,14,1);
+  g.fillStyle='rgba(176,98,84,.8)'; g.fillRect(27,48,10,2);
+  g.fillStyle='rgba(90,50,30,.2)'; g.fillRect(26,52,12,1);
+}
+function tMilAssets(){
+  if (_tMil) return _tMil;
+  const navy = (g,w,h)=>speckle(g,w,h,TMIL_NAVY,TMIL_NAVY_C,.4);
+  const white = (g,w,h)=>speckle(g,w,h,TMIL_WHITE,TMIL_WHITE_C,.35);
+  const panel = (g,w,h)=>{                              // 白色胸襟 + 兩側藏青肩袖，邊緣滾金邊（正面和背面共用）
+    white(g,w,h);
+    [false,true].forEach(m=>{
+      const X = (x)=> m ? w-x : x;
+      g.save(); g.beginPath(); g.moveTo(X(0),0); g.lineTo(X(36),0); g.lineTo(X(28),12); g.lineTo(X(22),34); g.lineTo(X(19),h); g.lineTo(X(0),h); g.closePath(); g.clip();
+      navy(g,w,h); g.restore();
+      g.strokeStyle=TMIL_GOLD; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(36),0); g.lineTo(X(28),12); g.lineTo(X(22),34); g.lineTo(X(19),h); g.stroke();
+    });
+  };
+  const A = {};
+  A.front = tex(96,138,(g,w,h)=>{
+    panel(g,w,h);
+    g.fillStyle='rgba(120,120,150,.5)'; g.fillRect(48,14,1,100);                         // 拉鍊
+    [34,52,70,88,106].forEach(y=>{                                                       // 五排金色橫飾帶 + 金鈕釦
+      g.fillStyle=TMIL_GOLD; g.fillRect(23,y,24,2); g.fillRect(50,y,24,2);
+      [24,72].forEach(x=>{ g.beginPath(); g.arc(x,y+1,2.8,0,7); g.fillStyle=TMIL_GOLD_L; g.fill(); g.strokeStyle='#8c6a10'; g.lineWidth=.8; g.stroke(); });
+    });
+    g.lineCap='round';                                                                   // 金色穗帶：從右肩垂下、斜過胸口、尾端兩串流蘇
+    const cord = (path)=>{ g.strokeStyle=TMIL_GOLD; g.lineWidth=3; path(); g.stroke(); g.strokeStyle='#fbe58a'; g.lineWidth=1; g.setLineDash([1,3]); path(); g.stroke(); g.setLineDash([]); };
+    cord(()=>{ g.beginPath(); g.moveTo(7,3); g.quadraticCurveTo(10,70,20,114); });
+    cord(()=>{ g.beginPath(); g.moveTo(20,114); g.quadraticCurveTo(52,112,74,46); });
+    g.fillStyle=TMIL_GOLD; g.fillRect(71,44,6,4);
+    for (let k=0;k<2;k++){ const x=70+k*5, hh=16-k*4; g.fillStyle=TMIL_GOLD; g.fillRect(x,48,3,hh); g.fillStyle=TMIL_GOLD_D; for(let y=50;y<48+hh;y+=2) g.fillRect(x+1,y,1,1); }
+  });
+  A.back = tex(96,138,(g,w,h)=>{ panel(g,w,h); g.fillStyle='rgba(120,120,150,.4)'; g.fillRect(48,6,1,120); });
+  A.side = tex(32,46,navy);
+  A.navy = tex(16,16,navy);
+  A.pants = tex(32,32,(g)=>{ speckle(g,32,32,'#e6e8f4',['#dcdeec','#f0f1f8','#d3d5e6'],.35); g.fillStyle='rgba(140,145,175,.45)'; g.fillRect(16,0,1,32); });
+  A.belt = tex(64,16,(g)=>{
+    speckle(g,64,16,'#eeeef4',['#e4e4ec','#f7f7fb'],.3);
+    g.fillStyle='#a5a7b8'; for(let x=4;x<62;x+=6) g.fillRect(x,7,2,2);
+    g.fillStyle='rgba(150,150,170,.5)'; g.fillRect(0,0,64,1); g.fillRect(0,15,64,1);
+  });
+  A.face = tex(64,64,tMilFace);
+  A.faces = { normal:A.face, cry:tFaces.cry, old:tFaces.old };
+  return (_tMil = A);
+}
+function tMilPortrait(g){                               // 選角小頭像：換成軍裝的臉，疊回偷米的瀏海，下方畫藏青金邊立領和白胸襟
+  const A = tMilAssets();
+  try { g.drawImage(A.face.image, 6, 12, 52, 52); } catch(_){}
+  g.fillStyle = '#151110'; CHARS.tommy.portrait(g);
+  g.fillStyle = TMIL_NAVY; g.fillRect(0,54,64,10);
+  g.fillStyle = TMIL_GOLD; g.fillRect(0,54,64,1);
+  g.fillStyle = TMIL_WHITE; g.beginPath(); g.moveTo(21,56); g.lineTo(43,56); g.lineTo(32,64); g.closePath(); g.fill();
+  g.fillStyle = TMIL_GOLD_L; g.fillRect(31,59,2,2);
+}
+function tMilApply(c){
+  const A = tMilAssets();
+  const gold = L({color:0xe3b22a}), goldL = L({color:0xf4d460}), navyM = L({map:A.navy});
+  /* 臉：頭部方塊的第 5 面是這個角色專屬的材質，換圖就好；哭臉／老臉沿用偷米原本的 */
+  const fm = c.head.children[0].material[4]; fm.map = A.faces.normal; fm.needsUpdate = true;
+  let cur = 'normal';
+  c.setFace = (f)=>{ if (f!==cur){ cur = f; fm.map = A.faces[f] || A.faces.normal; fm.needsUpdate = true; } };
+  /* 身體：白胸襟藏青肩、立領、金邊 */
+  const meshes = c.chest.children.filter(o=>o.isMesh), torso = meshes[0];
+  const sideM = L({map:A.side}), frontM = L({map:A.front}), backM = L({map:A.back});
+  torso.material = [sideM,sideM,sideM,sideM,frontM,backM];
+  meshes.slice(1).forEach(o=>{
+    if (Math.abs(o.position.y-2.28) < .05){ o.material = navyM; o.scale.set(1.15,1.25,1.7); o.position.z = .02; }   // 立領
+    else o.visible = false;                                                                                       // 原本的翻領拿掉
+  });
+  c.chest.add(at(rbox(0.94,0.04,0.64,.3,gold),0,2.43,0.02));
+  /* 腰帶：白色寬皮帶 + 銀色帶扣 */
+  c.chest.add(at(rbox(1.7,0.44,1.0,.3,L({map:A.belt})),0,0.13,0));
+  c.chest.add(at(rbox(0.56,0.36,0.07,.3,L({color:0xcfd0d8})),0,0.13,0.52));
+  [-0.36,-0.45].forEach(x=>c.chest.add(at(rbox(0.06,0.3,0.09,.2,black),x,0.13,0.52)));
+  /* 長袖：藏青上臂和前臂，袖口兩道金條；手錶被袖子蓋住 */
+  [c.R, c.Lf].forEach(a=>{
+    a.sh.children[0].material = navyM;
+    const up = a.sh.children[1]; up.material = navyM; up.scale.set(1.45,1,1.45);
+    const fore = a.el.children[0]; fore.material = navyM; fore.scale.set(1.35,1,1.35);
+    [-0.28,-0.4].forEach(y=>{ const r = 0.155 + 0.015*(y/0.525) + 0.012; fore.add(at(cyl(r,r,0.07,gold,8),0,y,0)); });
+  });
+  if (c.Lf.el.children[1]) c.Lf.el.children[1].visible = false;
+  /* 肩上金穗：右肩一條金帶，左肩金色流蘇肩章（掛在肩膀上，跟著手臂動） */
+  c.R.sh.add(at(rbox(0.74,0.07,0.16,.4,goldL),0,0.19,0.18));
+  const ep = new THREE.Group(); c.Lf.sh.add(ep);
+  ep.add(at(rbox(0.8,0.1,0.86,.4,gold),0,0.2,0));
+  for (let i=0;i<9;i++) ep.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.05,0.55,0.05),goldL),0.42,-0.1,-0.36+i*0.09));
+  /* 白長褲 + 黑皮鞋 */
+  const pantsM = L({map:A.pants}), shoeB = L({color:0x1b1a1e}), soleB = L({color:0x0c0c0e});
+  [c.joints.rHp, c.joints.lHp].forEach(h=>{ h.children[0].material = pantsM; });
+  [c.joints.rKn, c.joints.lKn].forEach(k=>{ k.children[0].material = pantsM; k.children[1].material = shoeB; k.children[2].material = soleB; });
+}
 registerChar('tommy', {
   stats: { name:'偷米', en:'Tommy', tag:'排球・打針・失戀吉他・瞬間老化', weight:0.95, run:14, air:11, jumpV:31, djV:27, jumps:2 },
   skins: [
     { name:'生日帽', apply(c){ const h = birthdayHat('#3d8bff','#ffffff',0xffd166); h.position.set(0.05,0.64,-0.02); c.head.add(h); } },
     { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
+    { name:'軍裝', apply: tMilApply, portrait: tMilPortrait },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,
