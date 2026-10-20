@@ -489,7 +489,13 @@ registerChar('kattisbbb', {
       c.ktSide.map = ktCardiSide; c.ktFront.map = ktCardiFront; c.ktSleeve.map = ktCardiSide;
       [c.ktSide, c.ktFront, c.ktSleeve].forEach(m=>{ m.needsUpdate = true; });
       [c.R, c.Lf].forEach(a=>{ a.sh.children[1].material = c.ktSleeve; a.el.children[0].material = c.ktSleeve; });
-    } },
+    },
+      portrait(g){                                                                  // 橄欖綠針織外套：橫紋 + 門襟
+        g.fillStyle = '#5d5b3b'; g.fillRect(0,54,64,10);
+        g.fillStyle = 'rgba(255,255,255,.10)'; for (let y=55;y<64;y+=2) g.fillRect(0,y,64,1);
+        g.fillStyle = '#6e6c48'; g.fillRect(28,54,8,10);
+        g.fillStyle = '#d8d3bb'; g.fillRect(31,56,2,2); g.fillRect(31,61,2,2);
+      } },
     { name:'生日帽', apply(c){ const h = birthdayHat('#ffb3d1','#ffffff',0xffd166); h.position.set(0.05,0.7,-0.02); c.head.add(h); } },
   ],
   // shield: hold up a golden 3D "19"

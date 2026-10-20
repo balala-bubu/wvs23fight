@@ -405,7 +405,13 @@ registerChar('kiafes', {
       const strap = rbox(0.16,2.6,0.08,.3,strapM); strap.position.set(0.05,1.1,0.5); strap.rotation.z = 0.62; c.chest.add(strap);
       const back = rbox(0.16,2.6,0.08,.3,strapM); back.position.set(0.05,1.1,-0.5); back.rotation.z = -0.62; c.chest.add(back);
       const bag = rbox(0.6,1.25,1.3,.5,strapM); bag.position.set(-0.95,0.1,-0.1); c.chest.add(bag);
-    } },
+    },
+      portrait(g){                                                                  // 白襯衫 + 黑色背帶
+        g.fillStyle = '#f2f1ea'; g.fillRect(0,54,64,10);
+        g.fillStyle = '#d9d7cc'; g.fillRect(0,54,64,1);
+        g.fillStyle = '#1a1a1e'; g.save(); g.translate(22,54); g.rotate(.42); g.fillRect(0,0,5,14); g.restore();
+        g.save(); g.translate(44,54); g.rotate(-.42); g.fillRect(-5,0,5,14); g.restore();
+      } },
     { name:'生日帽', apply(c){ const h = birthdayHat('#9ac553','#f2849a',0xffffff); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
   ],
   // shield: holds up a whiteboard

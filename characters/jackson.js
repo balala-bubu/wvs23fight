@@ -78,6 +78,14 @@ function hqShirtTextures(){
   const side = tex(32,32,(g)=>base(g,32,32));
   return (_hqTex = {front, back, side});
 }
+// 選角小頭像用的造型預覽：沒有自己的 portrait 的造型，核心一律畫一頂生日帽，所以每個造型都要自己畫
+function hqShirtPortrait(g){                                                        // 豪情一中人：黑衣 + 左胸白色「中」（宇、偷米、秉寶、提姆熊共用）
+  g.fillStyle = '#17171a'; g.fillRect(0,52,64,12);
+  g.fillStyle = '#f4f4f4';
+  g.fillRect(13,56,14,2); g.fillRect(13,56,2,8); g.fillRect(25,56,2,8); g.fillRect(13,62,14,2);   // 口
+  g.fillRect(19,53,2,13);                                                           // 豎
+  g.fillStyle = '#d8231f'; g.fillRect(45,56,5,5); g.fillRect(52,56,5,5);             // 背面的紅印（側邊露一點）
+}
 function hqShirt(c){
   const T = hqShirtTextures();
   const torso = c.chest.children[0], old = Array.isArray(torso.material) ? torso.material[0] : torso.material;
@@ -435,8 +443,13 @@ function hqLoseUpdate(R, dt, k){
 registerChar('jackson', {
   stats: { name:'宇', en:'Yu', tag:'悶騷・唱跳・Scuba・奇怪Reels', weight:1.0, run:14, air:11, jumpV:30, djV:26, jumps:2 },
   skins: [
-    { name:'金髮', apply(c){ c.hairM.map = hqGoldHairTex; c.hairM.needsUpdate = true; } },
-    { name:'豪情一中人', apply(c){ hqShirt(c); } },
+    { name:'金髮', apply(c){ c.hairM.map = hqGoldHairTex; c.hairM.needsUpdate = true; },
+      portrait(g){                                                                  // 金髮：把頭髮改成金色，眼鏡保留
+        g.fillStyle = '#d9b24a'; g.fillRect(6,7,52,16); g.fillRect(4,12,6,16); g.fillRect(54,12,6,16);
+        g.fillStyle = '#f0d67e'; g.fillRect(10,9,16,3); g.fillRect(32,8,14,3); g.fillRect(6,14,4,8);
+        g.fillStyle = '#c79a38'; g.fillRect(6,21,52,2);
+      } },
+    { name:'豪情一中人', apply(c){ hqShirt(c); }, portrait: hqShirtPortrait },
     { name:'生日帽', apply(c){ const h = birthdayHat('#7ec8ff','#ffe066',0xff6a8a); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
   ],
   moves: {

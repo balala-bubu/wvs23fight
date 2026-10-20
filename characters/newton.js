@@ -361,7 +361,16 @@ registerChar('newton', {
     hat.add(at(rbox(1.24,0.6,1.22,.62,knitM),0,0.66,-0.02));
     hat.add(at(rbox(1.28,0.24,1.26,.45,knitM),0,0.42,-0.02));
     const pom = new THREE.Mesh(new THREE.SphereGeometry(0.26,8,6), knitM); pom.position.set(0,1.05,0); hat.add(pom);
-  }}],
+  },
+    portrait(g){                                                                    // 粉褐色毛帽蓋住頭髮 + 紅色外套
+      g.fillStyle = '#c79a98'; g.fillRect(3,5,58,11); g.fillRect(0,13,64,6);
+      g.fillStyle = 'rgba(120,70,70,.3)'; for (let x=5;x<59;x+=4) g.fillRect(x,5,1,8);
+      g.fillStyle = '#d6aba8'; g.beginPath(); g.arc(32,5,5,0,7); g.fill();           // 毛球
+      g.fillStyle = '#d8262b'; g.fillRect(0,54,64,10);
+      g.fillStyle = '#9b9ea6'; g.fillRect(24,54,16,5);                               // 帽 T 的領子
+      g.fillStyle = '#bd1b20'; g.fillRect(30,58,4,6);
+    } },
+  { name:'生日帽', apply(c){ const h = birthdayHat('#ff8f6b','#ffe066',0x7fd0ff); h.position.set(0.05,0.68,-0.02); c.head.add(h); } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['jabR','punch2'], box:[2.0,3.8,1.5], dmg:7, kb:9, sc:.75, ang:38, text:'肌肉！'},

@@ -388,7 +388,12 @@ registerChar('serene', {
     g.fillStyle = '#f3efe8'; g.fillRect(18,60,28,4);
   },
   skins: [
-    { name:'淺藍沐浴球', apply(c){ c.setSkirt(0x93bdf0, 0xbcd6fa); } },
+    { name:'淺藍沐浴球', apply(c){ c.setSkirt(0x93bdf0, 0xbcd6fa); },
+      portrait(g){                                                                  // 淺藍色的蓬蓬裙
+        g.fillStyle = '#93bdf0'; g.fillRect(0,54,64,10);
+        g.fillStyle = '#bcd6fa'; for (let x=0;x<64;x+=8){ g.beginPath(); g.arc(x+4,56,5,0,7); g.fill(); }
+        g.fillStyle = 'rgba(255,255,255,.45)'; for (let x=2;x<64;x+=8) g.fillRect(x,60,3,1);
+      } },
     { name:'生日帽', apply(c){ const h = birthdayHat('#b9a7f0','#ffffff',0xffd166); h.position.set(0.05,0.7,-0.02); c.head.add(h); } },
   ],
   // shield: spin and block with the pouf skirt — spinning too long makes her dizzy
