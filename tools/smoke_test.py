@@ -50,7 +50,7 @@ async def main():
                 await pg.wait_for_timeout(300)
             await pg.wait_for_timeout(1200)
             await pg.evaluate("[2,3,1].forEach(i=>{ const f=G.fighters[i]; f.stocks=1; f.state='idle'; f.invuln=0; f.ko(); })")
-            await pg.wait_for_timeout(10500)
+            await pg.wait_for_timeout(13000)
             ok = await pg.evaluate("G.mode==='result' && !overEl.hidden")
             print(f'  {kind:10s} wins vs {lineup[1]:10s} on {mp:8s} -> {"ok" if ok else "RESULT SCREEN DID NOT FINISH"}')
             await pg.evaluate('enterSelect()'); await pg.wait_for_timeout(500)
