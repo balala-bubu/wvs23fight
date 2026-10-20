@@ -481,26 +481,28 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/qrcode.js"></script>
-<script src="js/core.js"></script>
+<script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:''; function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
+<script>S('js/qrcode.js')</script>
+<script>S('js/core.js')</script>
 <!-- 角色：新增角色就在這裡加一行（順序＝選角畫面順序） -->
-<script src="characters/waffle.js"></script>
-<script src="characters/tommy.js"></script>
-<script src="characters/karl.js"></script>
-<script src="characters/seafood.js"></script>
-<script src="characters/bear.js"></script>
-<script src="characters/serene.js"></script>
-<script src="characters/kiafes.js"></script>
-<script src="characters/newton.js"></script>
-<script src="characters/kattisbbb.js"></script>
-<script src="js/scuba_face_ik.js"></script>
-<script src="characters/jackson.js"></script>
+<script>S('characters/waffle.js')</script>
+<script>S('characters/tommy.js')</script>
+<script>S('characters/karl.js')</script>
+<script>S('characters/seafood.js')</script>
+<script>S('characters/bear.js')</script>
+<script>S('characters/serene.js')</script>
+<script>S('characters/kiafes.js')</script>
+<script>S('characters/newton.js')</script>
+<script>S('characters/kattisbbb.js')</script>
+<script>S('js/scuba_face_ik.js')</script>
+<script>S('characters/jackson.js')</script>
 <!-- 地圖：新增地圖就在這裡加一行 -->
-<script src="maps/park.js"></script>
-<script src="maps/ntu.js"></script>
-<script src="maps/sea.js"></script>
-<script src="maps/india.js"></script>
-<script src="maps/mecls.js"></script>
+<script>S('maps/park.js')</script>
+<script>S('maps/ntu.js')</script>
+<script>S('maps/sea.js')</script>
+<script>S('maps/india.js')</script>
+<script>S('maps/mecls.js')</script>
 <script>boot();</script>
 
 </body>

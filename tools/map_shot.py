@@ -32,7 +32,7 @@ async def main():
             elif f'127.0.0.1:{PORT}' in u: await r.continue_()
             else: await r.abort()
         await pg.route('**/*', route)
-        await pg.goto(f'http://127.0.0.1:{PORT}/index.html'); await pg.wait_for_timeout(1500)
+        await pg.goto(f'http://127.0.0.1:{PORT}/index.html?v=7'); await pg.wait_for_timeout(1500)
         kinds = await pg.evaluate('CHAR_ORDER')
         if MAP not in await pg.evaluate('MAP_ORDER'): sys.exit(f'map {MAP!r} is not registered')
         for n in (2, 4):
@@ -40,7 +40,7 @@ async def main():
             await pg.evaluate(f"(()=>{{ sel.count={n}; sel.p={lineup!r}; sel.map='{MAP}'; startGame(); }})()")
             await pg.wait_for_timeout(5500)
             await pg.screenshot(path=os.path.join(OUT, f'{MAP}_{n}p.png'))
-        await pg.evaluate(f"G.fighters.forEach(f=>{{ f.y={HIGH}; f.vy=0; }})")
+        await pg.evaluate(f"window.__hold = setInterval(()=>G.fighters.forEach(f=>{{ f.y={HIGH}; f.vy=0; f.invuln=99; }}), 16)")   # keep everyone floating at that height
         await pg.wait_for_timeout(1500)
         await pg.screenshot(path=os.path.join(OUT, f'{MAP}_high.png'))
         print('page errors:', sorted(set(errs)) or 'none')

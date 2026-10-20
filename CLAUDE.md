@@ -13,7 +13,7 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 ## Add a character (cheapest path)
 1. Read `characters/_template.js` (and at most one similar character file if you need a pattern, e.g. `bear.js` for a heavy, `seafood.js` for projectiles + a moving final).
 2. Write `characters/<kind>.js` (kind = lowercase letters only).
-3. Add `<script src="characters/<kind>.js"></script>` to `index.html` after the other characters. Nothing else in core changes.
+3. Add `<script>S('characters/<kind>.js')</script>` to `index.html` after the other characters (`S()` appends the page's `?v=` so a new `?v=` number always loads fresh files; a plain `<script src>` also works but may be served from cache). Nothing else in core changes.
 4. Test: `python3 tools/smoke_test.py` (headless; runs every character's moves, finals, wins and losses on every map; prints page errors).
 
 ## Costumes (skins)
