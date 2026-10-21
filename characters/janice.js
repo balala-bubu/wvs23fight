@@ -91,11 +91,6 @@ const jnTileTex = tex(32,40,(g)=>{
   g.fillStyle='#1f7a3a'; g.font='bold 20px sans-serif'; g.textAlign='center'; g.fillText('發',16,27);
 });
 const jnTileBack = tex(32,40,(g)=>{ speckle(g,32,40,'#2f7f5c',['#368a66','#276b4e'],.4); });
-const jnSnarkTexs = ['嗯哼','就這樣？','不行欸','白痴喔'].map(t=>tex(96,48,(g)=>{
-  g.fillStyle='rgba(255,255,255,.95)'; g.beginPath(); g.ellipse(48,22,44,19,0,0,7); g.fill();
-  g.fillStyle='#2b1a12'; g.beginPath(); g.moveTo(34,36); g.lineTo(26,47); g.lineTo(46,38); g.closePath(); g.fill();
-  g.fillStyle='#8e2740'; g.font='bold 20px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,48,22);
-}));
 const jnOfferTexs = ['OFFER','年薪↑','歡迎加入','國企女王'].map(t=>tex(64,44,(g)=>{
   g.fillStyle='#fdfaf2'; g.fillRect(0,0,64,44); g.fillStyle='#c0a040'; g.fillRect(0,0,64,8);
   g.fillStyle='#2a2a30'; g.font='bold 11px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,32,24);
@@ -421,49 +416,76 @@ registerChar('janice', {
     fair:{t:[.1,.1,.2], pose:['jabR','fair'], box:[2.2,3.4,1.4], dmg:9, kb:8, sc:.9, ang:40, air:1},
     uair:{t:[.1,.12,.2], pose:['air','block'], box:[0.3,6.4,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
     dair:{t:[.18,.1,.25], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, sfx:'jnTile'},
-    nB:{t:[.18,.05,.3], pose:['throwWind','throwHit'], fire:[[.18,'jnSnark']], air:1, sfx:'soft', text:'嗯哼'},
-    sB:{t:[.14,.26,.3], pose:['sprint','sprint'], box:[2.0,3.8,1.5], dmg:11, kb:8, sc:.5, ang:38, dash:26, air:1, onHit:'jnStun', sfx:'jnTrain', text:'捷運衝刺'},
+    nB:{t:[.18,.05,.3], pose:['throwWind','throwHit'], fire:[[.18,'jnSnark']], air:1, sfx:'jnPaper', text:'收下 offer'},
+    sB:{t:[.14,.26,.3], pose:['sprint','sprint'], box:[2.0,3.8,1.5], dmg:11, kb:8, sc:.5, ang:38, dash:26, air:1, start:'jnDash', onHit:'jnStun', sfx:'jnTrain', text:'捷運衝刺'},
     uB:{t:[.05,.55,.12], pose:['setUp','upHit'], poseSwitch:.28, start:'jnUp', box:[0.5,5.4,1.8], dmg:8, kb:9, sc:.5, ang:82, helpless:1, air:1, sfx:'whistle', text:'皇冠升天'},
     dB:{t:[.2,.3,.32], pose:['block','thumbs'], start:'jnReady', box:[1.8,3.6,2.2], dmg:6, kb:5, sc:.3, ang:60, air:1, sfx:'jnTile', text:'聽牌了', textCls:'blue'},
   },
   fire: {
+    // 中必殺：甩出一封 offer
     jnSnark(f){
-      const t = jnSnarkTexs[(Math.random()*jnSnarkTexs.length)|0];
-      proj({owner:f, x:f.x + f.face*1.8, y:f.y + 4.6, vx:f.face*24, vy:1, g:14, r:1.0, life:1.2, dmg:7, kb:7, sc:.55, ang:42, mesh:spriteOf(t,2.4)});
+      const t = jnOfferTexs[(Math.random()*jnOfferTexs.length)|0];
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.5), new THREE.MeshBasicMaterial({map:t, transparent:true, side:THREE.DoubleSide, fog:false}));
+      m.rotation.z = -f.face*.25;
+      proj({owner:f, x:f.x + f.face*1.8, y:f.y + 4.6, vx:f.face*26, vy:2, g:16, r:1.1, life:1.3, dmg:8, kb:7, sc:.55, ang:42, mesh:m});
     },
   },
   start: {
     jnUp(f){ f.vy = 34; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; if (f.m.setCrown) f.m.setCrown(true); },
     jnReady(f){ f.buffT = 5; f.buffDmg = 1.35; f.buffKb = 1.15; pop('聽牌', f.x, f.y+7.6, 'blue'); },
+    // 側必殺：身後生出一列捷運跟著衝
+    jnDash(f){
+      if (f.jnDash) scene.remove(f.jnDash.g);
+      const g = new THREE.Group(), mats = [];
+      const headM = L({map:jnTrainHeadTex, transparent:true}), sideM = L({map:jnTrainTex, transparent:true}), roofM = L({color:0xc8c5bb, transparent:true});
+      mats.push(headM, sideM, roofM);
+      for (let i=0;i<3;i++){ const car = new THREE.Mesh(new THREE.BoxGeometry(5.4,3.9,2.4), [headM,headM,roofM,roofM,sideM,sideM]); car.position.x = -i*5.6; g.add(car); }
+      scene.add(g); f.jnDash = {g, mats, t:0};
+      burst(f.x - f.face*3, f.y + 3, 0x2f5fb0, 10, 7);
+    },
   },
   onhit: { jnStun(att, v){ v.state = 'stun'; v.stunT = .6; v.move = null; pop('被噹到了', v.x, v.y+7.5, 'blue'); } },
   sfx: {
     jnTile(){ noise(.06,.16,2600); tone(900,.05,'square',.05); tone(640,.07,'square',.04,0,.05); },
+    jnPaper(){ noise(.12,.1,5200); tone(1400,.06,'triangle',.05,-.3); },
     jnTrain(){ noise(.35,.1,900); tone(180,.4,'sawtooth',.06,.5); tone(1200,.12,'sine',.05,-.4); },
   },
   build: buildJanice, face: jnFaces.normal, portraitBg: '#6b4a7e',
   portrait(g){ g.fillRect(2,2,60,22); g.fillRect(2,2,14,50); g.fillRect(48,2,14,50); },
   shield(){
     const g = new THREE.Group();
-    [-1,1].forEach(s=>{ const gd = jnGuard(); gd.position.set(s*1.3,-2.3,0); g.add(gd); });
-    g.add(at(jnCrown(1.9),0,1.15,0));
+    [-1,1].forEach(s=>{ const gd = jnGuard(); gd.scale.setScalar(1.45); gd.position.set(s*1.9,-3.4,s*0.5); g.add(gd); });
+    g.add(at(jnCrown(3.0),0,2.0,0));
     return g;
   },
   shieldAnim(f){
     const t = performance.now()/1000;
     const r = f.shieldMesh.scale.x || 1;
-    f.shieldMesh.position.set(f.x + f.face*1.6, f.y + 2.3*r, 0.8);
-    f.shieldMesh.rotation.y = -f.face*1.1 + Math.sin(t*2)*.12;
+    f.shieldMesh.position.set(f.x + f.face*1.9, f.y + 3.4*r, 0.8);
+    f.shieldMesh.rotation.y = f.face*1.25 + Math.sin(t*2)*.1;
   },
   shieldPose: 'block', shieldProp: null, breakText: '皇冠掉了！',
   finalPose: 'laughUp', finalProp: null,
   animate(f, m, s, t, dt){
     if (s==='final'){ m.setFace('smug'); m.setCrown(true); }
-    else if (s==='move' && f.move && (f.move.text==='聽牌了' || f.move.text==='嗯哼')) m.setFace('smug');
+    else if (s==='move' && f.move && (f.move.text==='聽牌了' || f.move.text==='收下 offer')) m.setFace('smug');
     else if (s==='hurt') m.setFace('shout');
     else if (f.buffT > 0) m.setFace('smug');
     else m.setFace('normal');
     if (f.state !== 'shield' && s !== 'final' && !(f.move && f.move.start==='jnUp')) m.setCrown(f.buffT > 0);
+    // 側必殺身後的捷運：跟著衝、尾段淡出
+    const D = f.jnDash;
+    if (D){
+      D.t += dt;
+      const grow = Math.min(1, D.t/.1), fade = Math.max(0, 1 - Math.max(0, D.t - .45)/.35);
+      D.g.visible = fade > .02 && f.state !== 'dead';
+      D.g.position.set(f.x - f.face*4.6, f.y + 3.1, -1.4);
+      D.g.rotation.y = f.face > 0 ? 0 : Math.PI;
+      D.g.scale.set(grow, grow*(.85 + .15*fade), grow);
+      D.mats.forEach(mm=>{ mm.opacity = fade; mm.transparent = true; });
+      if (Math.random() < dt*30) spark(f.x - f.face*(2 + Math.random()*6), f.y + 1 + Math.random()*4, 1.4);
+      if (D.t > .8 || f.state === 'dead'){ scene.remove(D.g); f.jnDash = null; }
+    }
   },
   skins: [
     { name:'白針織上衣', apply(c){ c.baseTop = 'white'; c.setTop('white'); } },
