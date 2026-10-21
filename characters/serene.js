@@ -244,8 +244,8 @@ function serFinal(f, opp){
   scene.add(ret);
   G.finals.push({owner:f, target:tgt, t:0, mesh, ret, x:tgt.x, y:11.5, landY:4.9, hit:new Set(), landed:false, update(F, dt){
     const T = F.target;
-    // 0~0.7s: follow the target · 0.7~1.7s: position locked, warning only (time to escape) · 1.7s+: slam down
-    const LOCK = .7, DROP = 1.7;
+    // 0~0.7s: follow the target · 0.7~1.2s: position locked, warning only (0.5s delay to escape) · 1.2s+: slam down
+    const LOCK = .7, DROP = LOCK + .5;
     if (F.t < LOCK){
       if (T.state!=='dead'){ F.x += (T.x - F.x)*(1 - Math.exp(-dt*8)); F.gy = Math.max(0, T.y); F.landY = Math.max(4.9, T.y + 4.9); }
       F.y = (F.gy || 0) + 11.5 + Math.sin(F.t*6)*.4;
