@@ -50,7 +50,7 @@ description: 在世志大亂鬥（GitHub repo balala-bubu/wvs23fight）快速新
 **使用者說「我測試過了／直接處理就好」（地圖檔是他自己測過的）時：不要跑 map_shot、不要看截圖（浪費 token），只做 `node --check` 和 `smoke_test.py`（errors: 0），然後直接進第 8 步上傳。**
 1. `node --check maps/<id>.js`，以及撞名 grep（地圖包在區塊裡通常不會）。
 2. `python3 tools/map_shot.py <id> <輸出資料夾>` → 看 `_2p.png`、`_4p.png`、`_high.png` 三張。4 人最容易發現問題（牆寬度、平台是否突出、有沒有條紋）。要看人物細節就用 PIL 裁切放大。
-3. 最後才跑 `python3 tools/smoke_test.py`（要幾分鐘），看 `errors: 0`。`RESULT SCREEN DID NOT FINISH` 但 errors 是 0 是誤報。
+3. 最後才跑一次 `python3 tools/smoke_test.py --only=<任一角色>`（只跑一場，約 20 秒，看 `errors: 0` 就夠；不要跑完整版，完整版要好幾分鐘）。`RESULT SCREEN DID NOT FINISH` 但 errors 是 0 是誤報。
 改一輪、看一輪，不要改一行就重跑。
 
 ## 8. 上傳

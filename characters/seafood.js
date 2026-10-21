@@ -341,9 +341,77 @@ function seafoodLoseUpdate(R, dt, k){
     once('flag', 3.8, ()=>{ SFX.spike(); popAt('ざんねん……', Lz, 3.5, 'blue'); });
   }
 }
+/* ---------- 造型：海神波賽頓（童話神話風：短髮＋金冠＋白鬍子＋海藍神袍＋貝殼肩甲） ---------- */
+const sfPosBlue = '#1f6f9c', sfPosBlueC = ['#2a82b2','#185e87','#2f8fc0'];
+const sfPosWaves = (g,w,h)=>{ g.fillStyle='rgba(190,235,255,.35)'; for (let y=5;y<h;y+=8) for (let x=0;x<w;x+=8){ g.fillRect(x,y,4,1); g.fillRect(x+4,y-1,4,1); } };
+const sfPosSideTex = tex(32,32,(g)=>{ speckle(g,32,32,sfPosBlue,sfPosBlueC,.45); sfPosWaves(g,32,32); });
+const sfPosFrontTex = tex(32,46,(g)=>{
+  speckle(g,32,46,sfPosBlue,sfPosBlueC,.45); sfPosWaves(g,32,46);
+  g.fillStyle=S_SKIN; for (let y=0;y<10;y++){ const w = Math.max(1,((10-y)*1.1)|0); g.fillRect(16-w,y,w*2,1); }   // V 領露出胸口
+  g.fillStyle='#e9b630'; for (let i=0;i<46;i++) g.fillRect((3+i*0.55)|0, i, 4, 1);                               // 金色斜肩帶
+  g.fillStyle='#fff6e6'; g.fillRect(15,23,3,3); g.fillStyle='#ff7f6e'; g.fillRect(14,26,5,1);                    // 珍珠 + 珊瑚
+  g.fillStyle='#e9b630'; g.fillRect(0,44,32,2);
+});
+const sfPosSleeveTex = tex(16,16,(g)=>{ speckle(g,16,16,sfPosBlue,sfPosBlueC,.45); g.fillStyle='#e9b630'; g.fillRect(0,12,16,4); g.fillStyle='#fff6e6'; g.fillRect(2,13,2,2); g.fillRect(7,13,2,2); g.fillRect(12,13,2,2); });
+const sfPosKiltTex = tex(32,32,(g)=>{ speckle(g,32,32,sfPosBlue,sfPosBlueC,.45); g.fillStyle='rgba(10,40,70,.35)'; for (let x=0;x<32;x+=4) g.fillRect(x,0,1,32); });
+const sfPosCapeTex = tex(16,32,(g)=>{
+  speckle(g,16,32,'#16808a',['#1b929d','#117078','#1f9aa6'],.45);
+  g.fillStyle='rgba(200,255,245,.3)'; for (let y=4;y<28;y+=8) for (let x=0;x<16;x+=8){ g.fillRect(x,y,4,1); g.fillRect(x+4,y-1,4,1); }
+  g.fillStyle='#e9b630'; g.fillRect(0,29,16,3);
+});
+const sfPosGoldM = L({color:0xe9b630}), sfPosPearlM = L({color:0xfff6e6}), sfPosCoralM = L({color:0xff7f6e});
+const sfPosSideM = L({map:sfPosSideTex}), sfPosFrontM = L({map:sfPosFrontTex}), sfPosSleeveM = L({map:sfPosSleeveTex});
+const sfPosKiltM = L({map:sfPosKiltTex}), sfPosCapeM = L({map:sfPosCapeTex}), sfPosBeardM = L({color:0xe6eef2}), sfPosLegM = L({map:sSkinTex});
+function sfPoseidon(c){
+  // 上衣：海藍神袍 + 金色斜肩帶，領口換成金色
+  const torso = c.chest.children[0], old = Array.isArray(torso.material) ? torso.material[0] : torso.material;
+  torso.material = [sfPosSideM,sfPosSideM,sfPosSideM,sfPosSideM,sfPosFrontM,sfPosSideM];
+  c.chest.children.forEach(o=>{ if (o === torso || !o.isMesh) return; if (o.geometry && o.geometry.type === 'TorusGeometry') o.material = sfPosGoldM; else if (o.material === old) o.material = sfPosSideM; });
+  // 袖子 + 貝殼肩甲（珊瑚角 + 珍珠）
+  [c.R.sh, c.Lf.sh].forEach(sh=>{
+    const first = sh.children[0]; if (first && first.isMesh) first.material = sfPosSleeveM;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5,8,5,0,Math.PI*2,0,Math.PI/2), sfPosGoldM); dome.scale.set(1.05,.6,1.05); dome.position.y = 0.12; sh.add(dome);
+    sh.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.1,6,5),sfPosPearlM),0,0.45,0));
+    [-1,1].forEach(s=>{ const k = new THREE.Mesh(new THREE.ConeGeometry(0.07,0.3,4),sfPosCoralM); k.position.set(s*0.24,0.4,0); k.rotation.z = -s*0.5; sh.add(k); });
+  });
+  // 披風：海綠色，金邊
+  c.chest.add(at(rbox(1.9,3.2,0.1,.3,sfPosCapeM),0,0.6,-0.58));
+  // 金項鍊 + 珍珠
+  c.chest.add(at(rbox(1.0,0.06,0.06,.3,sfPosGoldM),0,2.0,0.5));
+  [-0.55,0.55].forEach(x=>c.chest.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.09,6,5),sfPosGoldM),x,2.1,0.47)));
+  c.chest.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.11,6,5),sfPosPearlM),0,1.95,0.52));
+  // 腰帶 + 短裙 + 垂下的裙片
+  c.hips.add(at(rbox(1.68,0.24,1.0,.3,sfPosGoldM),0,0.05,0));
+  c.hips.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.17,6,5),sfPosCoralM),0,0.05,0.52));
+  c.hips.add(at(rbox(1.76,0.9,0.98,.4,sfPosKiltM),0,-0.5,0));
+  [-0.7,-0.35,0,0.35,0.7].forEach(x=>{
+    c.hips.add(at(rbox(0.3,0.6,0.07,.4,sfPosKiltM),x,-1.0,0.52));
+    c.hips.add(at(rbox(0.3,0.08,0.075,.3,sfPosGoldM),x,-1.3,0.52));
+  });
+  // 腿：露出小腿 + 金色護脛
+  [c.joints.rHp, c.joints.lHp].forEach(hp=>{ if (hp && hp.children[0] && hp.children[0].isMesh) hp.children[0].material = sfPosLegM; });
+  [c.joints.rKn, c.joints.lKn].forEach(kn=>{
+    if (!kn) return;
+    if (kn.children[0] && kn.children[0].isMesh) kn.children[0].material = sfPosLegM;
+    kn.add(at(rbox(0.68,0.5,0.72,.3,sfPosGoldM),0,-0.55,0));
+  });
+  // 頭：金冠（短髮保留）+ 銀白鬍子
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.58,0.07,5,14),sfPosGoldM); ring.rotation.x = Math.PI/2; ring.position.set(0,0.78,-0.02); c.head.add(ring);
+  for (let i=0;i<6;i++){
+    const a = i/6*Math.PI*2, tall = i===0 ? 1.45 : 1;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.4*tall,4),sfPosGoldM); sp.position.set(Math.sin(a)*0.56,0.78+0.2*tall,-0.02+Math.cos(a)*0.56); c.head.add(sp);
+    c.head.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.06,5,4),sfPosPearlM),Math.sin(a)*0.56,0.78+0.42*tall,-0.02+Math.cos(a)*0.56));
+  }
+  c.head.add(at(rbox(0.74,0.55,0.36,.5,sfPosBeardM),0,-0.74,0.38));
+  c.head.add(at(rbox(0.42,0.42,0.3,.5,sfPosBeardM),0,-1.08,0.36));
+  [-1,1].forEach(s=>c.head.add(at(rbox(0.16,0.34,0.3,.5,sfPosBeardM),s*0.4,-0.62,0.3)));
+  // 三叉戟加一顆珍珠
+  if (c.props && c.props.trident) c.props.trident.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.13,6,5),sfPosPearlM),0,-2.95,0.1));
+}
 registerChar('seafood', {
   stats: { name:'雲嵐', en:'Seafood Master', tag:'海鮮狂熱・日文系・目標N1', weight:0.85, run:16, air:12.5, jumpV:33, djV:29, jumps:2 },
-  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#5fb6ff','#ffffff',0xe0483c); h.position.set(0.05,0.66,-0.02); c.head.add(h); } }],
+  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#5fb6ff','#ffffff',0xe0483c); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
+    { name:'海神波賽頓', apply(c){ sfPoseidon(c); } }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.08,.1,.26], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:5, kb:8, sc:.7, ang:38, text:'おいしい！', dash:5, sfx:'chomp'},

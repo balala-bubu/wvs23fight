@@ -8,7 +8,8 @@ THREE = os.path.join(CACHE, 'node_modules/three/build/three.min.js')
 if not os.path.exists(THREE):
     os.makedirs(CACHE, exist_ok=True)
     subprocess.run('npm init -y >/dev/null && npm i three@0.128.0 --silent', shell=True, cwd=CACHE, check=True)
-EXTRA = sys.argv[1:]
+EXTRA = [a for a in sys.argv[1:] if not a.startswith('--')]
+ONLY = [k for a in sys.argv[1:] if a.startswith('--only=') for k in a[7:].split(',') if k]   # --only=seafood : 只跑這個角色那一場（小改動用）
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Q, directory=ROOT))
@@ -40,6 +41,7 @@ async def main():
         kinds = await pg.evaluate('CHAR_ORDER'); maps = await pg.evaluate('MAP_ORDER')
         print('characters:', kinds, '\nmaps:', maps)
         for r, kind in enumerate(kinds):
+            if ONLY and kind not in ONLY: continue
             lineup = [kinds[(r+j) % len(kinds)] for j in range(4)]; mp = maps[r % len(maps)]
             await pg.evaluate(f"(()=>{{ sel.count=4; sel.p={lineup!r}; sel.map='{mp}'; startGame(); }})()")
             await pg.wait_for_timeout(1200)
