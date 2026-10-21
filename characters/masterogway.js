@@ -192,7 +192,7 @@ function masterogwayFinal(f, opp){
     }});
 }
 function masterogwayFinalUpdate(F, dt, t){
-  const f = F.owner, homeX = MAIN.x1 + 5, homeY = 11.5;
+  const f = F.owner, homeX = MAIN.x1 + 5, homeY = 1.2;
   f.state = 'final'; f.finalT = 99; f.onGround = false; f.vx = 0; f.vy = 0; f.face = 1;
   // 1) fly to the left edge, head swells up past the first platform
   const fly = Math.min(1, F.t/0.55), e = fly*fly*(3-2*fly);
@@ -201,7 +201,7 @@ function masterogwayFinalUpdate(F, dt, t){
   const hs = 1 + 3.4*Math.min(1, F.t/0.8);
   if (f.m && f.m.head) f.m.head.scale.set(hs, hs, hs);
   if (f.m && f.m.setFace) f.m.setFace(F.t > 0.8 ? 'shout' : 'normal');
-  const mouthX = f.x + 1.2, mouthY = f.y + 7.6;
+  const mouthX = f.x + 1.2, mouthY = f.y + 4.2;
   // 2) charge
   if (F.t < 1.25){
     const k = Math.min(1, F.t/1.25);
@@ -234,7 +234,7 @@ function masterogwayFinalUpdate(F, dt, t){
   // 4) everyone in the beam gets cooked, then launched
   for (const v of G.fighters){
     if (v===f || !v.hittable()) continue;
-    const inBeam = v.x > mouthX - 2 && v.x < mouthX + len && Math.abs((v.y + 3.4) - mouthY) < 6.2;
+    const inBeam = v.x > mouthX - 2 && v.x < mouthX + len && Math.abs((v.y + 3.4) - mouthY) < 6.4;
     if (!inBeam) continue;
     let C = F.hit.get(v); if (!C){ C = {tick:0, n:0}; F.hit.set(v, C); SFX.spike(); pop('被樂化了！', v.x, v.y+9, 'big'); }
     C.tick += dt;
