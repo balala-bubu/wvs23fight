@@ -101,12 +101,46 @@ const jnOfferTexs = ['OFFER','年薪↑','歡迎加入','國企女王'].map(t=>t
   g.fillStyle='#2a2a30'; g.font='bold 11px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,32,24);
   g.fillStyle='#b8b2a4'; g.fillRect(8,34,48,1); g.fillRect(8,38,32,1);
 }));
-const jnSignTexs = ['往 南勢角','往 迴龍'].map((t,i)=>tex(128,64,(g)=>{
-  g.fillStyle = i ? '#f3b63a' : '#f3f1ea'; g.fillRect(0,0,128,64);
-  g.fillStyle='#8b6a1f'; g.fillRect(0,0,128,8); g.fillRect(0,56,128,8);
-  g.fillStyle='#22222a'; g.font='bold 20px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,64,30);
-  g.fillStyle='#6c6a63'; g.font='10px sans-serif'; g.fillText(i?'往迴龍 还要等 9 分':'中和新蘆線',64,48);
+// 月台上方的橘色方向看板（南勢角 / 迴龍）
+const jnSignTexs = [['南勢角','Nanshijiao'],['迴龍','Huilong']].map(([t,en])=>tex(160,64,(g)=>{
+  g.fillStyle='#f0a01c'; g.fillRect(0,0,160,64);
+  g.fillStyle='rgba(255,230,160,.5)'; g.beginPath(); g.ellipse(120,18,34,16,0,0,7); g.fill();     // 燈的反光
+  g.strokeStyle='#1b1b1b'; g.lineWidth=3; g.beginPath(); g.moveTo(26,12); g.lineTo(96,12); g.quadraticCurveTo(104,12,104,20); g.lineTo(104,44); g.quadraticCurveTo(104,52,96,52); g.lineTo(26,52); g.quadraticCurveTo(18,52,18,44); g.lineTo(18,20); g.quadraticCurveTo(18,12,26,12); g.stroke();
+  g.fillStyle='#1b1b1b'; g.font='bold 24px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,61,28);
+  g.font='11px sans-serif'; g.fillText(en,61,45);
+  g.beginPath(); g.moveTo(116,32); g.lineTo(138,32); g.lineTo(138,24); g.lineTo(152,33); g.lineTo(138,42); g.lineTo(138,34); g.closePath(); g.fill();
 }));
+// 牆上的站名牌：蘆洲 LUZHOU 一月台
+const jnStationTex = tex(160,64,(g)=>{
+  g.fillStyle='#f2efe6'; g.fillRect(0,0,160,64);
+  g.strokeStyle='#2a2a30'; g.lineWidth=2; g.strokeRect(6,16,18,18);
+  g.fillStyle='#2a2a30'; g.font='bold 9px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('O54',15,25);
+  g.font='bold 26px sans-serif'; g.textAlign='left'; g.fillText('蘆洲',30,26);
+  g.font='11px sans-serif'; g.fillText('LUZHOU',30,45);
+  g.fillText('（蘆洲李宅）',84,24); g.fillText('一月台  Platform 1',84,44);
+});
+// 列車車身：藍帶、車窗、南勢角 LED
+const jnTrainTex = tex(128,64,(g)=>{
+  g.fillStyle='#eceae2'; g.fillRect(0,0,128,64);
+  g.fillStyle='#d9d6cc'; g.fillRect(0,0,128,6); g.fillRect(0,58,128,6);
+  g.fillStyle='#1c2a4a'; g.fillRect(4,12,54,24); g.fillRect(68,12,56,24);                        // 車窗
+  g.fillStyle='#3b5a86'; g.fillRect(6,14,50,8); g.fillRect(70,14,52,8);
+  g.fillStyle='#17347e'; g.fillRect(0,42,128,10);                                                 // 藍帶
+  g.fillStyle='#b6b2a8'; g.fillRect(60,6,8,52);                                                   // 車門縫
+  g.fillStyle='#1a1a1a'; g.fillRect(74,16,40,10); g.fillStyle='#ff5a32'; g.font='bold 9px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('南勢角',94,21);
+});
+const jnTrainHeadTex = tex(64,64,(g)=>{
+  g.fillStyle='#eceae2'; g.fillRect(0,0,64,64);
+  g.fillStyle='#1c2a4a'; g.fillRect(8,14,48,22); g.fillStyle='#17347e'; g.fillRect(0,42,64,10);
+  g.fillStyle='#fff3c0'; g.fillRect(6,54,10,5); g.fillRect(48,54,10,5);                            // 頭燈
+});
+// 月台門（玻璃＋把手）
+const jnPsdTex = tex(64,64,(g)=>{
+  g.fillStyle='#e9e6dd'; g.fillRect(0,0,64,64);
+  g.fillStyle='#6f7a86'; g.fillRect(4,6,56,42);
+  g.fillStyle='#2a2a30'; g.fillRect(2,4,60,3); g.fillRect(2,47,60,4); g.fillRect(2,60,60,4);
+  g.fillStyle='#f4d33a'; g.fillRect(6,50,24,6); g.fillStyle='#2a2a30'; g.font='bold 5px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('小心月台',18,53);
+});
 
 /* ---------- parts ---------- */
 const jnGoldM = new THREE.MeshLambertMaterial({color:0xe3c04a, emissive:0x3a2c08});
@@ -309,24 +343,55 @@ function jnWinUpdate(R, dt, k){
 function jnLoseSetup(R){
   const Lz = R.Lz, lp = Lz.m.holder.position;
   Lz.m.setCrown(true);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.2,2.6), new THREE.MeshBasicMaterial({map:jnSignTexs[0], transparent:true, fog:false}));
-  sign.position.set(lp.x + 2.6, RS_Y + 7.4, lp.z + 2.2); scene.add(sign); R.items.push(sign); R.jnSign = sign;
-  const post = at(cyl(0.16,0.16,4.4,L({color:0x9aa0a6}),8), lp.x + 2.6, RS_Y + 3.8, lp.z + 2.2); scene.add(post); R.items.push(post);
-  const line = new THREE.Mesh(new THREE.BoxGeometry(16,0.14,0.5), L({color:0xf3d24a}));   // platform edge line
-  line.position.set(lp.x, RS_Y + 0.08, lp.z + 3.4); scene.add(line); R.items.push(line);
+  const ZW = lp.z - 7.2;                                           // 月台牆面
+  const st = new THREE.Group(); st.position.set(lp.x + 1, RS_Y, 0); scene.add(st); R.items.push(st);
+  // 牆、天花板、地面磚
+  st.add(at(new THREE.Mesh(new THREE.BoxGeometry(34,13,1), L({color:0xd9d4c6})),0,6.5,ZW));
+  st.add(at(new THREE.Mesh(new THREE.BoxGeometry(34,0.6,7.6), L({color:0xc9c2b0})),0,12.6,ZW+4));          // 天花板
+  st.add(at(new THREE.Mesh(new THREE.BoxGeometry(34,0.3,8.0), L({color:0xcfc8b8})),0,0.14,ZW+4.2));        // 月台地板
+  // 月台門
+  for (let i=-5;i<=5;i++){
+    const d = new THREE.Mesh(new THREE.BoxGeometry(2.9,5.2,0.22), L({map:jnPsdTex}));
+    d.position.set(i*3.0, 2.7, ZW + 0.62); st.add(d);
+  }
+  // 上方橘色方向看板 + 站名牌
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.5,3.0), new THREE.MeshBasicMaterial({map:jnSignTexs[0], fog:false}));
+  sign.position.set(-3.6, 9.2, ZW + 0.9); st.add(sign); R.jnSign = sign;
+  const name = new THREE.Mesh(new THREE.PlaneGeometry(9.0,3.6), new THREE.MeshBasicMaterial({map:jnStationTex, fog:false}));
+  name.position.set(6.4, 9.0, ZW + 0.7); st.add(name);
+  // 月台黃線
+  const line = new THREE.Mesh(new THREE.BoxGeometry(30,0.16,0.55), L({color:0xf3d24a}));
+  line.position.set(lp.x + 1, RS_Y + 0.26, ZW + 2.6); scene.add(line); R.items.push(line);
+  // 開過去的列車
+  const train = new THREE.Group(); train.visible = false; scene.add(train); R.items.push(train);
+  const sideM = L({map:jnTrainTex}), headM = L({map:jnTrainHeadTex}), roofM = L({color:0xc8c5bb});
+  for (let i=0;i<6;i++){
+    const car = new THREE.Mesh(new THREE.BoxGeometry(7.4,5.0,3.0), [headM,headM,roofM,roofM,sideM,sideM]);
+    car.position.x = i*7.7; train.add(car);
+  }
+  train.position.set(lp.x + 34, RS_Y + 2.8, ZW + 1.9);
+  R.jnTrain = train; R.jnTrainX = lp.x + 34;
   const crown = jnCrown(1.0); crown.scale.setScalar(0.85); crown.visible = false; scene.add(crown); R.items.push(crown);
   R.jnDrop = crown; R.jnDropV = 0;
 }
 function jnLoseUpdate(R, dt, k){
   const Lz = R.Lz, lp = Lz.m.holder.position;
+  // 列車進站：從右邊開過去
+  if (R.t >= 1.35 && R.t < 3.3){
+    R.jnTrain.visible = true;
+    R.jnTrainX -= 72*dt; R.jnTrain.position.x = R.jnTrainX;
+    if (R.jnTrainX < lp.x - 56) R.jnTrain.visible = false;
+  } else R.jnTrain.visible = false;
+
   if (R.t < 1.4){
     applyPose(Lz.m, POSE.stand, k); Lz.m.setFace('normal');
     R.jnSign.material.map = jnSignTexs[0];
     once('jl0', .3, ()=>popAt('中和新蘆線……', Lz, 8.2));
+    once('jlT', 1.1, ()=>SFX.jnTrain());
   } else if (R.t < 2.9){
     applyPose(Lz.m, POSE.helpless, k); Lz.m.setFace('shout');
-    once('jl1', 1.45, ()=>{ R.jnSign.material.map = jnSignTexs[1]; R.jnSign.material.needsUpdate = true; SFX.whistle(); popAt('往迴龍？！', Lz, 8.8, 'red'); });
-    once('jl2', 2.2, ()=>popAt('蘆洲還要再等九分鐘', Lz, 8.4, 'blue'));
+    once('jl1', 1.75, ()=>{ R.jnSign.material.map = jnSignTexs[1]; R.jnSign.material.needsUpdate = true; SFX.whistle(); noise(.5,.12,800); popAt('往迴龍？！', Lz, 8.8, 'red'); });
+    once('jl2', 2.4, ()=>popAt('蘆洲還要再等九分鐘', Lz, 8.4, 'blue'));
   } else {
     applyPose(Lz.m, POSE.sob, k); Lz.m.setFace('cry');
     once('jl3', 3.0, ()=>{
