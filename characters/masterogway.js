@@ -13,8 +13,7 @@ function mogDrawFace(g, mode){
   g.beginPath(); g.ellipse(51,44,7,5,0,0,7); g.fill();
   // flat straight brows
   g.fillStyle='#17110e';
-  g.fillRect(12,26,14,3); g.fillRect(38,26,14,3);
-  g.fillRect(14,25,10,1); g.fillRect(40,25,10,1);
+  g.fillRect(12,27,15,2); g.fillRect(37,27,15,2);
   if (mode==='cry'){
     g.strokeStyle='#17110e'; g.lineWidth=2;
     g.beginPath(); g.moveTo(14,36); g.lineTo(26,36); g.stroke();
@@ -28,17 +27,20 @@ function mogDrawFace(g, mode){
     g.fillStyle='#3d1211'; g.beginPath(); g.ellipse(32,50,10,8,0,0,7); g.fill();
     g.fillStyle='#d4625c'; g.beginPath(); g.ellipse(32,54,5,3,0,0,7); g.fill();
   } else {
-    // small narrow eyes, slightly unimpressed
-    g.strokeStyle='#17110e'; g.lineWidth=2;
-    g.beginPath(); g.moveTo(13,37); g.quadraticCurveTo(19,33.5,26,37); g.stroke();
-    g.beginPath(); g.moveTo(38,37); g.quadraticCurveTo(45,33.5,51,37); g.stroke();
-    g.fillStyle='#17110e'; g.fillRect(18,36,3,3); g.fillRect(43,36,3,3);
-    // nose
-    g.fillStyle='rgba(150,96,70,.4)'; g.fillRect(30,42,4,4);
-    g.fillStyle='rgba(110,66,46,.6)'; g.fillRect(28,46,3,1); g.fillRect(33,46,3,1);
-    // flat smirk
-    g.strokeStyle='#5a2320'; g.lineWidth=2.4; g.lineCap='round';
-    g.beginPath(); g.moveTo(23,51); g.quadraticCurveTo(32,49.5,41,52.5); g.stroke();
+    // narrow heavy-lidded eyes, flat thin brows, wide nose, small flat smirk
+    g.fillStyle='rgba(255,255,255,.14)'; g.beginPath(); g.ellipse(32,13,15,8,0,0,7); g.fill();   // shiny forehead
+    g.strokeStyle='#17110e'; g.lineCap='round';
+    g.lineWidth=2.6;
+    g.beginPath(); g.moveTo(12,36.5); g.quadraticCurveTo(19,34,27,37.5); g.stroke();             // upper lids, drooping outward
+    g.beginPath(); g.moveTo(37,37.5); g.quadraticCurveTo(45,34,52,36.5); g.stroke();
+    g.fillStyle='#17110e'; g.fillRect(19,36.5,4,2.5); g.fillRect(42,36.5,4,2.5);
+    g.strokeStyle='rgba(120,78,58,.45)'; g.lineWidth=1.2;                                         // eye bags
+    g.beginPath(); g.moveTo(14,41); g.quadraticCurveTo(20,43,26,41); g.stroke();
+    g.beginPath(); g.moveTo(38,41); g.quadraticCurveTo(44,43,50,41); g.stroke();
+    g.fillStyle='rgba(150,96,70,.4)'; g.fillRect(29,42,6,4);                                      // nose
+    g.fillStyle='rgba(110,66,46,.65)'; g.fillRect(27,46,3,1.5); g.fillRect(34,46,3,1.5);
+    g.strokeStyle='#5a2320'; g.lineWidth=2.4;                                                     // flat smirk, right side lifted
+    g.beginPath(); g.moveTo(24,52); g.quadraticCurveTo(32,51,41,50); g.stroke();
   }
   // double chin, he is a round guy
   g.strokeStyle='rgba(150,100,76,.35)'; g.lineWidth=1.6;
@@ -112,25 +114,55 @@ const mogPantsM = L({map:mogPantsTex});
 /* ---------------- model ---------------- */
 function mogHair(head){
   const H = mogHairM;
-  head.add(at(rbox(1.16,0.62,1.2,.6,H),0,0.56,-0.01));                    // bowl top
-  head.add(at(rbox(1.12,1.26,0.62,.58,H),0,0.02,-0.3));                   // back
+  head.add(at(rbox(1.2,0.4,1.22,.6,H),0,0.73,-0.02));                    // crown, sits high so the forehead shows
+  head.add(at(rbox(1.14,1.06,0.62,.58,H),0,0.12,-0.3));                   // back
   [-1,1].forEach(s=>{
-    head.add(at(rbox(0.22,1.02,1.1,.5,H),s*0.52,0.1,-0.03));              // sides, down past the ears
-    const tuft = at(rbox(0.2,0.36,0.3,.5,H),s*0.47,-0.4,0.18); tuft.rotation.z = s*0.28; head.add(tuft);
+    head.add(at(rbox(0.2,0.72,1.0,.5,H),s*0.56,0.24,-0.06));              // short sides, ears stay out
+    const burn = at(rbox(0.14,0.3,0.2,.5,H),s*0.55,-0.1,0.2); head.add(burn);
   });
-  // thick straight fringe, a few separate slabs
-  [[-0.4,0.2],[-0.13,0.3],[0.13,0.27],[0.4,0.18]].forEach(([x,len],i)=>{
-    const p = at(rbox(0.29,0.5+len,0.2,.34,H), x, 0.46-len*0.55, 0.45);
-    p.rotation.z = (i-1.5)*0.07; head.add(p);
+  head.add(at(rbox(1.12,0.2,0.36,.4,H),0,0.67,0.36));                     // hairline, high and thin
+  // a few short swept-sideways wisps, lots of forehead between them and the brows
+  [[-0.38,.15,.16],[-0.12,.2,.1],[0.14,.17,-.08],[0.4,.13,-.2]].forEach(([x,len,rz])=>{
+    const w = at(rbox(0.26,len,0.14,.34,H), x, 0.6-len*0.5, 0.5);
+    w.rotation.z = rz; head.add(w);
   });
-  head.add(at(rbox(1.1,0.32,0.34,.4,H),0,0.6,0.38));                      // fringe root
-  const antenna = at(rbox(0.08,0.42,0.08,.5,H),0.1,0.9,0.04); antenna.rotation.z = -0.35; head.add(antenna);
+  const antenna = at(rbox(0.07,0.42,0.07,.5,H),0.14,1.02,0.02); antenna.rotation.z = -0.4; head.add(antenna);
+  const tuft2 = at(rbox(0.07,0.3,0.07,.5,H),-0.2,0.98,0.05); tuft2.rotation.z = 0.5; head.add(tuft2);
   return {antenna};
+}
+
+/* ---------------- 賽亞人紅色氣場 ---------------- */
+function mogFlame(w, h, color, op){
+  const pts = [[-w/2,0]], n = 9;
+  for (let i=0;i<=n;i++){ const t = i/n, env = Math.pow(Math.sin(Math.PI*(0.08+0.84*t)),0.8); pts.push([-w/2 + w*t, h*env*(i%2===0 ? 1 : 0.62)]); }
+  pts.push([w/2,0]);
+  const sh = new THREE.Shape(); sh.moveTo(pts[0][0],pts[0][1]); pts.slice(1).forEach(q=>sh.lineTo(q[0],q[1])); sh.closePath();
+  return new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({color, transparent:true, opacity:op, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, fog:false}));
+}
+function mogBuildAura(c){
+  const g = new THREE.Group(); g.visible = false;
+  const a = mogFlame(8.4, 13, 0xff1a0e, .5), b = mogFlame(5.6, 9.6, 0xff7a2e, .55), d = mogFlame(3.2, 6.6, 0xffd070, .5);
+  a.position.set(0,-0.3,-1.6); b.position.set(0,-0.2,-1.3); d.position.set(0,-0.1,-1.0);
+  g.add(a); g.add(b); g.add(d); g.flames = [a,b,d];
+  c.root.add(g); c.mogAura = g;
+}
+function mogAuraTick(f, m, s, t, dt){
+  const g = m.mogAura; if (!g) return;
+  const on = (s==='move' && f.moveId==='dB') || s==='final' || (f.mogL && f.mogL.size > 0);
+  g.visible = !!on;
+  if (!on) return;
+  g.rotation.y = -(m.holder.rotation.y + (m.body.rotation.y||0));        // keep the flames flat toward the camera
+  g.flames.forEach((fl,i)=>{ fl.scale.set(1 + Math.sin(t*23 + i*2)*.07, 1 + Math.sin(t*31 + i)*.09, 1); });
+  if (Math.random() < dt*45){
+    const p = spriteOf(puffTex, 1.1 + Math.random()*1.2, Math.random()<.5 ? 0xff2a14 : 0xff8a30); p.material.transparent = true;
+    p.position.set(f.x + (Math.random()-.5)*3.6, f.y + .6 + Math.random()*2.5, -.6); scene.add(p);
+    G.fx.push({o:p, t:0, life:.6, grow:1.8, base:1.2});
+  }
 }
 function buildMasterogway(parent){
   const faceM = L({map:mogFaces.normal});
   const c = buildChar({
-    skinM: mogSkinM, faceM, headW:1.02, headH:1.3,
+    skinM: mogSkinM, faceM, headW:1.1, headH:1.22,
     torsoMat: [mogHoodM, mogHoodM, mogHoodM, mogHoodM, mogFrontM, mogHoodM],
     sleeveMat: ()=>mogSlvM, sleeve:[0.5,0.95],
     pantsM: mogPantsM, shoeM, soleM: greySole,
@@ -142,6 +174,7 @@ function buildMasterogway(parent){
     face(head){},
   }, parent);
   c.root.scale.set(1.24,0.84,1.24);                                       // short, round, heavy
+  mogBuildAura(c);
   // bomb in the right hand
   const bomb = new THREE.Group();
   bomb.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.42,10,8), L({map:mogBombTex})),0,-0.5,0));
@@ -160,6 +193,53 @@ function buildMasterogway(parent){
   let faceNow = 'normal';
   c.setFace = (f)=>{ const k = mogFaces[f] ? f : 'normal'; if (k!==faceNow){ faceNow = k; faceM.map = mogFaces[k]; faceM.needsUpdate = true; } };
   return c;
+}
+
+
+/* ---------------- 樂化：把對手的頭換成樂的頭 ---------------- */
+function mogHeadGroup(){
+  const g = new THREE.Group();
+  const fm = L({map:mogFaces.normal});
+  g.add(rbox(1.1,1.22,1.0,.6,[mogSkinM,mogSkinM,mogSkinM,mogSkinM,fm,mogSkinM]));
+  [-1,1].forEach(s=>g.add(at(rbox(0.12,0.26,0.18,.5,mogSkinM),s*(0.55+0.02),0.02,0)));
+  mogHair(g);
+  g.scale.setScalar(1.06);
+  return g;
+}
+function mogSwapHead(v){
+  const m = v.m; if (!m || !m.head || m.mogSw || v.kind==='masterogway') return;
+  const hid = []; m.head.children.forEach(o=>{ if (o.visible){ o.visible = false; hid.push(o); } });
+  const g = mogHeadGroup(); m.head.add(g); m.mogSw = {g, hid};
+}
+function mogRestoreHead(v){
+  const m = v.m; if (!m || !m.mogSw) return;
+  m.head.remove(m.mogSw.g); m.mogSw.hid.forEach(o=>{ o.visible = true; }); m.mogSw = null;
+}
+
+/* ---------------- 立體文字（疊層字面做出厚度） ---------------- */
+const MOG_GLYPH = {};
+function mogGlyphTex(ch, bright){
+  const cv = document.createElement('canvas'); cv.width = cv.height = 96;
+  const g = cv.getContext('2d'); g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 84px "Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  if (bright){ g.lineWidth = 7; g.strokeStyle = '#fff1c4'; g.lineJoin = 'round'; g.strokeText(ch,48,52); g.fillStyle = '#ff4a2e'; }
+  else { g.fillStyle = '#8c180d'; }
+  g.fillText(ch,48,52);
+  return new THREE.CanvasTexture(cv);
+}
+function mogGlyphMesh(ch, size, sway){
+  const G3 = MOG_GLYPH[ch] || (MOG_GLYPH[ch] = {
+    dark: new THREE.MeshBasicMaterial({map:mogGlyphTex(ch,false), transparent:true, alphaTest:.4, side:THREE.DoubleSide}),
+    lit:  new THREE.MeshBasicMaterial({map:mogGlyphTex(ch,true),  transparent:true, alphaTest:.4, side:THREE.DoubleSide}),
+  });
+  const geo = new THREE.PlaneGeometry(size, size), grp = new THREE.Group(), ph = sway ? 0 : Math.random()*6;
+  const N = 8, depth = size*.3;
+  for (let i=0;i<N;i++){ const pl = new THREE.Mesh(geo, G3.dark); pl.position.z = -depth/2 + depth*i/(N-1); grp.add(pl); }
+  const front = new THREE.Mesh(geo, G3.lit); front.position.z = depth/2 + .02; grp.add(front);
+  const back  = new THREE.Mesh(geo, G3.lit); back.position.z = -depth/2 - .02; back.rotation.y = Math.PI; grp.add(back);   // flipped so it also reads right from behind
+  grp.rotation.x = .25;
+  front.onBeforeRender = ()=>{ const T = performance.now(); grp.rotation.y = sway ? Math.sin(T*.006)*.65 : (T%100000)*.0075 + ph; };
+  return grp;
 }
 
 /* ---------------- 大招：樂搞世志 ---------------- */
@@ -411,15 +491,29 @@ registerChar('masterogway', {
     fair:{t:[.11,.1,.22], pose:['jabR','fair'], box:[2.2,3.4,1.5], dmg:10, kb:8, sc:.9, ang:40, air:1},
     uair:{t:[.1,.12,.2], pose:['air','block'], box:[0.3,6.4,1.7], dmg:9, kb:8, sc:.8, ang:85, air:1},
     dair:{t:[.2,.12,.28], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.9], dmg:14, kb:7, sc:.8, ang:-68, air:1, text:'砸！'},
-    nB:{t:[.18,.08,.3], pose:['laughIn','laugh'], fire:[[.18,'mogShout']], air:1, text:'哇勒個豆！'},
+    nB:{t:[.18,.08,.3], pose:['laughIn','laugh'], fire:[[.18,'mogShout']], air:1},
     sB:{t:[.2,.06,.32], pose:['throwWind','throwHit'], fire:[[.2,'mogBomb']], air:1, sfx:'swing', text:'炸了！', prop0:'bomb'},
     uB:{t:[.08,.5,.12], pose:['squat','helpless'], poseSwitch:.22, start:'mogFart', box:[0.4,4.6,1.8], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1, text:'拉完了！'},
-    dB:{t:[.2,.55,.34], pose:['ponder','laughUp'], poseSwitch:.25, box:[0,4.4,4.8], dmg:6, kb:4, sc:.25, ang:50, air:1, onHit:'mogLehua', text:'搞 巨 炸'},
+    dB:{t:[.2,.9,.3], pose:['squat','laughUp'], poseSwitch:.3, fire:[[.2,'mogOrb0'],[.5,'mogOrb1'],[.8,'mogOrb2']], air:1, text:'搞 巨 炸', textCls:'red', sfx:'swing'},
   },
   fire: {
     mogShout(f){
-      proj({owner:f, x:f.x+f.face*1.8, y:f.y+5.0, vx:f.face*26, vy:0, g:0, r:1.2, life:1.0, dmg:8, kb:8, sc:.6, ang:42, mesh:spriteOf(mogWordTex,1.8,0xff6a4a)});
-      SFX.laughShort();
+      if (Math.random() < .12){                                             // rare: 哇勒個豆, a long four-character strip
+        const W4 = ['哇','勒','個','豆'];
+        W4.forEach((ch,i)=>proj({owner:f, x:f.x+f.face*(2.0+i*3.4), y:f.y+5.0, vx:f.face*30, vy:0, g:0, r:1.5, life:1.1,
+          dmg:i===3?9:4, kb:i===3?13:3, sc:i===3?.9:.2, ang:40, mesh:mogGlyphMesh(ch,3.4,true)}));
+        pop('哇勒個豆！', f.x, f.y+8, 'big'); SFX.boom();
+      } else {
+        const ch = ['搞','巨','炸','拉'][Math.floor(Math.random()*4)];
+        proj({owner:f, x:f.x+f.face*1.8, y:f.y+5.0, vx:f.face*26, vy:0, g:0, r:1.25, life:1.0, dmg:8, kb:8, sc:.6, ang:42, mesh:mogGlyphMesh(ch,2.8)});
+        pop(ch+'！', f.x, f.y+7.6, 'red'); SFX.laughShort();
+      }
+    },
+    mogOrb0(f){ FIRE._mogOrb(f,0); }, mogOrb1(f){ FIRE._mogOrb(f,1); }, mogOrb2(f){ FIRE._mogOrb(f,2); },
+    _mogOrb(f,i){                                                           // like 偷米's guitar hearts, but the orbs are a spinning 3D 樂
+      const v = [[9,7],[13,1.5],[-8,8]][i];
+      proj({owner:f, x:f.x+f.face*.5, y:f.y+5, vx:f.face*v[0], vy:v[1], g:0, drag:1.2, wave:.8, r:1.2, life:1.7, dmg:3, kb:2, sc:.1, ang:60, onHit:'mogLehua', mesh:mogGlyphMesh('樂',2.6), pierce:0});
+      SFX.fire(); burst(f.x+f.face*.5, f.y+5, 0xff3a22, 5, 6);
     },
     mogBomb(f){
       proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*19, vy:9, g:34, r:1.1, life:2.2, bounce:1, dmg:15, kb:13, sc:1.0, ang:52, mesh:spriteOf(mogBombTex,1.5)});
@@ -433,15 +527,26 @@ registerChar('masterogway', {
     },
   },
   onhit: {
-    mogLehua(att, v){
-      v.state = 'stun'; v.stunT = .85; v.move = null;
-      pop(['搞','巨','炸'][Math.floor(Math.random()*3)], v.x, v.y+7.6, 'red');
-      pop('我被樂化了…', v.x, v.y+9.6, 'blue');
+    mogLehua(att, v){                                                       // control the target: stunned, weaker, head becomes 樂's
+      v.state = 'stun'; v.stunT = 1.3; v.move = null; v.vx *= .2; v.sadT = Math.max(v.sadT, 3.5);
+      mogSwapHead(v);
+      att.mogL = att.mogL || new Map(); att.mogL.set(v, {t:5.5, n:.9});
+      pop('我樂化了！', v.x, v.y+7.6, 'red'); SFX.laughShort();
       att.buffT = Math.max(att.buffT||0, 4);
     },
   },
+  animate(f, m, s, t, dt){
+    mogAuraTick(f, m, s, t, dt);
+    if (f.mogL && f.mogL.size){
+      for (const [v,E] of f.mogL){
+        E.t -= dt; E.n -= dt;
+        if (E.n <= 0 && v.state !== 'dead'){ E.n = 1.1; pop(['搞','巨','炸','拉'][Math.floor(Math.random()*4)], v.x, v.y+7.6, 'red'); }
+        if (E.t <= 0 || v.state === 'dead' || f.state === 'dead'){ mogRestoreHead(v); f.mogL.delete(v); }
+      }
+    }
+  },
   build: buildMasterogway, face: mogFaces.normal, portraitBg: '#9fb8cf',
-  portrait(g){ g.fillRect(4,2,56,24); g.fillRect(3,20,10,18); g.fillRect(51,20,10,18); g.fillRect(8,22,48,6); },
+  portrait(g){ g.fillRect(6,2,52,12); g.fillRect(4,10,9,18); g.fillRect(51,10,9,18); g.fillRect(14,12,36,3); },
   skins: [{ name:'牛仔襯衫', apply(c){
     const dM = L({map:mogDenimTex}), dF = L({map:mogDenimFront});
     c.chest.children.forEach(o=>{ if (o.material && o.material.length===6) o.material = [dM,dM,dM,dM,dF,dM]; else if (o.material && o.material.map===mogHoodTex) o.material = dM; });
