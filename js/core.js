@@ -1664,14 +1664,21 @@ function showScr(id){
 }
 // home screen: a random stage with two random characters (random costumes) standing on it.
 // Only the display models change — sel.* keeps whatever the player actually chose.
+// The combo is picked once per page load (homePick) and reused every time the home screen comes back,
+// so pressing buttons / returning from rules or a match never reshuffles it; only a reload does.
+let homePick = null;
 function homeShowcase(){
-  const ks = CHAR_ORDER.filter(k=>CHARS[k]); if (!ks.length) return;
-  const one = ()=>{ const k = ks[(Math.random()*ks.length)|0]; return [k, (Math.random()*skinCount(k))|0]; };
-  let a = one(), b = one();
-  for (let g=0; g<20 && b[0]===a[0] && ks.length > 1; g++) b = one();
+  if (!homePick){
+    const ks = CHAR_ORDER.filter(k=>CHARS[k]); if (!ks.length) return;
+    const one = ()=>{ const k = ks[(Math.random()*ks.length)|0]; return [k, (Math.random()*skinCount(k))|0]; };
+    let a = one(), b = one();
+    for (let g=0; g<20 && b[0]===a[0] && ks.length > 1; g++) b = one();
+    const ms = MAP_ORDER.filter(m=>MAPS[m]);
+    homePick = { a, b, map: ms.length ? ms[(Math.random()*ms.length)|0] : null };
+  }
   for (let i=0;i<4;i++){ if (models[i]){ scene.remove(models[i].holder); models[i] = null; } }
-  models[0] = makeModel(a[0], a[1]); models[1] = makeModel(b[0], b[1]);
-  const ms = MAP_ORDER.filter(m=>MAPS[m]); if (ms.length) applyMap(ms[(Math.random()*ms.length)|0]);
+  models[0] = makeModel(homePick.a[0], homePick.a[1]); models[1] = makeModel(homePick.b[0], homePick.b[1]);
+  if (homePick.map) applyMap(homePick.map);
 }
 // remember the last rules (people play the same setup every time)
 const RULES_KEY = 'wvs.rules';
@@ -1976,6 +1983,7 @@ function startGame(){
 function toMenu(){
   clearArena(); leaveParty(); RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
+  scrNow = ''; // force the (cached) home showcase back after a match
   showScr('scrTitle');
 }
 function showOver(){
