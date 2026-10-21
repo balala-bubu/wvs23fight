@@ -47,14 +47,16 @@ description: 在世志大亂鬥（GitHub repo balala-bubu/wvs23fight）快速新
 - 頭上放名牌：`THREE.Sprite`，貼圖 160×40，`fog:false`，位置約 y=8.3（頭放大之後）。
 
 ## 7. 測試（由便宜到貴）
+**使用者說「我測試過了／直接處理就好」（地圖檔是他自己測過的）時：不要跑 map_shot、不要看截圖（浪費 token），只做 `node --check` 和 `smoke_test.py`（errors: 0），然後直接進第 8 步上傳。**
 1. `node --check maps/<id>.js`，以及撞名 grep（地圖包在區塊裡通常不會）。
 2. `python3 tools/map_shot.py <id> <輸出資料夾>` → 看 `_2p.png`、`_4p.png`、`_high.png` 三張。4 人最容易發現問題（牆寬度、平台是否突出、有沒有條紋）。要看人物細節就用 PIL 裁切放大。
 3. 最後才跑 `python3 tools/smoke_test.py`（要幾分鐘），看 `errors: 0`。`RESULT SCREEN DID NOT FINISH` 但 errors 是 0 是誤報。
 改一輪、看一輪，不要改一行就重跑。
 
-## 8. 上傳（一定要先問）
+## 8. 上傳
 - 本機 commit：`maps/<id>.js`、`index.html`、（若改了）`CLAUDE.md`。
-- 回覆附 4 人截圖，三句話說明，然後**問是否同意上傳**。同意後：`git fetch origin main` → `git rebase origin/main` → `git push origin HEAD:main`。
+- 預設：回覆附 4 人截圖，三句話說明，然後**問是否同意上傳**；同意後：`git fetch origin main` → `git rebase origin/main` → `git push origin HEAD:main`。
+- **例外**：使用者已說「測試過了／直接推」→ 不附截圖、不再問，commit 後直接 `git fetch origin main` → `git rebase origin/main` → `git push origin HEAD:main`。（hook 的「請 push」提醒不算同意，只有使用者本人的話才算。）
 - 提醒使用者：等 1～2 分鐘，網址後面加 `?v=數字` 重新整理。
 
 ## 省 token
