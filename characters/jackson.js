@@ -142,23 +142,66 @@ function buildJackson(parent){
   const mic = new THREE.Group(); c.R.hd.add(mic);
   mic.add(at(cyl(0.05,0.05,0.7,L({color:0x222226}),6),0,-0.4,0));
   mic.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.13,8,6),L({color:0xb8b8c0})),0,-0.03,0));
-  // original round little bird with huge ears — shows up behind the head (on the hand's side) while he is "listening" (shield)
+  // random bird — Angry Birds 紅鳥（防禦時出現在耳後）
   const bird = new THREE.Group(); c.head.add(bird);
-  const bBody = L({color:0x39c4b0}), bBelly = L({color:0xe9fff6}), bBeak = L({color:0xffb23d}), bEar = L({color:0xff9fbd}), bEarIn = L({color:0xd9507f}), bDark = L({color:0x1f9a8a});
+  const bBody = L({color:0xe53935}), bBelly = L({color:0xf5d0a0}), bBeak = L({color:0xffc107}), bBeakDark = L({color:0xe6a000});
+  const bBrow = L({color:0xc62828}), bCrest = L({color:0xd32f2f}), bDark = L({color:0xb71c1c});
   const bEyeW = new THREE.MeshBasicMaterial({color:0xffffff}), bPupil = new THREE.MeshBasicMaterial({color:0x14110f});
   const sph = (r,m,sx,sy,sz,x,y,z)=>{ const o = new THREE.Mesh(new THREE.SphereGeometry(r,12,10), m); o.scale.set(sx,sy,sz); o.position.set(x,y,z); bird.add(o); return o; };
-  sph(.55,bBody,1,.95,.95,0,0,0); sph(.42,bBelly,1,1,.5,0,-0.12,.36);
-  [-1,1].forEach(sd=>{ sph(.17,bEyeW,1,1.1,.8,sd*.21,.14,.44); sph(.085,bPupil,1,1,.8,sd*.21,.12,.56); sph(.15,bDark,.5,1,.8,sd*.52,-0.12,.05); });
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(.13,.3,6), bBeak); beak.rotation.x = Math.PI/2; beak.position.set(0,-0.03,.62); bird.add(beak);
-  [[-0.14,.08],[0,0],[0.14,-.08]].forEach(([x,r],i)=>{ const f = new THREE.Mesh(new THREE.ConeGeometry(.07,.32+(i===1?.1:0),5), bDark); f.position.set(x,.62,0); f.rotation.z = r*2; bird.add(f); });
-  const ears = [-1,1].map(sd=>{                                                   // the huge ears
-    const g = new THREE.Group(); g.position.set(sd*.66,.18,-0.02); bird.add(g);
-    const o = new THREE.Mesh(new THREE.SphereGeometry(.62,12,10), bEar); o.scale.set(.26,1.0,.82); g.add(o);
-    const i2 = new THREE.Mesh(new THREE.SphereGeometry(.4,10,8), bEarIn); i2.scale.set(.2,1.0,.82); i2.position.set(sd*.07,-0.02,.04); g.add(i2);
-    g.rotation.z = -sd*.28; return g;
+  sph(.55,bBody,1,.95,.95,0,0,0);
+  sph(.38,bBelly,1,0.9,.45,0,-0.14,.38);
+  [-1,1].forEach(sd=>{
+    sph(.18,bEyeW,1,1.15,.75,sd*.22,.18,.48);
+    sph(.09,bPupil,1,1.1,.7,sd*.22,.20,.58);
+    sph(.035,bEyeW,1,1,1,sd*.18,.26,.62);
+  });
+  const brows = [-1,1].map(sd=>{
+    const br = new THREE.Mesh(new THREE.BoxGeometry(.28,.08,.1), bBrow);
+    br.position.set(sd*.24,.36,.52); br.rotation.z = sd*-0.25; bird.add(br); return br;
+  });
+  const beakUp = new THREE.Mesh(new THREE.ConeGeometry(.14,.22,6), bBeak);
+  beakUp.rotation.x = Math.PI/2; beakUp.position.set(0,.02,.62); bird.add(beakUp);
+  const beakLo = new THREE.Mesh(new THREE.ConeGeometry(.11,.16,6), bBeakDark);
+  beakLo.rotation.x = Math.PI/2; beakLo.position.set(0,-0.1,.58); bird.add(beakLo);
+  [[-0.12,.08],[0,0],[0.12,-.08]].forEach(([x,r],i)=>{
+    const f = new THREE.Mesh(new THREE.ConeGeometry(.08,.36+(i===1?.12:0),5), bCrest);
+    f.position.set(x,.62,0.05); f.rotation.z = r*2; bird.add(f);
+  });
+  [-1,1].forEach(sd=>{ sph(.16,bDark,.4,1,.7,sd*.52,-0.08,.08); });
+  // 紅色人形耳朵（左右）
+  const earSkin = L({color:0xe53935}), earIn = L({color:0xc62828});
+  const humanEars = [-1,1].map(sd=>{
+    const g = new THREE.Group(); g.position.set(sd*.62,.12,-0.05); bird.add(g);
+    const outer = new THREE.Mesh(new THREE.SphereGeometry(.28,10,8), earSkin);
+    outer.scale.set(.35,1.0,.55); g.add(outer);
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(.16,8,6), earIn);
+    inner.scale.set(.25,0.9,.5); inner.position.set(sd*.04,0,.06); g.add(inner);
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(.08,6,5), earSkin);
+    lobe.position.set(sd*.02,-.22,.02); g.add(lobe);
+    g.rotation.z = -sd*.2; g.rotation.y = sd*.25;
+    return g;
+  });
+  // 浮空的手（左右各一，懸在鳥旁邊）
+  const handM = L({color:0xe53935});
+  const floatHands = [-1,1].map(sd=>{
+    const g = new THREE.Group(); g.position.set(sd*1.15,.1,.15); bird.add(g);
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(.14,8,6), handM);
+    palm.scale.set(1.1,.7,1.3); g.add(palm);
+    for (let i = 0; i < 4; i++) {
+      const finger = new THREE.Mesh(new THREE.SphereGeometry(.04,5,4), handM);
+      finger.scale.set(1, 1.6, 1);
+      finger.position.set(sd*(.06 + i*.04), .02 + (i===1||i===2?.06:0), .12 + (i-1.5)*.05);
+      g.add(finger);
+    }
+    const thumb = new THREE.Mesh(new THREE.SphereGeometry(.045,5,4), handM);
+    thumb.scale.set(1,1.3,1); thumb.position.set(sd*-.08,.0,.05); g.add(thumb);
+    return g;
   });
   [[-1.0,.95,.3],[1.05,.65,.35]].forEach(([x,y,z])=>{ const n = spriteOf(hqNoteTex,.75,0xffe08a); n.position.set(x,y,z); bird.add(n); });
-  bird.userData.ears = ears; bird.position.set(-0.95,0.55,-0.5);
+  bird.userData.ears = brows;
+  bird.userData.humanEars = humanEars;
+  bird.userData.floatHands = floatHands;
+  bird.position.set(-0.95,0.55,-0.5);
   c.props = {phone, mic, bird};
   c.hairM = hairM; c.setOld = ()=>{};
   let faceNow = 'normal';
@@ -524,6 +567,15 @@ registerChar('jackson', {
       const bd = m.props.bird;                                           // sits behind the head, on the hand's side, turned to face the camera
       bd.position.set((f.face > 0 ? -0.95 : 0.95), 0.55 + Math.sin(t*8)*.06, -0.5); bd.rotation.y = -m.holder.rotation.y;
       bd.userData.ears.forEach((e,i)=>{ e.rotation.y = Math.sin(t*10 + i*Math.PI)*.18; });
+      // 紅色人耳微晃
+      if (bd.userData.humanEars) bd.userData.humanEars.forEach((e,i)=>{ e.rotation.y = (i?1:-1)*.25 + Math.sin(t*6+i)*.08; });
+      // 浮空手上下漂＋輕轉
+      if (bd.userData.floatHands) bd.userData.floatHands.forEach((h,i)=>{
+        const side = i ? 1 : -1;
+        h.position.y = 0.1 + Math.sin(t*5 + i*1.7)*.18;
+        h.position.x = side * (1.15 + Math.sin(t*3.2+i)*.08);
+        h.rotation.z = side * 0.3 + Math.sin(t*4+i)*.2;
+      });
     }
     else if (s==='idle') applyPose(m, hqCool(t), 1 - Math.exp(-dt*8));
   },
