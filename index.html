@@ -194,12 +194,16 @@ body.remote .pTop .padWho span{color:#fff}
 .pcard:active{transform:scale(.95)}
 .pcard[aria-pressed="true"]{border-color:var(--pc,var(--gold));background:rgba(255,255,255,.16);box-shadow:0 0 0 3px var(--pc,var(--gold)),0 6px 0 rgba(0,0,0,.4);transform:translateY(-2px)}
 .pcard[aria-pressed="true"]::after{content:"✓";position:absolute;right:5px;top:2px;font-size:15px;font-weight:900;color:var(--pc,var(--gold))}
+#padMapBox{position:absolute;left:0;top:70px;width:800px;height:290px;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px}
+#padMapBox .msStrip{width:100%;padding:14px 24px 8px;pointer-events:auto;touch-action:pan-x pan-y}
+#padMapBox .mcard{width:176px} #padMapBox .mcard canvas{width:176px;height:99px}
+#padMapBox .selBtns .go{padding:14px 40px;font-size:20px} #padMapBox .selBtns .ghost{padding:14px 22px;font-size:16px}
 #padSelBox.lock #padGrid{opacity:.4;pointer-events:none}
 #padSide{width:156px;flex:none;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
 #padGo{margin-top:auto}
 #padSide .go{height:88px;font-size:24px;padding:0}
 #padSelBox.lock #padGo{background:#3a6fae;color:#fff}
-#padSkins{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;margin-bottom:30px}
+#padSkins{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;margin-bottom:30px}
 #padSkins button{flex:none;min-height:44px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;cursor:pointer}
 #padSkins button[aria-pressed="true"]{background:var(--ink);color:#1b1511;border-color:var(--ink)}
 #rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
@@ -313,6 +317,30 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 .tb.fin{right:150px;bottom:150px;width:66px;height:66px;background:rgba(242,193,78,.16);color:rgba(255,255,255,.45);font-size:15px}
 .tb.fin.ready{background:rgba(242,193,78,.9);color:#1b1410;text-shadow:none;animation:pulse .6s infinite alternate}
 @keyframes pulse{to{box-shadow:0 0 0 8px rgba(242,193,78,.35)}}
+
+/* ---------- map select (same look as character select: thumbnail cards, random card shows ?) ---------- */
+#mapSel{position:fixed;inset:0;pointer-events:none;z-index:4}
+#mapSel button{pointer-events:auto}
+#mapSel.rnd{background:radial-gradient(circle at 50% 38%,#3a2a20,#120e0c 70%)}
+.msQ{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 8%);bottom:36%;display:none;align-items:center;justify-content:center;font-family:var(--pixel);font-size:min(46vh,46vw);line-height:1;color:var(--gold);text-shadow:4px 4px 0 #000,8px 8px 0 rgba(0,0,0,.35)}
+#mapSel.rnd .msQ{display:flex}
+.msTop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:0;right:0;display:flex;justify-content:center}
+.msTop > b{font-family:var(--pixel);font-weight:400;font-size:26px;letter-spacing:.2em;color:var(--ink);text-shadow:2px 2px 0 #000;background:rgba(20,15,12,.55);padding:2px 16px;border-radius:999px}
+.msBottom{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;flex-direction:column;align-items:center;gap:8px;background:linear-gradient(rgba(10,7,6,0),rgba(10,7,6,.7) 38%);padding-top:28px}
+.msName{display:grid;justify-items:center;gap:0;text-shadow:3px 3px 0 #000}
+.msName b{font-size:clamp(28px,5vw,46px);font-weight:900;line-height:1.1;color:#fff}
+.msName span{font-size:13px;color:var(--dim)}
+.msStrip{display:flex;gap:12px;overflow-x:auto;max-width:100%;box-sizing:border-box;padding:12px max(16px,calc(50% - 580px)) 6px;scroll-snap-type:x proximity;pointer-events:auto;scrollbar-width:none}
+.msStrip::-webkit-scrollbar{display:none}
+.mcard{flex:0 0 auto;width:150px;display:grid;gap:4px;justify-items:center;padding:0;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;scroll-snap-align:center}
+.mcard canvas{width:150px;height:84px;display:block;border-radius:10px;border:3px solid rgba(255,255,255,.35);box-shadow:0 4px 0 rgba(0,0,0,.4);background:#000;transition:transform .12s}
+.mcard.hot canvas{transform:scale(1.1);border-color:var(--gold)}
+.mcard span{font-size:13px;font-weight:700;text-shadow:1px 1px 0 #000}
+.mcard.hot span{color:var(--gold)}
+.mcard.rndc canvas{background:#3a2a20}
+@media (max-height:560px){ .mcard{width:112px} .mcard canvas{width:112px;height:63px} .msName b{font-size:24px} .msBottom{gap:4px;padding-top:16px} .msTop > b{font-size:20px} }
+#sndHint{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%);z-index:20;background:rgba(20,15,12,.85);border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:6px 16px;font-size:14px;font-weight:700;pointer-events:none;animation:sndp 1.6s ease-in-out infinite}
+@keyframes sndp{50%{opacity:.55}}
 </style>
 </head>
 <body>
@@ -356,9 +384,6 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
         <button data-mode="cpu" aria-pressed="true">電腦</button>
         <button data-mode="2p" aria-pressed="false">雙人同鍵盤</button>
       </div>
-    </div>
-    <div class="ruleRow"><span>地圖</span>
-      <div class="seg" role="group" aria-label="地圖" id="mapSeg"></div>
     </div>
     <div class="ruleRow"><span>命數</span>
       <div class="seg" role="group" aria-label="命數">
@@ -409,12 +434,25 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   </div>
 </div>
 
+<div id="mapSel" hidden>
+  <div class="msTop"><b>選擇地圖</b></div>
+  <div class="msQ" aria-hidden="true">?</div>
+  <div class="msBottom">
+    <div class="msName"><b id="msName">公園</b><span id="msSub"></span></div>
+    <div class="msStrip" id="msStrip" role="listbox" aria-label="地圖"></div>
+    <div class="selBtns"><button class="ghost" id="msBack">返回選角色</button><button class="go" id="msOk">決定</button></div>
+    <div class="selHint" id="msHint"></div>
+  </div>
+</div>
+<div id="sndHint" hidden>🔇 點一下畫面，開啟聲音</div>
+
 <div id="winTitle" hidden><b id="winName">秉寶</b><span>WINS!</span></div>
 <div id="over" hidden>
   <div class="sheet">
     <h2 id="winTxt">秉寶 獲勝！</h2>
     <p id="winSub">GAME!</p>
     <button class="go" id="again">再來一局</button>
+    <button class="ghost" id="toMapSel">換地圖</button>
     <button class="ghost" id="toSelect">換角色</button>
     <button class="ghost" id="toMenu">回主畫面</button>
   </div>
@@ -424,6 +462,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
   <div class="sheet">
     <h2>暫停</h2>
     <button class="go" id="resume">繼續</button>
+    <button class="ghost" id="pauseMap">換地圖</button>
     <button class="ghost" id="pauseSelect">換角色</button>
     <button class="ghost" id="pauseMenu">回主畫面</button>
   </div>
@@ -447,7 +486,9 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
     <div class="pTop">
       <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
       <button class="go" id="padStart" hidden>再來一局</button>
+      <button class="ghost" id="padMap" hidden>換地圖</button>
       <button class="ghost" id="padSel" hidden>換角色</button>
+      <button class="ghost" id="padVib">震動：開</button>
       <button class="ghost" id="padLeave">離開</button>
     </div>
     <div id="padSelBox" hidden>
@@ -456,6 +497,10 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
         <div id="padSkins" role="group" aria-label="造型" hidden></div>
         <button class="go" id="padGo">準備好了</button>
       </div>
+    </div>
+    <div id="padMapBox" hidden>
+      <div class="msStrip" id="padMapStrip"></div>
+      <div class="selBtns"><button class="ghost" id="padMapBack">返回選角色</button><button class="go" id="padMapOk">決定</button></div>
     </div>
     <div id="pZone"></div>
     <div class="pBase" id="pBase"><div class="pKnob" id="pKnob"></div></div>

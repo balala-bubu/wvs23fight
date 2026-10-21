@@ -15,7 +15,7 @@ document.addEventListener('touchmove', e=>{ if (e.touches && e.touches.length > 
 let lastTouchEnd = 0;
 document.addEventListener('touchend', e=>{
   const now = Date.now();
-  if (now - lastTouchEnd < 320 && (G.mode==='play' || G.mode==='pad' || G.mode==='select')) e.preventDefault();
+  if (now - lastTouchEnd < 320 && (G.mode==='play' || G.mode==='pad' || G.mode==='select' || G.mode==='mapsel')) e.preventDefault();
   lastTouchEnd = now;
 }, {passive:false});
 document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
@@ -317,14 +317,45 @@ addEventListener('resize', resize); resize();
 addEventListener('orientationchange', ()=>{ setTimeout(resize, 120); setTimeout(resize, 500); });
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 
+/* =================== vibration (Android Chrome etc.; iOS Safari has no Vibration API) =================== */
+let vibOn = true;
+try { vibOn = localStorage.getItem('wvs.vib') !== '0'; } catch(_){}
+function buzz(p){ if (!vibOn) return; try{ navigator.vibrate && navigator.vibrate(p); }catch(_){} }
+
 /* =================== audio =================== */
 let AC = null, master = null;
+// A silent looping <audio> makes iOS treat the page as "media": Web Audio then ignores the mute switch and keeps
+// playing when the screen is mirrored / AirPlayed / cast to a TV (otherwise the TV is silent).
+let keepEl = null;
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+function keepAudio(){
+  try{
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    if (!keepEl){ keepEl = new Audio(SILENT_WAV); keepEl.loop = true; keepEl.setAttribute('playsinline',''); keepEl.volume = .01; }
+    if (keepEl.paused) keepEl.play().catch(()=>{});
+  }catch(_){}
+}
+const sndHintEl = document.getElementById('sndHint');
+function audioHint(){
+  // host / single screen: if the browser still blocks sound, say so on screen (a phone-as-controller host never taps its own screen)
+  const need = !!sndHintEl && G.mode !== 'pad' && (!AC || AC.state !== 'running');
+  if (sndHintEl && sndHintEl.hidden === need) sndHintEl.hidden = !need;
+}
 function audioOn(){
   try{
-    if (!AC){ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = .45; master.connect(AC.destination); }
-    if (AC.state === 'suspended') AC.resume();
+    if (!AC){
+      AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = .45; master.connect(AC.destination);
+      AC.onstatechange = audioHint;
+    }
+    if (AC.state !== 'running') AC.resume().then(audioHint, ()=>{});
+    keepAudio();
   }catch(e){ AC = null; }
+  audioHint();
 }
+['pointerdown','touchend','keydown','click'].forEach(ev=>addEventListener(ev, ()=>{ if (!AC || AC.state !== 'running' || (keepEl && keepEl.paused)) audioOn(); }, {capture:true, passive:true}));
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && AC && AC.state !== 'running') AC.resume().then(audioHint, ()=>{}); });
+// a "tap to enable sound" hint for as long as the browser keeps the sound locked
+setInterval(()=>{ if (AC && AC.state === 'interrupted') AC.resume().catch(()=>{}); audioHint(); }, 1000);
 function tone(freq, dur, type, vol, slide, when){
   if (!AC) return;
   const t = AC.currentTime + (when||0);
@@ -592,6 +623,7 @@ class Fighter{
     const cx = Math.max(-30, Math.min(30, this.x)), cy = Math.max(-14, Math.min(34, this.y));
     burst(cx, cy+2, this.color, 30, 22); burst(cx, cy+2, 0xffffff, 16, 16);
     SFX.ko(); G.flash = .55; G.shake = reduce ? .2 : 1.2;
+    this.koN = (this.koN|0) + 1; if (this.ctrl==='p1' && isTouch) buzz([120,60,220]);
     this.stocks--; this.state = 'dead'; this.deadT = 1.3; this.m.holder.visible = false; this.move = null;
     banner('KO!');
     if (this.stocks <= 0){ this.deadT = 999; const alive = G.fighters.filter(f=>f.stocks > 0); if (alive.length <= 1){ G.endT = 1.8; G.winner = alive[0] || this; G.lastOut = this; } }
@@ -894,7 +926,8 @@ function applyHit(att, v, h, dirX, hx, hy){
     att.comboV = v; att.comboT = 1.1;
     if (att.combo >= 3) pop(att.combo + ' HIT!', att.x, att.y + 9, 'big');
   }
-  G.victim = v;
+  G.victim = v; v.hitN = (v.hitN|0) + 1; v.hitKb = kb;
+  if (v.ctrl==='p1' && isTouch) buzz(kb >= 30 ? [60,30,90] : kb >= 15 ? 45 : 25);   // solo on a phone: feel the hit
   G.freeze = Math.min(.2, .05 + dmg*.007);
   G.shake = Math.max(G.shake, reduce ? .1 : Math.min(1, kb*.032));
   const killish = kb*2.35 > 50 || (v.pct > 100 && kb > 16);
@@ -1094,6 +1127,7 @@ addEventListener('keydown', e=>{
   keys[e.code] = true;
   if (e.code==='Escape' && G.mode==='play'){ setPause(!G.paused); return; }
   if (G.mode==='select' && !e.repeat && !(e.target && e.target.tagName==='INPUT')){ if (selKey(e.code)) e.preventDefault(); }
+  if (G.mode==='mapsel' && !e.repeat && !(e.target && e.target.tagName==='INPUT')){ if (mapKey(e.code)) e.preventDefault(); }
 });
 addEventListener('keyup', e=>{ keys[e.code] = false; });
 addEventListener('blur', ()=>{ for (const k in keys) keys[k] = false; for (const k in TS) TS[k] = false; });
@@ -1182,7 +1216,7 @@ document.querySelectorAll('#padStage .pb').forEach(b=>{
   b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
   b.addEventListener('contextmenu', e=>e.preventDefault());
 });
-padStage.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+padStage.addEventListener('touchmove', e=>{ if (e.target.closest && e.target.closest('#padSkins, #padMapStrip')) return; e.preventDefault(); }, {passive:false});   // the costume list and map strip must be able to scroll
 
 /* =================== party: phones as controllers =================== */
 // Every phone keeps its stick/buttons in room presence (absolute state + press counters);
@@ -1313,12 +1347,14 @@ async function openChannel(code, role, direct){
   };
   return ch;
 }
-const padC = {a:0, b:0, j:0, f:0, st:0, sel:0};
+const padC = {a:0, b:0, j:0, f:0, st:0, sel:0, map:0, cgo:0, mgo:0, mbk:0};
+let padCpick = null, padCskin = 0, padActSeen = -1, padMi = 0, padMiSeen = -1, padCpuMode = false;
+let padRst = 0, padVibLast = null, padReadyPrev = false;
 let padPick = null, padReady = false, padSkin = 0;
 function padPress(k){
   if (G.mode !== 'pad') return;
   const map = {atk:'a', sp:'b', jump:'j', fin:'f'};
-  if (map[k]){ padC[map[k]]++; try{ navigator.vibrate && navigator.vibrate(12); }catch(_){} }
+  if (map[k]){ padC[map[k]]++; buzz(12); }
 }
 const padSlotEl = document.getElementById('padSlot'), padStateEl = document.getElementById('padState');
 const partyBox = document.getElementById('partyBox'), partyCodeEl = document.getElementById('partyCode'), partyMsg = document.getElementById('partyMsg'), padListEl = document.getElementById('padList');
@@ -1398,7 +1434,7 @@ function padPeers(){ return party ? party.room.peers().filter(p=>!p.sameTab && p
 // remote host must hold the device sideways, or friends get a thin portrait strip
 const rotLockEl = document.getElementById('rotLock');
 function remoteRotCheck(){
-  const need = !!(party && party.role==='host' && party.remote && innerHeight > innerWidth && (G.mode==='select' || G.mode==='play' || G.mode==='result'));
+  const need = !!(party && party.role==='host' && party.remote && innerHeight > innerWidth && (G.mode==='select' || G.mode==='mapsel' || G.mode==='play' || G.mode==='result'));
   if (rotLockEl.hidden === need) rotLockEl.hidden = !need;
   if (need && !remoteRotCheck.tried){ remoteRotCheck.tried = true; try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); } catch(_){} }
 }
@@ -1416,6 +1452,7 @@ function partyHostTick(){
     party.prev[free] = {j:c.j||0, a:c.a||0, b:c.b||0, f:c.f||0};
     party.startSeen[p.peer] = p.presence.st || 0;
     (party.selSeen || (party.selSeen = {}))[p.peer] = p.presence.sel || 0;
+    (party.mapSeen || (party.mapSeen = {}))[p.peer] = p.presence.map || 0;
   }
   for (const p of pads){
     const slot = party.slots.indexOf(p.peer); if (slot < 0) continue;
@@ -1423,11 +1460,18 @@ function partyHostTick(){
     if (st > (party.startSeen[p.peer]||0)){ party.startSeen[p.peer] = st; if (G.mode==='result') party.pendStart = true; }   // remember it: a tap in the first seconds of the results used to be dropped
     const sq = +p.presence.sel || 0, ss = party.selSeen || (party.selSeen = {});
     if (sq > (ss[p.peer]||0)){ ss[p.peer] = sq; if (G.mode==='result') party.pendSel = true; }
+    const mq = +p.presence.map || 0, ms = party.mapSeen || (party.mapSeen = {});
+    if (mq > (ms[p.peer]||0)){ ms[p.peer] = mq; if (G.mode==='result') party.pendMap = true; }
   }
   // a phone asked to change characters: go back to select once the results can be skipped
   if (party.pendSel){
     if (G.mode!=='result') party.pendSel = false;
     else if (RES && RES.t > 3){ party.pendSel = false; party.pendStart = false; enterSelect(); return; }
+  }
+  // a phone asked to change the map
+  if (party.pendMap){
+    if (G.mode!=='result') party.pendMap = false;
+    else if (RES && RES.t > 3){ party.pendMap = false; party.pendSel = false; party.pendStart = false; enterMapSel(); return; }
   }
   // a phone asked for a rematch: start it once the results can be skipped
   if (party.pendStart){
@@ -1441,8 +1485,11 @@ function partyHostTick(){
       s.textContent = `P${i+1}：${on ? (party.remote ? '遠端已連線' : '手機已連線') + '（' + CH[sel.p[i]].name + '）' : (i===0 ? (party.remote ? '你（鍵盤／觸控）' : '鍵盤／觸控') : '電腦')}`; padListEl.appendChild(s); });
     if (party.remote){ const w = pads.filter(p=>!party.slots.includes(p.peer)).length; if (w){ const s = document.createElement('span'); s.textContent = `觀戰 ${w} 人`; padListEl.appendChild(s); } }
   }
-  const msg = { host:1, st:G.mode==='result' ? 'over' : G.mode, slots:party.slots, kinds:sel.p,
-    meter:G.fighters.map(f=>Math.round(f.meter)), stocks:G.fighters.map(f=>f.stocks) };
+  const msg = { host:1, st:G.mode==='result' ? 'over' : G.mode, slots:party.slots, kinds:sel.p, rst:party.rst|0,
+    meter:G.fighters.map(f=>Math.round(f.meter)), stocks:G.fighters.map(f=>f.stocks),
+    vib:G.fighters.map(f=>[f.hitN|0, Math.round(f.hitKb||0), f.koN|0]) };
+  if (G.mode==='select'){ const a = activeSlot(); if (a >= 1 && SEL.ctrl[a]!=='pad'){ msg.act = a; msg.ast = SEL.stage[a]|0; } }
+  if (G.mode==='mapsel') msg.mcur = MSEL.cur;
   if (party.remote){
     msg.remote = 1;
     msg.pct = G.fighters.map(f=>Math.round(f.pct));
@@ -1523,7 +1570,7 @@ function padKeys(){
 function padTick(){
   if (!party) return;
   const K = padKeys();
-  const msg = { pad:1, pick:padPick, skin:padSkin, st:padC.st, sel:padC.sel, rdy:padReady?1:0, view:1,
+  const msg = { pad:1, pick:padPick, skin:padSkin, st:padC.st, sel:padC.sel, map:padC.map, ack:padRst, cpick:padCpick, cskin:padCskin, cgo:padC.cgo, mi:padMi, mgo:padC.mgo, mbk:padC.mbk, rdy:padReady?1:0, view:1,
     inp:{ l:(TS.l||K.l)?1:0, r:(TS.r||K.r)?1:0, u:(TS.u||K.u)?1:0, d:(TS.d||K.d)?1:0, s:(TS.shield||K.shield)?1:0, c:{a:padC.a, b:padC.b, j:padC.j, f:padC.f} } };
   const s = JSON.stringify(msg);
   if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
@@ -1531,41 +1578,66 @@ function padTick(){
   const me = peers.find(p=>p.sameTab), host = peers.find(p=>!p.sameTab && p.presence && p.presence.host);
   let who = '連線中…', state = '等待大螢幕開房', slot = -1, hp = host && host.presence;
   if (hp && hp.remote) becomeRemote();
+  if (hp && (hp.rst|0) !== padRst){ padRst = hp.rst|0; padReady = false; party.lastUI = ''; }   // host went back to character select: un-ready
   if (hp){
     slot = Array.isArray(hp.slots) && me ? hp.slots.indexOf(me.peer) : -1;
     if (slot < 0){ who = party.remote ? '觀戰中' : '已滿或等待中'; state = party.remote ? '位置已滿，可以看比賽' : '大螢幕已有兩支手把'; }
     else {
       const kind = Array.isArray(hp.kinds) ? hp.kinds[slot] : null;
       who = `P${slot+1}${kind && CH[kind] ? ' · ' + CH[kind].name : ''}`;
-      state = hp.st==='play' ? `對戰中 · 剩 ${(hp.stocks||[])[slot] ?? '-'} 條命` : hp.st==='over' ? '比賽結束，按「再來一局」' : hp.st==='select' ? (padReady ? '已準備，等對手…' : '選角色後按「準備好了」') : '等大螢幕選規則…';
+      state = hp.st==='play' ? `對戰中 · 剩 ${(hp.stocks||[])[slot] ?? '-'} 條命` : hp.st==='over' ? '比賽結束，按「再來一局」' : hp.st==='mapsel' ? '大螢幕選地圖中…' : hp.st==='select' ? (padReady ? '已準備，等對手…' : '選角色後按「準備好了」') : '等大螢幕選規則…';
       if (hp.st==='play') padReady = false;
       if (!padPick && kind) padPick = kind;
     }
   }
   if (party.remote && hp) remoteHud(hp, slot);
+  // phone P1: drive the computer players' pick / the map choice shown on the big screen
+  const cpuStage = !!(hp && slot===0 && hp.st==='select' && (hp.act|0) >= 1);
+  padCpuMode = cpuStage;
+  if (cpuStage){
+    if (hp.act !== padActSeen){ padActSeen = hp.act; padCpick = Array.isArray(hp.kinds) ? hp.kinds[hp.act] : null; padCskin = 0; }
+    state = hp.ast ? `幫電腦 ${hp.act+1} 選造型，再按「決定」` : `幫電腦 ${hp.act+1} 選角色，再按「決定」`;
+  } else padActSeen = -1;
+  const mapStage = !!(hp && slot===0 && hp.st==='mapsel');
+  if (mapStage){ if (hp.mcur !== padMiSeen){ padMiSeen = hp.mcur; if (hp.mcur >= 0) padMi = hp.mcur; } state = '選地圖：點縮圖，再按「決定」'; } else padMiSeen = -1;
   const ready = !!(hp && slot >= 0 && Array.isArray(hp.meter) && hp.meter[slot] >= 100);
-  const ui = who + '|' + state + '|' + ready + '|' + padPick + '|' + slot + '|' + (hp ? hp.st : '') + '|' + padReady + '|' + padSkin;
+  if (ready && !padReadyPrev) buzz([30,40,30]);   // final is charged
+  padReadyPrev = ready;
+  // buzz when this player's fighter is hit / KO'd
+  if (hp && slot >= 0 && Array.isArray(hp.vib) && hp.vib[slot]){
+    const [h, k, ko] = hp.vib[slot];
+    if (padVibLast && padVibLast.slot === slot){
+      if (ko > padVibLast.ko) buzz([120,60,220]);
+      else if (h > padVibLast.h) buzz(k >= 30 ? [60,30,90] : k >= 15 ? 45 : 25);
+    }
+    padVibLast = {slot, h, ko};
+  } else padVibLast = null;
+  const ui = padCpick + '|' + padCskin + '|' + padMi + '|' + (cpuStage ? (hp.ast|0) : '-') + '|' + mapStage + '|' + who + '|' + state + '|' + ready + '|' + padPick + '|' + slot + '|' + (hp ? hp.st : '') + '|' + padReady + '|' + padSkin;
   if (ui !== party.lastUI){
     party.lastUI = ui;
     padSlotEl.textContent = who; padStateEl.textContent = state;
     padSlotEl.style.color = slot >= 0 ? 'var(--p'+(slot+1)+')' : 'var(--ink)';
     pFin.classList.toggle('ready', ready);
-    document.querySelectorAll('[data-pick]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===padPick)));
-    const selecting = !!(hp && slot >= 0 && hp.st==='select');
+    document.querySelectorAll('[data-pick]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.pick===(cpuStage ? padCpick : padPick))));
+    const selecting = !!(hp && slot >= 0 && hp.st==='select') || cpuStage;
+    const pbox = document.getElementById('padMapBox'); pbox.hidden = !mapStage;
+    if (mapStage){ buildPadMapCards(); [...document.getElementById('padMapStrip').children].forEach((b,i)=>{ b.classList.toggle('hot', i===padMi); }); const h = document.getElementById('padMapStrip').children[padMi]; if (h && h.scrollIntoView) try{ h.scrollIntoView({inline:'center', block:'nearest'}); }catch(_){} }
     const ps = document.getElementById('padStart');
     ps.hidden = !(hp && slot >= 0 && hp.st==='over');
     document.getElementById('padSel').hidden = !(hp && slot >= 0 && hp.st==='over');
+    document.getElementById('padMap').hidden = !(hp && slot >= 0 && hp.st==='over');
     const box = document.getElementById('padSelBox'), go = document.getElementById('padGo');
-    box.hidden = !selecting; box.classList.toggle('lock', padReady);
-    padUI.classList.toggle('selecting', selecting);
+    box.hidden = !selecting || mapStage; box.classList.toggle('lock', padReady && !cpuStage);
+    padUI.classList.toggle('selecting', selecting || mapStage);
     padUI.style.setProperty('--pc', slot >= 0 ? 'var(--p'+(slot+1)+')' : 'var(--gold)');
-    go.textContent = padReady ? '取消準備' : '準備好了';
-    const sk = document.getElementById('padSkins'), n = padPick && CHARS[padPick] ? skinCount(padPick) : 0;
-    sk.hidden = !(selecting && !padReady && n > 1);
+    go.textContent = cpuStage ? (hp.ast ? '決定造型' : '決定電腦 ' + (hp.act+1)) : padReady ? '取消準備' : '準備好了';
+    const pk = cpuStage ? padCpick : padPick, pskin = cpuStage ? padCskin : padSkin;
+    const sk = document.getElementById('padSkins'), n = pk && CHARS[pk] ? skinCount(pk) : 0;
+    sk.hidden = !(selecting && (cpuStage || !padReady) && n > 1);
     if (!sk.hidden){
-      if (sk.dataset.k !== padPick){ sk.dataset.k = padPick; sk.innerHTML = '';
-        for (let j=0;j<n;j++){ const b = document.createElement('button'); b.textContent = skinName(padPick, j); b.onclick = ()=>{ padSkin = j; if (party) party.lastUI = ''; }; sk.appendChild(b); } }
-      [...sk.children].forEach((b,j)=>b.setAttribute('aria-pressed', String(j===padSkin)));
+      if (sk.dataset.k !== pk){ sk.dataset.k = pk; sk.innerHTML = '';
+        for (let j=0;j<n;j++){ const b = document.createElement('button'); b.textContent = skinName(pk, j); b.onclick = ()=>{ if (padCpuMode) padCskin = j; else padSkin = j; if (party) party.lastUI = ''; }; sk.appendChild(b); } }
+      [...sk.children].forEach((b,j)=>b.setAttribute('aria-pressed', String(j===pskin)));
     }
   }
 }
@@ -1727,7 +1799,28 @@ padLeaveBtn.addEventListener('pointerdown', e=>{
   setTimeout(()=>{ if (performance.now() >= padLeaveArm) padLeaveRest(); }, 3100);
 });
 document.getElementById('padSel').onclick = ()=>{ padC.sel++; padReady = false; if (party) party.lastUI = ''; };
-document.getElementById('padStart').onclick = document.getElementById('padGo').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(15); }catch(_){} };
+document.getElementById('padMap').onclick = ()=>{ padC.map++; padReady = false; if (party) party.lastUI = ''; };
+let padMapBuilt = false;
+function buildPadMapCards(){
+  if (padMapBuilt) return; padMapBuilt = true;
+  const strip = document.getElementById('padMapStrip');
+  [...MAP_ORDER, 'random'].forEach((id,i)=>{
+    const b = document.createElement('button'); b.className = 'mcard' + (id==='random' ? ' rndc' : '');
+    const c = document.createElement('canvas'); c.width = 160; c.height = 90; const g = c.getContext('2d');
+    if (id==='random'){ g.fillStyle = '#3a2a20'; g.fillRect(0,0,160,90); g.fillStyle = '#f2c14e'; g.font = '900 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 80, 48); }
+    else g.drawImage(mapThumb(id), 0, 0, 160, 90);
+    const n = document.createElement('span'); n.textContent = id==='random' ? '隨機' : MAPS[id].name;
+    b.append(c, n); b.onclick = ()=>{ padMi = i; buzz(10); if (party) party.lastUI = ''; }; strip.appendChild(b);
+  });
+}
+document.getElementById('padMapOk').onclick = ()=>{ padC.mgo++; buzz(15); };
+document.getElementById('padMapBack').onclick = ()=>{ padC.mbk++; padReady = false; buzz(15); };
+const padVibBtn = document.getElementById('padVib');
+const syncVibBtn = ()=>{ padVibBtn.textContent = '震動：' + (vibOn ? '開' : '關'); };
+padVibBtn.onclick = ()=>{ vibOn = !vibOn; try{ localStorage.setItem('wvs.vib', vibOn ? '1' : '0'); }catch(_){} syncVibBtn(); buzz(40); };
+syncVibBtn();
+document.getElementById('padGo').onclick = ()=>{ if (padCpuMode){ padC.cgo++; buzz(15); return; } padC.st++; padReady = !padReady; if (party) party.lastUI = ''; buzz(15); };
+document.getElementById('padStart').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; buzz(15); };
 function syncMenu(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===sel.mode)));
   document.querySelectorAll('[data-map]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.map===sel.map)));
@@ -1783,7 +1876,7 @@ function slotCtrl(i){
 function activeSlot(){
   if (SEL.countdown > 0) return -1;
   if (SEL.ctrl[0]==='p1' && !SEL.ready[0]) return 0;
-  const p1done = SEL.ctrl[0]!=='p1' || SEL.ready[0];
+  const p1done = SEL.ready[0];
   for (let i=1;i<sel.count;i++){
     if (SEL.ready[i]) continue;
     if (SEL.ctrl[i]==='p2') return i;
@@ -1792,7 +1885,7 @@ function activeSlot(){
   return -1;
 }
 function enterSelect(){
-  audioOn(); clearArena();
+  audioOn(); clearArena(); mapSelEl.hidden = true; if (party) party.cpuSeen = null;
   G.mode = 'select'; G.paused = false; pauseEl.hidden = true;
   menuEl.hidden = true; selEl.hidden = false; overEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   SEL.ready = [false,false,false,false]; SEL.stage = [0,0,0,0]; SEL.countdown = 0; SEL.okT = [9,9,9,9]; SEL.key = '';
@@ -1843,7 +1936,7 @@ function backFromSelect(){
   rebuildAll();
   if (sel.mode==='party'){ leaveParty(); showScr('scrParty'); } else showScr('scrRules');
 }
-function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = 1.4; banner('準備開戰！'); } }
+function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = 1.4; banner('接著選地圖！'); } }
 function renderSel(){
   const act = activeSlot();
   for (let i=0;i<4;i++){
@@ -1882,7 +1975,7 @@ function renderSel(){
   document.getElementById('selOk').textContent = skinStep ? '決定造型' : act > 0 && SEL.ctrl[act]==='cpu' ? '決定電腦' + (sel.count > 2 ? ' '+(act+1) : '') : '決定';
   const kb = !isTouch ? (sel.mode==='2p' ? 'P1：A／D 換、J 決定、K 取消　P2：←／→ 換、, 決定、. 取消' : 'A／D 或 ←／→ 換角色，J 或 Enter 決定，K 或 Esc 取消') : '點大頭貼換角色，再點一次或按「決定」';
   const kbSkin = !isTouch ? '←／→ 或 A／D 換造型，J 或 Enter 決定，K 或 Esc 回上一步' : '點造型換裝，再點一次或按「決定」';
-  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '馬上開始！' : skinStep ? kbSkin : kb;
+  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '馬上選地圖！' : skinStep ? kbSkin : kb;
 }
 document.getElementById('selOk').onclick = ()=>{ const s = activeSlot(); if (s >= 0) confirmSel(s); };
 document.getElementById('selBack').onclick = ()=>{ const s = activeSlot(); cancelSel(s >= 0 ? s : 0); };
@@ -1898,6 +1991,21 @@ function selKey(code){
   if (act==='ok') confirmSel(slot); else moveSel(slot, act);
   return true;
 }
+// the phone that is P1 also drives the screen: it picks the characters (and costumes) of the computer players
+function pad0(){ const id = party && party.slots[0]; const p = id && party.room.peers().find(q=>q.peer===id); return (p && p.presence) || {}; }
+function phoneDirectsCpu(){
+  const a = activeSlot(); if (a < 1 || SEL.ctrl[a]==='pad') return;
+  const pr = pad0(), sd = party.cpuSeen || (party.cpuSeen = {pick:undefined, skin:undefined, go:undefined});
+  if (sd.go === undefined){ sd.pick = pr.cpick; sd.skin = +pr.cskin||0; sd.go = +pr.cgo||0; return; }
+  if (SEL.stage[a]){
+    const ws = +pr.cskin||0;
+    if (ws !== sd.skin){ sd.skin = ws; if (ws < skinCount(sel.p[a]) && ws !== (sel.skin[a]||0)) moveSel(a, ws - (sel.skin[a]||0)); }
+  } else if (pr.cpick !== sd.pick){
+    sd.pick = pr.cpick; const want = ROSTER.indexOf(pr.cpick);
+    if (want >= 0 && want !== SEL.cur[a]) moveSel(a, want - SEL.cur[a]);
+  }
+  if ((+pr.cgo||0) > sd.go){ sd.go = +pr.cgo||0; confirmSel(a); }
+}
 function updateSelect(dt, t){
   // party: phones drive their slots
   const ctrlNow = [0,1,2,3].map(slotCtrl);
@@ -1910,11 +2018,12 @@ function updateSelect(dt, t){
       if (want >= 0 && want !== SEL.cur[i] && !SEL.ready[i]) moveSel(i, want - SEL.cur[i]);
       const ws = +pr.skin || 0;
       if (want >= 0 && want === SEL.cur[i] && !SEL.ready[i] && ws !== (sel.skin[i]||0) && ws < skinCount(sel.p[i])){ sel.skin[i] = ws; rebuild(i); placeSel(i); SEL.anim[i] = 0; renderSel(); }
-      const rdy = !!pr.rdy;
+      const rdy = !!pr.rdy && (+pr.ack||0) >= (party.rst|0);
       if (rdy && !SEL.ready[i]) confirmSel(i);
       else if (!rdy && SEL.ready[i]){ SEL.ready[i] = false; SEL.countdown = 0; renderSel(); }
     });
   }
+  if (party && party.role==='host' && party.slots[0] && SEL.ctrl[0]==='pad') phoneDirectsCpu();
   burstDisc.rotation.z += dt*.1;
   const k = 1 - Math.exp(-dt*10);
   [0,1,2,3].slice(0,sel.count).forEach(i=>{
@@ -1929,12 +2038,129 @@ function updateSelect(dt, t){
     const spin = SEL.anim[i] < .35 ? (1 - SEL.anim[i]/.35)*Math.PI*2 : 0;
     m.holder.rotation.y = selRot(i) + spin;
   });
-  if (SEL.countdown > 0){ SEL.countdown -= dt; if (SEL.countdown <= 0){ selEl.hidden = true; startGame(); return; } }
+  if (SEL.countdown > 0){ SEL.countdown -= dt; if (SEL.countdown <= 0){ selEl.hidden = true; enterMapSel(); return; } }
   const key = SEL.ready.join() + SEL.cur.join() + SEL.ctrl.join() + SEL.stage.join() + sel.skin.join();
   if (key !== SEL.key){ SEL.key = key; renderSel(); }
   const narrow = innerWidth/innerHeight < .8;
   camPos.lerp(v3.set(0, RS_Y + 4.2, (narrow ? 34 : 19) + (sel.count > 2 ? 7 : 0)), 1-Math.exp(-dt*4));
   camLook.lerp(v3.set(0, RS_Y + (narrow ? 2.6 : 3.2), 0), 1-Math.exp(-dt*4));
+}
+
+/* ---------- map select (thumbnail cards like the character select; the last card is 隨機 with a big ?) ---------- */
+const mapSelEl = document.getElementById('mapSel'), msStrip = document.getElementById('msStrip');
+const MSEL = { cur:0, list:[], go:0, built:false };
+const THUMB = {};
+let thumbRT = null;
+// render each stage once into a small picture (no fighters), then restore whatever the scene was showing
+function mapThumb(id){
+  if (THUMB[id]) return THUMB[id];
+  const W = 320, H = 180, c = document.createElement('canvas'); c.width = W; c.height = H; THUMB[id] = c;
+  try {
+    if (!thumbRT) thumbRT = new THREE.WebGLRenderTarget(W, H, {minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter});
+    const cam = new THREE.PerspectiveCamera(34, W/H, .8, 500); cam.position.set(0, 7, 46); cam.lookAt(0, 5, 0);
+    const vis = models.map(m=>m && m.holder.visible), rsv = RS.visible, prev = curMap, mk = MAPK, fn = scene.fog.near, ff = scene.fog.far;
+    models.forEach(m=>{ if (m) m.holder.visible = false; });
+    RS.visible = false; MAPK = 1; applyMap(id);
+    renderer.setRenderTarget(thumbRT); renderer.render(scene, cam); renderer.setRenderTarget(null);
+    const buf = new Uint8Array(W*H*4); renderer.readRenderTargetPixels(thumbRT, 0, 0, W, H, buf);
+    const g = c.getContext('2d'), img = g.createImageData(W, H);
+    for (let y=0;y<H;y++) img.data.set(buf.subarray((H-1-y)*W*4, (H-y)*W*4), y*W*4);   // GL rows are bottom-up
+    g.putImageData(img, 0, 0);
+    MAPK = mk; applyMap(prev); RS.visible = rsv; scene.fog.near = fn; scene.fog.far = ff;
+    models.forEach((m,i)=>{ if (m) m.holder.visible = vis[i]; });
+  } catch(e){ const g = c.getContext('2d'); g.fillStyle = '#3a2a20'; g.fillRect(0,0,W,H); }
+  return c;
+}
+function buildMapCards(){
+  if (MSEL.built) return; MSEL.built = true;
+  MSEL.list = [...MAP_ORDER, 'random'];
+  MSEL.list.forEach((id,i)=>{
+    const b = document.createElement('button'); b.className = 'mcard' + (id==='random' ? ' rndc' : ''); b.setAttribute('role','option'); b.setAttribute('aria-label', id==='random' ? '隨機' : MAPS[id].name);
+    const c = document.createElement('canvas'); c.width = 160; c.height = 90; const g = c.getContext('2d');
+    if (id==='random'){
+      g.fillStyle = '#3a2a20'; g.fillRect(0,0,160,90); g.fillStyle = '#f2c14e'; g.font = '900 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 80, 48);
+    } else { g.imageSmoothingEnabled = true; g.drawImage(mapThumb(id), 0, 0, 160, 90); }
+    const n = document.createElement('span'); n.textContent = id==='random' ? '隨機' : MAPS[id].name;
+    b.append(c, n);
+    b.onclick = ()=>{ audioOn(); if (MSEL.go > 0) return; if (MSEL.cur===i) confirmMap(); else setMapCur(i); };
+    msStrip.appendChild(b);
+  });
+}
+function setMapView(){
+  const id = MSEL.list[MSEL.cur], rnd = id==='random';
+  mapSelEl.classList.toggle('rnd', rnd);
+  for (const k in MAPS) MAPS[k].group.visible = !rnd && k===id;
+  if (!rnd){ MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1; applyMap(id); }
+  models.forEach((m,i)=>{ if (m) m.holder.visible = !rnd && i < sel.count; });
+  document.getElementById('msName').textContent = rnd ? '隨機' : MAPS[id].name;
+  document.getElementById('msSub').textContent = rnd ? '開戰時從所有地圖裡抽一張' : '';
+  [...msStrip.children].forEach((b,i)=>{ b.classList.toggle('hot', i===MSEL.cur); b.setAttribute('aria-selected', String(i===MSEL.cur)); });
+  const hot = msStrip.children[MSEL.cur]; if (hot && hot.scrollIntoView) try{ hot.scrollIntoView({inline:'center', block:'nearest', behavior:'smooth'}); }catch(_){}
+}
+function setMapCur(i){
+  const n = MSEL.list.length; MSEL.cur = ((i % n) + n) % n; SFX.shield(); setMapView();
+}
+function enterMapSel(){
+  audioOn(); clearArena(); buildMapCards(); if (party) party.mapSeen2 = null;
+  G.mode = 'mapsel'; G.paused = false; MSEL.go = 0;
+  pauseEl.hidden = true; menuEl.hidden = true; selEl.hidden = true; overEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
+  mapSelEl.hidden = false; RS.visible = false;
+  MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1;
+  rebuildAll();
+  models.forEach((m,i)=>{ if (!m) return; m.holder.position.set(selX(i), 0, 1.5); m.holder.rotation.set(0, selRot(i), 0); m.body.scale.setScalar(SC); m.setOld(0); m.setFace('normal'); for (const n in m.props) m.props[n].visible = false; });
+  const idx = MSEL.list.indexOf(sel.map); MSEL.cur = idx >= 0 ? idx : 0;
+  setMapView();
+  document.getElementById('msHint').textContent = !isTouch ? 'A／D 或 ←／→ 換地圖，J 或 Enter 決定，K 或 Esc 回選角色' : '點縮圖選地圖，再點一次或按「決定」';
+  document.getElementById('msOk').disabled = false;
+}
+function confirmMap(){
+  if (MSEL.go > 0) return;
+  let id = MSEL.list[MSEL.cur];
+  if (id==='random'){ const pool = MAP_ORDER.filter(m=>MAPS[m]); id = pool[(Math.random()*pool.length)|0]; banner('抽到：' + MAPS[id].name); }
+  sel.map = id; syncMenu(); SFX.whistle();
+  MSEL.go = .9;
+  document.getElementById('msOk').disabled = true;
+  mapSelEl.classList.remove('rnd'); for (const k in MAPS) MAPS[k].group.visible = k===id;
+  MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1; applyMap(id);
+  models.forEach((m,i)=>{ if (m) m.holder.visible = i < sel.count; });
+}
+function backFromMapSel(){
+  if (MSEL.go > 0) return;
+  mapSelEl.hidden = true;
+  if (party && party.role==='host') party.rst = (party.rst|0) + 1;   // phones un-ready themselves
+  enterSelect();
+}
+function mapKey(code){
+  const L = ['KeyA','ArrowLeft'], R = ['KeyD','ArrowRight'], OK = ['KeyJ','Enter','NumpadEnter','Space','Comma','KeyF'], NO = ['KeyK','Escape','Period','KeyG'];
+  if (L.includes(code)) setMapCur(MSEL.cur - 1);
+  else if (R.includes(code)) setMapCur(MSEL.cur + 1);
+  else if (OK.includes(code)) confirmMap();
+  else if (NO.includes(code)) backFromMapSel();
+  else return false;
+  return true;
+}
+document.getElementById('msOk').onclick = confirmMap;
+document.getElementById('msBack').onclick = backFromMapSel;
+function phoneDirectsMap(){
+  const pr = pad0(), sd = party.mapSeen2 || (party.mapSeen2 = {});
+  if (sd.go === undefined){ sd.go = +pr.mgo||0; sd.bk = +pr.mbk||0; sd.mi = pr.mi; return; }
+  if (pr.mi !== sd.mi){ sd.mi = pr.mi; if (Number.isInteger(pr.mi) && pr.mi >= 0 && pr.mi < MSEL.list.length && pr.mi !== MSEL.cur && MSEL.go <= 0) setMapCur(pr.mi); }
+  if ((+pr.mgo||0) > sd.go){ sd.go = +pr.mgo||0; confirmMap(); }
+  if ((+pr.mbk||0) > sd.bk){ sd.bk = +pr.mbk||0; backFromMapSel(); }
+}
+function updateMapSel(dt, t){
+  if (party && party.role==='host' && party.slots[0] && MSEL.go <= 0) phoneDirectsMap();
+  if (G.mode!=='mapsel') return;
+  if (MSEL.go > 0){ MSEL.go -= dt; if (MSEL.go <= 0){ MSEL.go = 0; mapSelEl.hidden = true; startGame(); return; } }
+  const k = 1 - Math.exp(-dt*10);
+  models.forEach((m,i)=>{
+    if (!m || i >= sel.count) return;
+    applyPose(m, MSEL.go > 0 ? (CHARS[m.kind].readyPose ? CHARS[m.kind].readyPose(t) : POSE.salute) : STANCE, k);
+    m.chest.scale.y = 1 + Math.sin(t*2.2 + i)*0.008;
+  });
+  const narrow = innerWidth/innerHeight < .8;
+  camPos.lerp(v3.set(0, 5.5, (narrow ? 58 : 36) + (sel.count > 2 ? 9 : 0)), 1-Math.exp(-dt*4));
+  camLook.lerp(v3.set(0, narrow ? 0 : innerHeight < 560 ? -4.4 : 1.2, 0), 1-Math.exp(-dt*4));
 }
 
 const hud = document.getElementById('hud');
@@ -1971,7 +2197,7 @@ function clearArena(){
 }
 function startGame(){
   audioOn();
-  clearArena(); RS.visible = false; MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1; applyMap(sel.map); recoverHintShown = false;
+  clearArena(); mapSelEl.hidden = true; RS.visible = false; MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1; applyMap(sel.map); recoverHintShown = false;
   rebuildAll();
   G.fighters = []; for (let i=0;i<sel.count;i++){ const c = slotCtrl(i); G.fighters.push(new Fighter(i, models[i], c==='pad' ? 'pad'+i : c)); }
   G.fighters.forEach(f=>{ if (f.C.onSpawn) f.C.onSpawn(f); });
@@ -1981,7 +2207,7 @@ function startGame(){
   banner('READY… GO!');
 }
 function toMenu(){
-  clearArena(); leaveParty(); RS.visible = false; applyMap(sel.map); rebuildAll();
+  clearArena(); mapSelEl.hidden = true; leaveParty(); RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   scrNow = ''; // force the (cached) home showcase back after a match
   showScr('scrTitle');
@@ -2002,10 +2228,12 @@ function setPause(on){
 }
 document.getElementById('resume').onclick = ()=>setPause(false);
 document.getElementById('pauseSelect').onclick = ()=>enterSelect();
+document.getElementById('pauseMap').onclick = ()=>enterMapSel();
 document.getElementById('pauseMenu').onclick = ()=>toMenu();
 document.getElementById('start').onclick = ()=>{ audioOn(); enterSelect(); };
 document.getElementById('again').onclick = startGame;
 document.getElementById('toSelect').onclick = enterSelect;
+document.getElementById('toMapSel').onclick = enterMapSel;
 document.getElementById('toMenu').onclick = toMenu;
 quitEl.onclick = ()=>setPause(true);
 
@@ -2019,6 +2247,8 @@ function tick(){
   partyHostTick();
   if (G.mode==='select'){
     updateSelect(dt, t);
+  } else if (G.mode==='mapsel'){
+    updateMapSel(dt, t);
   } else if (G.mode==='menu'){
     models.forEach((m,i)=>{
       if (!m) return; if (i > 1){ m.holder.visible = false; return; }
@@ -2092,16 +2322,13 @@ function boot(){
   sel.p = sel.p.map((k,i)=>CHARS[k] ? k : CHAR_ORDER[i % CHAR_ORDER.length]);
   loadRules(); rulesLoaded = true;
   if (!MAPS[sel.map]) sel.map = MAP_ORDER[0];
-  const ms = document.getElementById('mapSeg');
-  MAP_ORDER.forEach(id=>{ const b = document.createElement('button'); b.dataset.map = id; b.textContent = MAPS[id].name; b.setAttribute('aria-pressed','false');
-    b.onclick = ()=>{ sel.map = id; applyMap(id); syncMenu(); }; ms.appendChild(b); });
   // phone controller: one big portrait card per character (rows scale with the roster size)
   const pg = document.getElementById('padGrid');
   pg.style.setProperty('--cols', Math.min(6, Math.max(4, Math.ceil(CHAR_ORDER.length/2))));
   CHAR_ORDER.forEach(k=>{
     const b = document.createElement('button'); b.className = 'pcard'; b.dataset.pick = k; b.setAttribute('aria-pressed','false'); b.setAttribute('aria-label', CH[k].name);
     b.appendChild(portraitCanvas(k)); const nm = document.createElement('span'); nm.textContent = CH[k].name; b.appendChild(nm);
-    b.onclick = ()=>{ if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; try{ navigator.vibrate && navigator.vibrate(10); }catch(_){} }; pg.appendChild(b); });
+    b.onclick = ()=>{ if (padCpuMode){ if (padCpick !== k) padCskin = 0; padCpick = k; if (party) party.lastUI = ''; buzz(10); return; } if (padPick !== k) padSkin = 0; padPick = k; padReady = false; if (party) party.lastUI = ''; buzz(10); }; pg.appendChild(b); });
   buildPortraits();
   applyMap(sel.map); rebuildAll(); syncMenu(); showScr('scrTitle');
   const roomQ = (location.search.match(/[?&]room=(\d{4})(?!\d)/) || [])[1];   // opened from the host's QR code: fill in the room number and connect
