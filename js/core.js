@@ -1153,13 +1153,27 @@ const keys = {};
 const GAME_KEYS = new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','Comma','Period','Slash','Enter','NumpadEnter']);
 addEventListener('keydown', e=>{
   if ((G.mode==='play' || G.mode==='pad') && GAME_KEYS.has(e.code) && !(e.target && e.target.tagName==='INPUT')) e.preventDefault();
+  if (e.metaKey && e.key!=='Meta') return;   // Cmd+key: its key-up would be swallowed by the browser, so never count it as held
   keys[e.code] = true;
   if (e.code==='Escape' && G.mode==='play'){ setPause(!G.paused); return; }
   if (G.mode==='select' && !e.repeat && !(e.target && e.target.tagName==='INPUT')){ if (selKey(e.code)) e.preventDefault(); }
   if (G.mode==='mapsel' && !e.repeat && !(e.target && e.target.tagName==='INPUT')){ if (mapKey(e.code)) e.preventDefault(); }
 });
-addEventListener('keyup', e=>{ keys[e.code] = false; });
-addEventListener('blur', ()=>{ for (const k in keys) keys[k] = false; for (const k in TS) TS[k] = false; });
+// A "stuck direction" is always a lost key-up / pointer-up. Everything that can lose one funnels into releaseAllInput().
+function releaseAllInput(){
+  for (const k in keys) keys[k] = false;
+  for (const k in TS) TS[k] = false;
+  document.querySelectorAll('#touch .tb.on, #padStage .pb.on').forEach(b=>b.classList.remove('on'));
+  if (typeof stickEnd === 'function') stickEnd({pointerId:stickId});
+  if (typeof pEnd === 'function') pEnd({pointerId:pStickId});
+}
+addEventListener('keyup', e=>{
+  keys[e.code] = false;
+  if (e.key==='Meta' || e.code==='MetaLeft' || e.code==='MetaRight') releaseAllInput();   // Mac: while Cmd is held the browser never sends the key-ups of other keys
+});
+addEventListener('blur', releaseAllInput);
+addEventListener('pagehide', releaseAllInput);
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden){ releaseAllInput(); if (typeof padTick === 'function' && typeof party !== 'undefined' && party) try{ padTick(); }catch(_){} } });
 const MAP = [
   {l:['KeyA'], r:['KeyD'], u:['KeyW','Space'], d:['KeyS'], atk:['KeyJ','KeyF'], sp:['KeyK','KeyG'], shield:['KeyL','KeyH'], fin:['KeyU','KeyR']},
   {l:['ArrowLeft'], r:['ArrowRight'], u:['ArrowUp'], d:['ArrowDown'], atk:['Comma','Numpad1'], sp:['Period','Numpad2'], shield:['Slash','Numpad3'], fin:['Enter','NumpadEnter','Numpad0']},
@@ -1178,8 +1192,10 @@ function readHuman(slot){
 document.querySelectorAll('#touch .tb').forEach(b=>{
   const k = b.dataset.t;
   const on = (e)=>{ e.preventDefault(); TS[k] = true; b.classList.add('on'); audioOn(); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); };
-  const off = (e)=>{ e.preventDefault(); TS[k] = false; b.classList.remove('on'); };
-  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
+  let bid = null;
+  const off = (e)=>{ if (e.currentTarget===b) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown', e=>{ bid = e.pointerId; on(e); }); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+  addEventListener('pointerup', off, true); addEventListener('pointercancel', off, true);   // finger lifted somewhere else / capture failed
   b.addEventListener('contextmenu', e=>e.preventDefault());
 });
 // floating thumb-stick: touch anywhere on the left half
@@ -1211,7 +1227,8 @@ zoneEl.addEventListener('pointerdown', e=>{
 });
 zoneEl.addEventListener('pointermove', e=>{ if (e.pointerId===stickId){ e.preventDefault(); stickSet(e); } });
 const stickEnd = (e)=>{ if (e.pointerId!==stickId) return; stickId = null; TS.l = TS.r = TS.u = TS.d = false; stickHome(); };
-zoneEl.addEventListener('pointerup', stickEnd); zoneEl.addEventListener('pointercancel', stickEnd);
+zoneEl.addEventListener('pointerup', stickEnd); zoneEl.addEventListener('pointercancel', stickEnd); zoneEl.addEventListener('lostpointercapture', stickEnd);
+addEventListener('pointerup', stickEnd, true); addEventListener('pointercancel', stickEnd, true);   // finger lifted somewhere else / capture failed
 addEventListener('resize', ()=>{ if (stickId===null) stickHome(); });
 stickHome();
 const finBtn = document.getElementById('finBtn'), rotHint = document.getElementById('rotHint');
@@ -1237,12 +1254,14 @@ function pStickSet(e){
 pZone.addEventListener('pointerdown', e=>{ e.preventDefault(); if (pStickId!==null) return; pStickId = e.pointerId; pX0 = e.clientX; pY0 = e.clientY; try{ pZone.setPointerCapture(e.pointerId); }catch(_){} pStickSet(e); });
 pZone.addEventListener('pointermove', e=>{ if (e.pointerId===pStickId){ e.preventDefault(); pStickSet(e); } });
 const pEnd = (e)=>{ if (e.pointerId!==pStickId) return; pStickId = null; TS.l = TS.r = TS.u = TS.d = false; pKnob.style.transform = ''; };
-pZone.addEventListener('pointerup', pEnd); pZone.addEventListener('pointercancel', pEnd);
+pZone.addEventListener('pointerup', pEnd); pZone.addEventListener('pointercancel', pEnd); pZone.addEventListener('lostpointercapture', pEnd);
+addEventListener('pointerup', pEnd, true); addEventListener('pointercancel', pEnd, true);
 document.querySelectorAll('#padStage .pb').forEach(b=>{
-  const k = b.dataset.p;
-  b.addEventListener('pointerdown', e=>{ e.preventDefault(); TS[k] = true; b.classList.add('on'); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); });
-  const off = (e)=>{ e.preventDefault(); TS[k] = false; b.classList.remove('on'); };
-  b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
+  const k = b.dataset.p; let bid = null;
+  b.addEventListener('pointerdown', e=>{ e.preventDefault(); bid = e.pointerId; TS[k] = true; b.classList.add('on'); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); });
+  const off = (e)=>{ if (e.currentTarget===b) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+  addEventListener('pointerup', off, true); addEventListener('pointercancel', off, true);
   b.addEventListener('contextmenu', e=>e.preventDefault());
 });
 padStage.addEventListener('touchmove', e=>{ if (e.target.closest && e.target.closest('#padSkins, #padMapStrip')) return; e.preventDefault(); }, {passive:false});   // the costume list and map strip must be able to scroll
