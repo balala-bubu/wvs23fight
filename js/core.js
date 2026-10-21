@@ -1799,7 +1799,8 @@ function saveRules(){
   try { localStorage.setItem(RULES_KEY, JSON.stringify({count:sel.count, stocks:sel.stocks, map:sel.map, mode:soloMode})); } catch(_){}
 }
 function toRules(mode, remote, from, head){
-  audioOn(); sel.mode = mode; sel.remote = remote; rulesFrom = from;
+  audioOn(); if (party && (mode !== 'party' || !!party.remote !== !!remote)) leaveParty();   // switching to solo / the other party type closes the room
+  sel.mode = mode; sel.remote = remote; rulesFrom = from;
   document.getElementById('rulesH').textContent = head;
   document.getElementById('modeRow').hidden = mode==='party';
   syncMenu(); showScr('scrRules');
@@ -1963,7 +1964,7 @@ function cancelSel(i){
 function backFromSelect(){
   selEl.hidden = true; RS.visible = false; applyMap(sel.map); G.mode = 'menu';
   rebuildAll();
-  if (sel.mode==='party'){ leaveParty(); showScr('scrParty'); } else showScr('scrRules');
+  partyBox.hidden = true; showScr('scrRules');   // the room (if any) stays open: phones keep their connection while the host goes back a step
 }
 function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = .5; } }
 function renderSel(){
@@ -2236,7 +2237,7 @@ function startGame(){
   G.startT = 1.5; G.goShown = false; banner('預備…');
 }
 function toMenu(){
-  clearArena(); mapSelEl.hidden = true; leaveParty(); RS.visible = false; applyMap(sel.map); rebuildAll();
+  clearArena(); mapSelEl.hidden = true; if (!(sel.mode==='party' && party && party.role==='host')) leaveParty(); partyBox.hidden = true; RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   scrNow = ''; // force the (cached) home showcase back after a match
   showScr('scrTitle');
