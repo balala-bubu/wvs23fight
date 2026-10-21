@@ -270,7 +270,7 @@ function jnFinal(f, opp){
     }
     if (F.t > 1.5 && !F.offered){ F.offered = true; pop('offer 自己來', F.x, 9, 'big'); }
     return F.t > 2.2;
-  }, dispose(F){ F.tiles.forEach(t=>scene.remove(t.m)); }});
+  }, dispose(F){ scene.remove(F.mesh); F.tiles.forEach(t=>scene.remove(t.m)); }});   // 自訂 dispose 時 core 不會幫忙移除 mesh，桌子要自己清
 }
 
 /* ---------- results: 胡牌掀桌 → 換上女王裝 → 一堆 offer ---------- */
