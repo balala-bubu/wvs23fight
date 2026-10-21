@@ -320,7 +320,20 @@ if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 /* =================== vibration (Android Chrome etc.; iOS Safari has no Vibration API) =================== */
 let vibOn = true;
 try { vibOn = localStorage.getItem('wvs.vib') !== '0'; } catch(_){}
-function buzz(p){ if (!vibOn) return; try{ navigator.vibrate && navigator.vibrate(p); }catch(_){} }
+// iOS Safari has no navigator.vibrate. iOS 17.4+ does give a small haptic tick when a <input type=checkbox switch> is toggled
+// from a tap, so button presses fall back to that (one tick, only inside a user gesture; hit / KO events can't use it).
+let tapLabel = null;
+function tapHaptic(){
+  try{
+    if (!tapLabel){
+      tapLabel = document.createElement('label'); tapLabel.setAttribute('aria-hidden','true');
+      tapLabel.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+      const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch',''); i.tabIndex = -1; tapLabel.appendChild(i); document.body.appendChild(tapLabel);
+    }
+    tapLabel.click();
+  }catch(_){}
+}
+function buzz(p){ if (!vibOn) return; try{ if (navigator.vibrate) navigator.vibrate(p); else tapHaptic(); }catch(_){} }
 
 /* =================== audio =================== */
 let AC = null, master = null;
