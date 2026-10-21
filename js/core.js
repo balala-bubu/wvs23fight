@@ -354,7 +354,12 @@ function audioHint(){
   const need = !!sndHintEl && G.mode !== 'pad' && (!AC || AC.state !== 'running');
   if (sndHintEl && sndHintEl.hidden === need) sndHintEl.hidden = !need;
 }
+let audioResets = [];
 function resetAudio(){
+  // a broken output device can fire the error again for every new context: allow only 2 rebuilds per minute (an endless loop made the page freeze)
+  const now = performance.now(); audioResets = audioResets.filter(t=>now - t < 60000);
+  if (audioResets.length >= 2) return;
+  audioResets.push(now);
   try{ if (AC) AC.close(); }catch(_){}
   AC = null; master = null; noiseBuf = null; hostStream = null;   // buffers / streams belong to the old context
   setTimeout(()=>{ audioOn(); }, 200);
