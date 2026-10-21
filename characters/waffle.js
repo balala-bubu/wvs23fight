@@ -71,6 +71,98 @@ function wfSlab(c){
   c.chest.add(at(rbox(0.7,0.3,0.14,.25,L({color:0xffe28a})),0.2,1.85,0.72));    // butter pat
   c.R.sh.position.x = 1.25; c.Lf.sh.position.x = -1.25;                           // arms out past the slab
 }
+// ---- 刮鬍泡夯哥（造型）: sprayed head to toe with shaving foam; the waffle throws / final turn into foam ----
+// 只以「實際選中的造型名稱」判斷，原版秉寶與其他造型完全不受影響
+function wfIsFoam(f){
+  const skins = CHARS.waffle && CHARS.waffle.skins;
+  return !!(f && f.m && f.m.skin > 0 && skins && skins[f.m.skin-1] && skins[f.m.skin-1].name === '刮鬍泡夯哥');
+}
+function wfFoamBlobs(g, w, h, n, rMin, rMax, seed){
+  let s = seed; const r = ()=>{ s = (s*16807) % 2147483647; return s/2147483647; };
+  for (let i=0;i<n;i++){
+    const x = r()*w, y = r()*h, rad = rMin + r()*(rMax-rMin);
+    g.fillStyle = '#c9d1db'; g.beginPath(); g.ellipse(x, y+1, rad, rad*.8, 0, 0, 7); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, y, rad, rad*.8, 0, 0, 7); g.fill();
+  }
+}
+let _wfFoamT = null;
+function wfFoamTextures(){
+  if (_wfFoamT) return _wfFoamT;
+  const foam = tex(16,16,(g)=>speckle(g,16,16,'#fbfbfb',['#e8edf2','#ffffff','#dde4ec'],.45));
+  const tee = (n,seed)=>(g,w,h)=>{ speckle(g,w,h,'#ecebe5',['#e2e0d8','#f4f3ee','#d9d7ce'],.35); wfFoamBlobs(g,w,h,n,w*.05,w*.13,seed); };
+  const front = tex(64,64,tee(26,11)), back = tex(64,64,tee(12,23)), side = tex(32,32,tee(8,37));
+  const pants = tex(32,32,(g,w,h)=>{ speckle(g,w,h,'#b9a782',['#c4b28d','#ae9c78','#bfae8a'],.45); wfFoamBlobs(g,w,h,8,1.2,3.4,51); });
+  return (_wfFoamT = {foam, front, back, side, pants});
+}
+function wfFoamBlob(r){
+  const g = new THREE.Group(), m = L({map:wfFoamTextures().foam});
+  [[0,0,0,1],[.55,.25,.1,.62],[-.5,.3,-.1,.58],[.1,.55,.2,.5],[-.15,-.35,.25,.45]].forEach(([x,y,z,s])=>{
+    const sp = new THREE.Mesh(new THREE.SphereGeometry(r*s,8,6), m); sp.position.set(x*r,y*r,z*r); g.add(sp);
+  });
+  return g;
+}
+function wfFoamPile(){                                                   // 大招：一大坨刮鬍泡（像擠出來的一圈圈鮮奶油）
+  const g = new THREE.Group(), m = L({map:wfFoamTextures().foam});
+  [[-1.5,4.1,1.5],[0,3.0,0.9],[1.5,2.2,0.6],[2.9,1.3,.3],[3.9,0.5,0.0]].forEach(([y,rx,sy],i)=>{
+    const sp = new THREE.Mesh(new THREE.SphereGeometry(rx,12,8), m); sp.scale.set(1,.62,1); sp.position.set(i%2?.25:-.2,y,0); g.add(sp);
+  });
+  [[-2.8,-0.9,1.3,1.4],[2.9,-1.0,-.5,1.3],[-1.0,-1.3,2.9,1.2],[1.4,-1.2,-2.6,1.2]].forEach(([x,y,z,r])=>{
+    const sp = new THREE.Mesh(new THREE.SphereGeometry(r,8,6), m); sp.position.set(x,y,z); g.add(sp);
+  });
+  return g;
+}
+function wfFoamPortrait(g){
+  g.fillStyle = '#151516'; g.fillRect(3,5,58,12); g.fillRect(8,16,48,4);                 // 黑帽
+  g.fillStyle = '#ffffff';
+  [[14,4,8],[26,2,9],[38,3,9],[50,4,7]].forEach(([x,y,r])=>{ g.beginPath(); g.arc(x,y,r,0,7); g.fill(); });   // 帽上的泡
+  g.fillRect(40,17,10,4);
+  [[6,44,6],[58,44,6],[20,39,3]].forEach(([x,y,r])=>{ g.beginPath(); g.arc(x,y,r,0,7); g.fill(); });         // 臉頰 / 鏡片上的泡
+  [[8,59,8],[20,60,8],[32,61,9],[44,60,8],[56,59,8]].forEach(([x,y,r])=>{ g.beginPath(); g.arc(x,y,r,0,7); g.fill(); });   // 泡泡鬍子
+  g.fillStyle = '#c9d1db'; g.fillRect(4,62,56,2);
+}
+function wfFoamCostume(c){
+  const T = wfFoamTextures(), foamM = L({map:T.foam});
+  const sideM = L({map:T.side}), frontM = L({map:T.front}), backM = L({map:T.back}), pantsM = L({map:T.pants});
+  const sandalM = L({color:0x8e8f92}), capM = L({color:0x151516});
+  // white tee covered in foam (前後左右都沾)
+  const torso = c.chest.children[0];
+  torso.material = [sideM,sideM,sideM,sideM,frontM,backM];
+  c.chest.children.forEach(o=>{ if (o !== torso && o.isMesh && o.geometry.type === 'TorusGeometry') o.material = L({color:0xecebe5}); });
+  [c.R.sh, c.Lf.sh].forEach(sh=>{ if (sh.children[0] && sh.children[0].isMesh) sh.children[0].material = sideM; });
+  // khaki pants + grey sandals
+  c.hips.traverse(o=>{ if (o.isMesh){ if (o.material === wPantsM) o.material = pantsM; else if (o.material === shoeM) o.material = sandalM; } });
+  // foam on the body
+  c.chest.add(at(rbox(1.0,0.32,0.55,.85,foamM),0,2.05,0.28));
+  [-1,1].forEach(s=>c.chest.add(at(rbox(0.55,0.3,0.55,.85,foamM),s*0.55,2.15,0.05)));
+  c.chest.add(at(rbox(0.7,0.45,0.14,.85,foamM),-0.2,1.3,0.5));
+  [c.R, c.Lf].forEach(a=>{
+    a.sh.add(at(rbox(0.38,0.5,0.38,.85,foamM),0,-0.75,0));
+    a.el.add(at(rbox(0.38,0.78,0.38,.85,foamM),0,-0.45,0));
+    a.el.add(at(rbox(0.26,0.26,0.26,.9,foamM),0.05,-0.95,0.08));
+  });
+  c.joints.rKn.add(at(rbox(0.3,0.5,0.12,.85,foamM),0.1,-0.5,0.3));
+  c.joints.lHp.add(at(rbox(0.35,0.4,0.12,.85,foamM),-0.1,-0.6,0.38));
+  c.joints.lKn.add(at(rbox(0.4,0.18,0.5,.85,foamM),0,-1.4,0.35));
+  // black cap with a foam mound on top
+  const head = c.head;
+  head.add(at(rbox(1.2,0.5,1.2,.5,capM),0,0.62,-0.02));
+  const brim = rbox(0.92,0.07,0.5,.3,capM); brim.position.set(0,0.44,0.72); brim.rotation.x = -0.12; head.add(brim);
+  head.add(at(rbox(0.95,0.4,0.95,.9,foamM),0,0.98,-0.02));
+  head.add(at(rbox(0.5,0.32,0.5,.9,foamM),-0.28,1.2,0.1));
+  head.add(at(rbox(0.46,0.3,0.46,.9,foamM),0.3,1.15,-0.1));
+  head.add(at(rbox(0.34,0.22,0.2,.9,foamM),0.12,0.5,0.66));
+  // foam on the face: beard, cheeks, a blob on the lens
+  head.add(at(rbox(0.88,0.26,0.24,.85,foamM),0,-0.56,0.46));
+  [-1,1].forEach(s=>head.add(at(rbox(0.26,0.36,0.2,.85,foamM),s*0.38,-0.2,0.47)));
+  head.add(at(rbox(0.22,0.16,0.14,.85,foamM),-0.22,0.02,0.6));
+  head.add(at(rbox(0.16,0.12,0.12,.85,foamM),0.28,-0.04,0.6));
+  // the waffle in his hand becomes a can of shaving foam
+  const can = c.props.waffle;
+  can.geometry = new THREE.CylinderGeometry(0.2,0.2,0.85,10);
+  can.material = [L({color:0xe8f0f8}), L({color:0xb8bcc2}), L({color:0xb8bcc2})];
+  can.add(at(cyl(0.07,0.07,0.22,L({color:0x3a8fe0}),6),0,0.52,0));
+  can.add(at(cyl(0.205,0.205,0.18,L({color:0x3a8fe0}),10),0,0.1,0));
+}
 function buildWaffle(parent){
   const c = buildChar({
     skinM:wSkinM, faceM:wFaceM, torsoMat:wShirtM, sleeveMat:()=>wShirtM, sleeve:[0.6,0.75],
@@ -127,14 +219,18 @@ function buildFan(i){
   return {g, legs, arms};
 }
 function waffleFinal(f, opp){
-    f.finalT = 1.4; banner('鬆餅大滿貫！'); SFX.laugh(); setTimeout(()=>SFX.laugh(), 800);
+    const foam = wfIsFoam(f);                                              // 刮鬍泡夯哥：從天而降一大坨刮鬍泡（判定、傷害、時間與鬆餅完全相同）
+    f.finalT = 1.4; banner(foam ? '刮鬍泡大噴發！' : '鬆餅大滿貫！'); SFX.laugh(); setTimeout(()=>SFX.laugh(), 800);
     pop('哈哈哈哈哈哈', f.x, f.y+7.5, 'big');
     const mesh = new THREE.Group();
-    const w = waffleMesh(4.2); mesh.add(w);
-    const syrup = new THREE.Mesh(new THREE.CylinderGeometry(2.9,3.2,.35,10), new THREE.MeshLambertMaterial({color:0x7a3e12, transparent:true, opacity:.85})); syrup.position.y = .6; mesh.add(syrup);
-    const butter = rbox(1.2,.7,1.2,.2,L({color:0xffe28a})); butter.position.y = 1.05; mesh.add(butter);
+    if (foam){ mesh.add(wfFoamPile()); }
+    else {
+      const w = waffleMesh(4.2); mesh.add(w);
+      const syrup = new THREE.Mesh(new THREE.CylinderGeometry(2.9,3.2,.35,10), new THREE.MeshLambertMaterial({color:0x7a3e12, transparent:true, opacity:.85})); syrup.position.y = .6; mesh.add(syrup);
+      const butter = rbox(1.2,.7,1.2,.2,L({color:0xffe28a})); butter.position.y = 1.05; mesh.add(butter);
+    }
     mesh.rotation.x = .25; scene.add(mesh);
-    G.finals.push({type:'waffle', owner:f, target:opp, x:opp.x, y:opp.y+36, vy:-12, phase:'fall', t:0, mesh, update:waffleFinalUpdate});
+    G.finals.push({type:'waffle', foam, owner:f, target:opp, x:opp.x, y:opp.y+36, vy:-12, phase:'fall', t:0, mesh, update:waffleFinalUpdate});
 }
 function waffleFinalUpdate(F, dt, t){
       const v = F.target;
@@ -143,8 +239,8 @@ function waffleFinalUpdate(F, dt, t){
         if (v.state!=='dead' && Math.abs(v.x - F.x) < 4.8 && F.y <= v.y + 6.2 && F.y >= v.y - 1){
           F.phase = 'hold'; F.t = 0; F.y = v.y + 3.2;
           v.state = 'stuck'; v.vx = v.vy = 0; v.move = null; v.pct += 18; v.squish = .9; v.slowT = 3;
-          SFX.soft(); SFX.boom(); G.shake = reduce ? .2 : 1; pop('黏住了！', v.x, v.y+8, 'big'); burst(F.x, F.y, 0xdba04a, 24, 14);
-        } else if (F.y <= 0.5 && Math.abs(F.x) < MAIN.x2 + 4){ F.phase = 'land'; F.t = 0; F.y = .5; SFX.soft(); burst(F.x, 1, 0xdba04a, 16, 10); }
+          SFX.soft(); SFX.boom(); G.shake = reduce ? .2 : 1; pop(F.foam ? '糊住了！' : '黏住了！', v.x, v.y+8, 'big'); burst(F.x, F.y, F.foam ? 0xffffff : 0xdba04a, 24, 14);
+        } else if (F.y <= 0.5 && Math.abs(F.x) < MAIN.x2 + 4){ F.phase = 'land'; F.t = 0; F.y = .5; SFX.soft(); burst(F.x, 1, F.foam ? 0xffffff : 0xdba04a, 16, 10); }
         else if (F.y < -40) F.phase = 'gone';
       } else if (F.phase==='hold'){
         v.squish = Math.max(v.squish, .3);
@@ -233,6 +329,7 @@ registerChar('waffle', {
     { name:'生日帽', apply(c){ const h = birthdayHat('#ff5fa2','#ffe066'); h.position.set(0.05,0.6,0); c.head.add(h); } },
     { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
     { name:'長方形鬆餅裝', apply(c){ wfSlab(c); }, portrait(g){ wfSlabPortrait(g); } },
+    { name:'刮鬍泡夯哥', apply(c){ wfFoamCostume(c); }, portrait(g){ wfFoamPortrait(g); } },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,
@@ -250,11 +347,26 @@ registerChar('waffle', {
     dB:{t:[.12,.65,.25], pose:['piano','piano'], prop:'piano', fire:[[.12,'note0'],[.3,'note1'],[.48,'note2'],[.68,'chord']], air:1},
   },
   fire: {
-  waffleLob(f){ proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*13, vy:12, g:30, r:.95, life:2.4, bounce:1, dmg:6, kb:5, sc:.5, ang:50, soft:1, slow:2.2, mesh:waffleMesh(.65), spin:1}); },
-  waffleDrive(f){ proj({owner:f, x:f.x+f.face*2.6, y:f.y+3.5, vx:f.face*30, vy:0, g:0, r:1.05, life:.8, dmg:10, kb:10, sc:.85, ang:32, soft:1, mesh:waffleMesh(.75), spin:1}); pop('鬆餅打擊！', f.x, f.y+7); },
+  waffleLob(f){
+    if (wfIsFoam(f)){                                                      // 刮鬍泡夯哥：丟出一坨刮鬍泡，傷害/速度/擊退不變
+      proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*13, vy:12, g:30, r:.95, life:2.4, bounce:1, dmg:6, kb:5, sc:.5, ang:50, slow:2.2, onHit:'wfFoamSplat', mesh:wfFoamBlob(.65), spin:1});
+      burst(f.x+f.face*1.4, f.y+4.6, 0xffffff, 6, 6); pop('噗咻～', f.x, f.y+7); SFX.soft(); return;
+    }
+    proj({owner:f, x:f.x+f.face*1.4, y:f.y+4.6, vx:f.face*13, vy:12, g:30, r:.95, life:2.4, bounce:1, dmg:6, kb:5, sc:.5, ang:50, soft:1, slow:2.2, mesh:waffleMesh(.65), spin:1});
+  },
+  waffleDrive(f){
+    if (wfIsFoam(f)){
+      proj({owner:f, x:f.x+f.face*2.6, y:f.y+3.5, vx:f.face*30, vy:0, g:0, r:1.05, life:.8, dmg:10, kb:10, sc:.85, ang:32, onHit:'wfFoamSplat', mesh:wfFoamBlob(.8), spin:1});
+      burst(f.x+f.face*2.6, f.y+3.5, 0xffffff, 8, 8); pop('刮鬍泡打擊！', f.x, f.y+7); return;
+    }
+    proj({owner:f, x:f.x+f.face*2.6, y:f.y+3.5, vx:f.face*30, vy:0, g:0, r:1.05, life:.8, dmg:10, kb:10, sc:.85, ang:32, soft:1, mesh:waffleMesh(.75), spin:1}); pop('鬆餅打擊！', f.x, f.y+7);
+  },
   note0(f){ FIRE._note(f,0); }, note1(f){ FIRE._note(f,1); }, note2(f){ FIRE._note(f,2); },
   _note(f,i){ proj({owner:f, x:f.x+f.face*2.2, y:f.y+3.6+i*.4, vx:f.face*17, vy:0, g:0, wave:1.2, r:.85, life:1, dmg:4, kb:3, sc:.2, ang:45, mesh:spriteOf(noteTex,1.4)}); SFX.note(i); },
   chord(f){ proj({owner:f, x:f.x+f.face*2.4, y:f.y+4, vx:f.face*20, vy:0, g:0, r:1.5, life:.9, dmg:7, kb:10, sc:.7, ang:45, mesh:spriteOf(noteTex,2.6,0xffd27a)}); SFX.chord(); pop('♪♪♪', f.x+f.face*2, f.y+7); },
+  },
+  onhit: {
+  wfFoamSplat(a,v){ v.squish = .4; SFX.soft(); burst(v.x, v.y+4, 0xffffff, 10, 7); pop('噗滋', v.x, v.y+6.5); },
   },
   start: {
   laughJump(f){ f.vy = 32; f.vx = f.face*7; f.onGround = false; f.jumps = 0; f.ff = false; burst(f.x, f.y+1, 0xfff3a0, 8, 8); },
