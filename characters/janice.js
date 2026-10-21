@@ -252,6 +252,7 @@ function jnFinal(f, opp){
   top.add(at(new THREE.Mesh(new THREE.BoxGeometry(5.9,0.3,5.3), L({color:0x7a5230})),0,-0.3,0));
   [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([a,b])=>{ const lg = at(cyl(0.22,0.22,2.2,L({color:0x7a5230}),8), a*2.3,-1.4,b*2.0); g.add(lg); });
   g.rotation.z = Math.PI/2*f.face*-1;
+  g.position.set(f.x + f.face*3, 4.2, 0);   // 先放到女王前方，避免第一幀出現在地圖中央
   const tiles = [];
   for (let i=0;i<16;i++){ const t = jnTileMesh(1.5); scene.add(t); tiles.push({m:t, vx:(Math.random()-.5)*8, vy:14 + Math.random()*14, rz:(Math.random()-.5)*12, x:f.x, y:f.y+4}); }
   G.finals.push({owner:f, target:opp, t:0, mesh:g, x:f.x + f.face*3, hit:new Set(), tiles, update(F, dt){
@@ -437,7 +438,7 @@ registerChar('janice', {
       const g = new THREE.Group(), mats = [];
       const headM = L({map:jnTrainHeadTex, transparent:true}), sideM = L({map:jnTrainTex, transparent:true}), roofM = L({color:0xc8c5bb, transparent:true});
       mats.push(headM, sideM, roofM);
-      for (let i=0;i<3;i++){ const car = new THREE.Mesh(new THREE.BoxGeometry(5.4,3.9,2.4), [headM,headM,roofM,roofM,sideM,sideM]); car.position.x = -i*5.6; g.add(car); }
+      for (let i=0;i<2;i++){ const car = new THREE.Mesh(new THREE.BoxGeometry(5.4,3.9,2.4), [headM,headM,roofM,roofM,sideM,sideM]); car.position.x = -i*5.6; g.add(car); }
       scene.add(g); f.jnDash = {g, mats, t:0};
       burst(f.x - f.face*3, f.y + 3, 0x2f5fb0, 10, 7);
     },
