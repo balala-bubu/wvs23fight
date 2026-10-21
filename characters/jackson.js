@@ -397,12 +397,18 @@ function hqFinalUpdate(F, dt){
   // ---- phase 3: 已讀全部 ----
   if (t >= 3.2 && F.phase === 0){
     F.phase = 1;
-    banner('已讀全部！'); SFX.boom(); G.shake = reduce ? .2 : 1.4; G.freeze = .14; G.flash = .2;
-    pop('已讀！', f.x, f.y+8.5, 'big');
     F.ring.forEach(r=>{ r.flying = false; });
-    for (const v of G.fighters){
-      if (v===f || !v.hittable() || Math.abs(v.x - f.x) > 20) continue;
-      const n = F.stacks.get(v) || 0;                                              // 疊愈多層炸愈痛
+    const foes = G.fighters.filter(v=>v!==f);
+    const read = foes.filter(v=>(F.stacks.get(v) || 0) > 0 && v.hittable());       // 只有被 Reels 打中（有疊到已讀）的人才會被炸
+    if (read.length){
+      banner(read.length >= foes.length ? '已讀全部！' : '已讀 '+read.length+' 人！');
+      SFX.boom(); G.shake = reduce ? .2 : 1.4; G.freeze = .14; G.flash = .2;
+      pop(read.length >= foes.length ? '已讀！' : '有人已讀了', f.x, f.y+8.5, 'big');
+    } else {
+      banner('沒人已讀…'); pop('沒人理我', f.x, f.y+8.5, 'blue');
+    }
+    for (const v of read){
+      const n = F.stacks.get(v);                                                   // 疊愈多層炸愈痛
       v.pct += 6 + n*2.5;
       launch(v, 26 + n*3 + v.pct*.11, 46, Math.sign(v.x - f.x) || f.face);
       SFX.hit(40); spark(v.x, v.y+3, 4.5); burst(v.x, v.y+3, 0xff8fc0, 10 + n*2, 9);
