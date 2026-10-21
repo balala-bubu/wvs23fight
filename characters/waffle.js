@@ -156,6 +156,16 @@ function wfFoamCostume(c){
   [-1,1].forEach(s=>head.add(at(rbox(0.26,0.36,0.2,.85,foamM),s*0.38,-0.2,0.47)));
   head.add(at(rbox(0.22,0.16,0.14,.85,foamM),-0.22,0.02,0.6));
   head.add(at(rbox(0.16,0.12,0.12,.85,foamM),0.28,-0.04,0.6));
+  // the bat becomes a big can of shaving foam (側重擊／上重擊／空中攻擊／側必殺揮出去的都是罐子)
+  const bat = c.props.bat;
+  while (bat.children.length) bat.remove(bat.children[0]);
+  const bodyM = L({color:0xe8f0f8}), capM2 = L({color:0xb8bcc2}), blueM = L({color:0x3a8fe0});
+  bat.add(at(cyl(0.3,0.3,1.9,bodyM,12),0,-1.3,0));
+  bat.add(at(cyl(0.305,0.305,0.5,blueM,12),0,-1.25,0));                 // 藍色標籤
+  bat.add(at(cyl(0.26,0.3,0.14,capM2,12),0,-2.32,0));                   // 罐底（打出去的那頭）
+  bat.add(at(cyl(0.2,0.3,0.22,capM2,12),0,-0.28,0));                    // 罐肩
+  bat.add(at(cyl(0.09,0.09,0.3,blueM,8),0,-0.05,0));                    // 噴嘴（握把那頭）
+  bat.add(at(rbox(0.5,0.28,0.4,.85,foamM),0,-2.45,0.05));               // 打出去那頭沾著一坨泡
   // the waffle in his hand becomes a can of shaving foam
   const can = c.props.waffle;
   can.geometry = new THREE.CylinderGeometry(0.2,0.2,0.85,10);
@@ -240,7 +250,7 @@ function waffleFinalUpdate(F, dt, t){
           F.phase = 'hold'; F.t = 0; F.y = v.y + 3.2;
           v.state = 'stuck'; v.vx = v.vy = 0; v.move = null; v.pct += 18; v.squish = .9; v.slowT = 3;
           SFX.soft(); SFX.boom(); G.shake = reduce ? .2 : 1; pop(F.foam ? '糊住了！' : '黏住了！', v.x, v.y+8, 'big'); burst(F.x, F.y, F.foam ? 0xffffff : 0xdba04a, 24, 14);
-        } else if (F.y <= 0.5 && Math.abs(F.x) < MAIN.x2 + 4){ F.phase = 'land'; F.t = 0; F.y = .5; SFX.soft(); burst(F.x, 1, F.foam ? 0xffffff : 0xdba04a, 16, 10); }
+        } else if (F.y <= (F.foam ? 4 : 0.5) && Math.abs(F.x) < MAIN.x2 + 4){ F.phase = 'land'; F.t = 0; F.y = F.foam ? 4 : .5; SFX.soft(); burst(F.x, 1, F.foam ? 0xffffff : 0xdba04a, 16, 10); }
         else if (F.y < -40) F.phase = 'gone';
       } else if (F.phase==='hold'){
         v.squish = Math.max(v.squish, .3);
@@ -251,8 +261,18 @@ function waffleFinalUpdate(F, dt, t){
           SFX.hit(40); G.shake = reduce ? .2 : 1.2; G.freeze = .15; spark(v.x, v.y+3, 4);
         }
       } else if (F.phase==='land'){
-        F.y += 10*dt; F.mesh.scale.multiplyScalar(Math.exp(-2.5*dt));
-        if (F.t > 1) F.phase = 'gone';
+        if (F.foam){                                                       // 刮鬍泡：融化——越壓越扁、往兩側攤開、貼著地面慢慢消失
+          if (F.meltY === undefined) F.meltY = F.y - 4;
+          const k = Math.min(1, F.t/1.3), sy = Math.max(.03, (1-k)*(1-k)), sxz = 1 + .45*k;
+          F.mesh.scale.set(sxz, sy, sxz);
+          F.mesh.traverse(o=>{ if (o.isMesh){ o.material.transparent = true; o.material.opacity = Math.min(1, (1-k)*2.2); } });
+          F.y = F.meltY + 4*sy;
+          if (Math.random() < dt*14) burst(F.x + (Math.random()-.5)*5*sxz, F.meltY + .6, 0xffffff, 1, 2);
+          if (F.t > 1.3) F.phase = 'gone';
+        } else {
+          F.y += 10*dt; F.mesh.scale.multiplyScalar(Math.exp(-2.5*dt));
+          if (F.t > 1) F.phase = 'gone';
+        }
       }
       F.mesh.position.set(F.x, F.y, 0); F.mesh.rotation.y += dt*.6;
       return F.phase==='gone';
