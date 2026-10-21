@@ -47,6 +47,30 @@ const wSideM = L({color:0xb5762a}), wTopS = L({map:waffleTexS}), wTopB = L({map:
 function waffleMesh(r){ const top = r>2 ? wTopB : wTopS; return new THREE.Mesh(new THREE.CylinderGeometry(r,r,Math.max(.12,r*.28),10), [wSideM, top, top]); }
 const wSkinM = L({map:wSkinTex}), wShirtM = L({map:wShirtTex}), wFaceM = L({map:wFaceTex}), wPantsM = L({map:wPantsTex});
 const wHairM = L({map:blackHairTex});
+// ---- 長方形鬆餅裝（造型）: a big rectangular waffle slab worn over the torso ----
+function wfSlabDraw(g, w, h){
+  g.fillStyle='#dba04a'; g.fillRect(0,0,w,h);
+  g.fillStyle='#a8641c'; for(let x=0;x<w;x+=8) g.fillRect(x,0,1,h); for(let y=0;y<h;y+=8) g.fillRect(0,y,w,1);
+  g.fillStyle='rgba(255,232,170,.55)'; for(let y=2;y<h;y+=8) for(let x=2;x<w;x+=8) g.fillRect(x,y,4,2);
+  g.fillStyle='rgba(120,64,16,.35)'; for(let y=5;y<h;y+=8) for(let x=5;x<w;x+=8) g.fillRect(x,y,2,2);
+  g.fillStyle='#b5762a'; g.fillRect(0,0,w,2); g.fillRect(0,h-2,w,2); g.fillRect(0,0,2,h); g.fillRect(w-2,0,2,h);   // toasted rim
+}
+const wfSlabTex = tex(40,48,wfSlabDraw);
+function wfSlabPortrait(g){
+  g.fillStyle='#dba04a'; g.fillRect(8,52,48,12);
+  g.fillStyle='#a8641c'; for(let x=8;x<56;x+=8) g.fillRect(x,52,1,12); g.fillRect(8,58,48,1);
+  g.fillStyle='#b5762a'; g.fillRect(8,52,48,2);
+  g.fillStyle='#ffe28a'; g.fillRect(36,53,8,4);   // butter
+}
+function wfSlab(c){
+  const edgeM = L({color:0xb5762a}), faceM = L({map:wfSlabTex}), syrupM = L({color:0x7a3e12});
+  const slab = rbox(2.0,2.4,1.3,.18,[edgeM,edgeM,edgeM,edgeM,faceM,faceM]);
+  slab.position.set(0,0.95,0); c.chest.add(slab);
+  c.chest.add(at(rbox(2.04,0.14,1.34,.5,syrupM),0,2.12,0));                       // syrup along the top edge
+  [[-0.7,.5],[-0.1,.8],[0.55,.4],[0.8,.65]].forEach(([x,len])=>c.chest.add(at(rbox(0.2,len,0.06,.5,syrupM),x,2.05-len/2,0.67)));   // drips on the front
+  c.chest.add(at(rbox(0.7,0.3,0.14,.25,L({color:0xffe28a})),0.2,1.85,0.72));    // butter pat
+  c.R.sh.position.x = 1.25; c.Lf.sh.position.x = -1.25;                           // arms out past the slab
+}
 function buildWaffle(parent){
   const c = buildChar({
     skinM:wSkinM, faceM:wFaceM, torsoMat:wShirtM, sleeveMat:()=>wShirtM, sleeve:[0.6,0.75],
@@ -208,6 +232,7 @@ registerChar('waffle', {
   skins: [
     { name:'生日帽', apply(c){ const h = birthdayHat('#ff5fa2','#ffe066'); h.position.set(0.05,0.6,0); c.head.add(h); } },
     { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
+    { name:'長方形鬆餅裝', apply(c){ wfSlab(c); }, portrait(g){ wfSlabPortrait(g); } },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,
