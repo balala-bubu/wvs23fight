@@ -417,9 +417,9 @@ registerChar('janice', {
     uair:{t:[.1,.12,.2], pose:['air','block'], box:[0.3,6.4,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
     dair:{t:[.18,.1,.25], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.7], dmg:12, kb:7, sc:.8, ang:-65, air:1, sfx:'jnTile'},
     nB:{t:[.18,.05,.3], pose:['throwWind','throwHit'], fire:[[.18,'jnSnark']], air:1, sfx:'jnPaper', text:'收下 offer'},
-    sB:{t:[.14,.26,.3], pose:['sprint','sprint'], box:[2.0,3.8,1.5], dmg:11, kb:8, sc:.5, ang:38, dash:26, air:1, start:'jnDash', onHit:'jnStun', sfx:'jnTrain', text:'捷運衝刺'},
+    sB:{t:[.14,.26,.3], pose:['sprint','sprint'], box:[2.0,3.8,1.5], dmg:11, kb:8, sc:.5, ang:38, dash:26, air:1, fire:[[0,'jnDash']], onHit:'jnStun', sfx:'jnTrain', text:'捷運衝刺'},
     uB:{t:[.05,.55,.12], pose:['setUp','upHit'], poseSwitch:.28, start:'jnUp', box:[0.5,5.4,1.8], dmg:8, kb:9, sc:.5, ang:82, helpless:1, air:1, sfx:'whistle', text:'皇冠升天'},
-    dB:{t:[.2,.3,.32], pose:['block','thumbs'], start:'jnReady', box:[1.8,3.6,2.2], dmg:6, kb:5, sc:.3, ang:60, air:1, sfx:'jnTile', text:'聽牌了', textCls:'blue'},
+    dB:{t:[.2,.3,.32], pose:['block','thumbs'], fire:[[0,'jnReady']], box:[1.8,3.6,2.2], dmg:6, kb:5, sc:.3, ang:60, air:1, sfx:'jnTile', text:'聽牌了', textCls:'blue'},
   },
   fire: {
     // 中必殺：甩出一封 offer
@@ -429,11 +429,9 @@ registerChar('janice', {
       m.rotation.z = -f.face*.25;
       proj({owner:f, x:f.x + f.face*1.8, y:f.y + 4.6, vx:f.face*26, vy:2, g:16, r:1.1, life:1.3, dmg:8, kb:7, sc:.55, ang:42, mesh:m});
     },
-  },
-  start: {
-    jnUp(f){ f.vy = 34; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; if (f.m.setCrown) f.m.setCrown(true); },
+    // 下必殺：聽牌狀態（放 fire 時間 0，不放 start —— core 會讓有 start hook 的招式前 .32 秒強制上浮）
     jnReady(f){ f.buffT = 5; f.buffDmg = 1.35; f.buffKb = 1.15; pop('聽牌', f.x, f.y+7.6, 'blue'); },
-    // 側必殺：身後生出一列捷運跟著衝
+    // 側必殺：身後生出一列捷運跟著衝（同上，必須放 fire，否則女王會自己飛起來）
     jnDash(f){
       if (f.jnDash) scene.remove(f.jnDash.g);
       const g = new THREE.Group(), mats = [];
@@ -443,6 +441,9 @@ registerChar('janice', {
       scene.add(g); f.jnDash = {g, mats, t:0};
       burst(f.x - f.face*3, f.y + 3, 0x2f5fb0, 10, 7);
     },
+  },
+  start: {
+    jnUp(f){ f.vy = 34; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; if (f.m.setCrown) f.m.setCrown(true); },
   },
   onhit: { jnStun(att, v){ v.state = 'stun'; v.stunT = .6; v.move = null; pop('被噹到了', v.x, v.y+7.5, 'blue'); } },
   sfx: {

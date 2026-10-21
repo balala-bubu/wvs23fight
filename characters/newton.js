@@ -384,18 +384,19 @@ registerChar('newton', {
     nB:{t:[.18,.05,.28], pose:['throwWind','throwHit'], prop0:'chip', fire:[[.18,'nwChip']], air:1, sfx:'swing'},
     sB:{t:[.12,.28,.3], pose:['sprint','punch2'], poseSwitch:.25, box:[1.8,3.6,1.5], dmg:9, kb:7, sc:.45, ang:40, dash:24, air:1, onHit:'nwTrapped', text:'追高！'},
     uB:{t:[.05,.55,.1], pose:['setUp','upHit'], poseSwitch:.3, start:'nwRally', box:[0.4,5,1.8], dmg:7, kb:8, sc:.5, ang:80, helpless:1, air:1, text:'漲停板！'},
-    dB:{t:[.15,.6,.25], pose:['nwDrink','nwFlex'], poseSwitch:.45, prop:'shaker', start:'nwProtein', armor:1, air:1, text:'喝高蛋白！'},
+    dB:{t:[.15,.6,.25], pose:['nwDrink','nwFlex'], poseSwitch:.45, prop:'shaker', fire:[[0,'nwProtein']], armor:1, air:1, text:'喝高蛋白！'},
   },
   fire: {
     nwChip(f){
       [0,1].forEach(i=>proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.3 + i*.5, vx:f.face*(26 - i*4), vy:i*2, g:0, r:.8, life:1.0, dmg:6, kb:6, sc:.5, ang:40, spin:1, mesh:rbox(0.9,0.9,0.15,.15,L({map:nwChipTex}))}));
       pop('3奈米！', f.x, f.y+7);
     },
+    // 下必殺：放 fire 時間 0，不放 start —— core 會讓有 start hook 的招式前 .32 秒強制上浮
+    nwProtein(f){ f.buffT = 6; f.buffDmg = 1.3; pop('肌力 +30%', f.x, f.y+8.5, 'red'); SFX.nwCash(); },
     nwQuake(f){ SFX.boom(); G.shake = Math.max(G.shake, reduce ? .1 : .45); burst(f.x - 2, f.y+0.4, 0xc9b79a, 8, 8); burst(f.x + 2, f.y+0.4, 0xc9b79a, 8, 8); },
   },
   start: {
     nwRally(f){ f.vy = 33; f.vx = f.face*6; f.onGround = false; f.jumps = 0; f.ff = false; burst(f.x, f.y+1, 0xff3b3b, 12, 10); SFX.nwCash(); },
-    nwProtein(f){ f.buffT = 6; f.buffDmg = 1.3; pop('肌力 +30%', f.x, f.y+8.5, 'red'); SFX.nwCash(); },
   },
   onhit: { nwTrapped(att, v){ v.state = 'stun'; v.stunT = .7; v.move = null; pop('被套牢了！', v.x, v.y+7.5, 'blue'); } },
   poses: {
