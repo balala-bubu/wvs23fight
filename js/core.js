@@ -1002,7 +1002,7 @@ function updateProjs(dt, t){
         if (segDist(p.x, yy, v) < p.r + 1.0){ applyHit(p.owner, v, p, Math.sign(p.vx)||p.owner.face, p.x, yy); dead = true; break; }
       }
     }
-    if (dead){ scene.remove(p.mesh); G.projs.splice(i,1); if (p.soft) burst(p.x, yy, 0xdba04a, 5, 5); }
+    if (dead){ scene.remove(p.mesh); freeObj(p.mesh); G.projs.splice(i,1); if (p.soft) burst(p.x, yy, 0xdba04a, 5, 5); }
   }
 }
 
@@ -1013,7 +1013,7 @@ function startFinal(f){
   f.C.final(f, other(f));
 }
 // every entry in G.finals has update(F, dt, t) → true when finished, and optional dispose(F)
-function disposeFinal(F){ if (F.dispose) F.dispose(F); else if (F.mesh) scene.remove(F.mesh); }
+function disposeFinal(F){ if (F.dispose) F.dispose(F); else if (F.mesh){ scene.remove(F.mesh); freeObj(F.mesh); } }
 function updateFinals(dt, t){
   for (let i=G.finals.length-1; i>=0; i--){
     const F = G.finals[i]; F.t += dt;
@@ -1072,7 +1072,7 @@ const winTitle = document.getElementById('winTitle'), winName = document.getElem
 function startResults(){
   const W = G.winner, Lz = (G.lastOut && G.lastOut!==W) ? G.lastOut : G.fighters.find(f=>f!==W);
   G.mode = 'result'; hud.hidden = true; touchEl.hidden = true; quitEl.hidden = true; rotHint.hidden = true;
-  G.projs.forEach(p=>scene.remove(p.mesh)); G.projs = [];
+  G.projs.forEach(p=>{ scene.remove(p.mesh); freeObj(p.mesh); }); G.projs = [];
   G.finals.forEach(disposeFinal); G.finals = [];
   G.fighters.forEach(f=>{ f.marker.visible = false; f.aura.visible = false; f.shieldMesh.visible = false; });
   G.sepiaT = 0; G.slowmo = 0; G.zoom = 0;
@@ -1760,8 +1760,11 @@ function aiInput(f, o, dt){
 /* =================== menu / HUD =================== */
 const sel = { mode:'cpu', remote:false, count:2, p:['waffle','tommy','karl','seafood'], skin:[0,0,0,0], map:'park', stocks:3 };
 const models = [null, null, null, null];
-function rebuild(i){ if (models[i]) scene.remove(models[i].holder); models[i] = makeModel(sel.p[i], sel.skin[i] || 0); }
-function rebuildAll(){ for (let i=0;i<4;i++){ if (i < sel.count) rebuild(i); else if (models[i]){ scene.remove(models[i].holder); models[i] = null; } } }
+// 釋放被移除物件的幾何體（顯示卡記憶體）。只動幾何體；材質／貼圖是共用的所以不碰，外觀與內容完全不變（共用到的幾何體下次渲染會自動重建）
+function freeObj(o){ if (o && o.traverse) o.traverse(n=>{ if (n.geometry) n.geometry.dispose(); }); }
+function dropModel(i){ if (models[i]){ scene.remove(models[i].holder); freeObj(models[i].holder); } }
+function rebuild(i){ dropModel(i); models[i] = makeModel(sel.p[i], sel.skin[i] || 0); }
+function rebuildAll(){ for (let i=0;i<4;i++){ if (i < sel.count) rebuild(i); else if (models[i]){ dropModel(i); models[i] = null; } } }
 const menuEl = document.getElementById('menu'), overEl = document.getElementById('over'), quitEl = document.getElementById('quit'), touchEl = document.getElementById('touch');
 const selEl = document.getElementById('sel'), pauseEl = document.getElementById('pause');
 let rulesFrom = 'scrTitle';
@@ -1796,7 +1799,7 @@ function homeShowcase(){
     const ms = MAP_ORDER.filter(m=>MAPS[m]);
     homePick = { a, b, map: ms.length ? ms[(Math.random()*ms.length)|0] : null };
   }
-  for (let i=0;i<4;i++){ if (models[i]){ scene.remove(models[i].holder); models[i] = null; } }
+  for (let i=0;i<4;i++){ if (models[i]){ dropModel(i); models[i] = null; } }
   models[0] = makeModel(homePick.a[0], homePick.a[1]); models[1] = makeModel(homePick.b[0], homePick.b[1]);
   if (homePick.map) applyMap(homePick.map);
 }
@@ -2237,7 +2240,7 @@ function updateHud(){
 function clearArena(){
   clearResults(); overEl.hidden = true;
   G.fighters.forEach(f=>f.dispose()); G.fighters = [];
-  G.projs.forEach(p=>scene.remove(p.mesh)); G.projs = [];
+  G.projs.forEach(p=>{ scene.remove(p.mesh); freeObj(p.mesh); }); G.projs = [];
   G.finals.forEach(disposeFinal); G.finals = [];
   G.parts.forEach(p=>scene.remove(p.m)); G.parts = [];
   G.fx.forEach(x=>scene.remove(x.o)); G.fx = [];
