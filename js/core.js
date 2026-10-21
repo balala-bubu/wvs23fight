@@ -354,12 +354,20 @@ function audioHint(){
   const need = !!sndHintEl && G.mode !== 'pad' && (!AC || AC.state !== 'running');
   if (sndHintEl && sndHintEl.hidden === need) sndHintEl.hidden = !need;
 }
+function resetAudio(){
+  try{ if (AC) AC.close(); }catch(_){}
+  AC = null; master = null; noiseBuf = null; hostStream = null;   // buffers / streams belong to the old context
+  setTimeout(()=>{ audioOn(); }, 200);
+}
+try{ if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', ()=>{ if (AC && AC.state !== 'running') setTimeout(()=>{ if (AC && AC.state !== 'running') resetAudio(); }, 600); }); }catch(_){}
 function audioOn(){
   try{
     if (!AC){
       AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = .45; master.connect(AC.destination);
       AC.onstatechange = audioHint;
+      AC.addEventListener('error', ()=>resetAudio());   // output device error (e.g. switching to a TV over HDMI / AirPlay)
     }
+    if (AC.state === 'closed'){ AC = null; master = null; noiseBuf = null; return audioOn(); }
     if (AC.state !== 'running') AC.resume().then(audioHint, ()=>{});
     keepAudio();
   }catch(e){ AC = null; }

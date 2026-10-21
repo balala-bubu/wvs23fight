@@ -13,6 +13,9 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 ## Menu flow
 Title → rules (players / opponent / stocks) → character select → **map select** (`G.mode==='mapsel'`, `enterMapSel()`, thumbnails rendered once by `mapThumb()`, last card = 隨機 with a big ?) → match. Pause menu and the game-over sheet both have 換地圖 (→ `enterMapSel`) and 換角色. Phones-as-controllers: host broadcasts `st:'mapsel'`, `vib` (hit/KO counters → phone vibrates, toggle on the pad) and `rst` (back to character select un-readies the phones). Audio: `audioOn()` also plays a silent looping `<audio>` so iOS ignores the mute switch when mirroring to a TV; `#sndHint` shows while the browser keeps sound locked.
 
+## Releasing
+Bump the default `?v=` number in the `S()` helper at the bottom of `index.html` on every release (browsers cache `js/*.js`; a new index.html with an old core.js shows a black screen).
+
 ## Add a character (cheapest path)
 1. Read `characters/_template.js` (and at most one similar character file if you need a pattern, e.g. `bear.js` for a heavy, `seafood.js` for projectiles + a moving final).
 2. Write `characters/<kind>.js` (kind = lowercase letters only).
