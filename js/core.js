@@ -354,11 +354,13 @@ function audioHint(){
   const need = !!sndHintEl && G.mode !== 'pad' && (!AC || AC.state !== 'running');
   if (sndHintEl && sndHintEl.hidden === need) sndHintEl.hidden = !need;
 }
-let audioResets = [];
+let audioResets = [], audioFirstErr = 0, audioLastErr = -1e9;
 function resetAudio(){
-  // a broken output device can fire the error again for every new context: allow only 2 rebuilds per minute (an endless loop made the page freeze)
-  const now = performance.now(); audioResets = audioResets.filter(t=>now - t < 60000);
-  if (audioResets.length >= 2) return;
+  // a broken output device can fire the error again for every new context (an endless loop made the page freeze)
+  const now = performance.now();
+  if (now - audioLastErr > 30000) audioFirstErr = now;   // a new incident (e.g. just switched to the TV) gets a fresh 10 s
+  audioLastErr = now;
+  if (now - audioFirstErr > 10000) return;                // keep trying for 10 s only, then give up quietly
   audioResets.push(now);
   try{ if (AC) AC.close(); }catch(_){}
   AC = null; master = null; noiseBuf = null; hostStream = null;   // buffers / streams belong to the old context
@@ -543,10 +545,11 @@ function pop(text, x, y, cls){
 }
 const banners = [];
 let banN = 0, banLast = '';
-function banner(text){
+function banner(text, replace){
   banN++; banLast = text;
+  if (replace) banners.forEach(b=>{ b.gone = true; b.el.style.display = 'none'; });   // e.g. 開始！ takes the place of 預備…
   const el = document.createElement('div'); el.className = 'banner'; el.textContent = text;
-  let row = 0; while (banners.some(b=>b.row===row)) row++;
+  let row = 0; while (banners.some(b=>b.row===row && !b.gone)) row++;
   el.style.top = `calc(30% + ${row*1.25}em)`;
   const rec = {el, row}; banners.push(rec);
   document.body.appendChild(el);
@@ -1962,7 +1965,7 @@ function backFromSelect(){
   rebuildAll();
   if (sel.mode==='party'){ leaveParty(); showScr('scrParty'); } else showScr('scrRules');
 }
-function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = 1.4; banner('接著選地圖！'); } }
+function checkBothReady(){ if (SEL.ready.slice(0,sel.count).every(Boolean) && SEL.countdown <= 0){ SEL.countdown = .5; } }
 function renderSel(){
   const act = activeSlot();
   for (let i=0;i<4;i++){
@@ -2001,7 +2004,7 @@ function renderSel(){
   document.getElementById('selOk').textContent = skinStep ? '決定造型' : act > 0 && SEL.ctrl[act]==='cpu' ? '決定電腦' + (sel.count > 2 ? ' '+(act+1) : '') : '決定';
   const kb = !isTouch ? (sel.mode==='2p' ? 'P1：A／D 換、J 決定、K 取消　P2：←／→ 換、, 決定、. 取消' : 'A／D 或 ←／→ 換角色，J 或 Enter 決定，K 或 Esc 取消') : '點大頭貼換角色，再點一次或按「決定」';
   const kbSkin = !isTouch ? '←／→ 或 A／D 換造型，J 或 Enter 決定，K 或 Esc 回上一步' : '點造型換裝，再點一次或按「決定」';
-  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '馬上選地圖！' : skinStep ? kbSkin : kb;
+  document.getElementById('selHint').textContent = SEL.countdown > 0 ? '好了，選地圖！' : skinStep ? kbSkin : kb;
 }
 document.getElementById('selOk').onclick = ()=>{ const s = activeSlot(); if (s >= 0) confirmSel(s); };
 document.getElementById('selBack').onclick = ()=>{ const s = activeSlot(); cancelSel(s >= 0 ? s : 0); };
@@ -2108,7 +2111,7 @@ function buildMapCards(){
     } else { g.imageSmoothingEnabled = true; g.drawImage(mapThumb(id), 0, 0, 160, 90); }
     const n = document.createElement('span'); n.textContent = id==='random' ? '隨機' : MAPS[id].name;
     b.append(c, n);
-    b.onclick = ()=>{ audioOn(); if (MSEL.go > 0) return; if (MSEL.cur===i) confirmMap(); else setMapCur(i); };
+    b.onclick = ()=>{ audioOn(); if (MSEL.go > 0) return; if (MSEL.cur !== i) setMapCur(i); };   // only 決定 starts the match (taps on a phone are easy to mis-hit)
     msStrip.appendChild(b);
   });
 }
@@ -2136,7 +2139,7 @@ function enterMapSel(){
   models.forEach((m,i)=>{ if (!m) return; m.holder.position.set(selX(i), 0, 1.5); m.holder.rotation.set(0, selRot(i), 0); m.body.scale.setScalar(SC); m.setOld(0); m.setFace('normal'); for (const n in m.props) m.props[n].visible = false; });
   const idx = MSEL.list.indexOf(sel.map); MSEL.cur = idx >= 0 ? idx : 0;
   setMapView();
-  document.getElementById('msHint').textContent = !isTouch ? 'A／D 或 ←／→ 換地圖，J 或 Enter 決定，K 或 Esc 回選角色' : '點縮圖選地圖，再點一次或按「決定」';
+  document.getElementById('msHint').textContent = !isTouch ? 'A／D 或 ←／→ 換地圖，J 或 Enter 決定，K 或 Esc 回選角色' : '點縮圖選地圖，再按「決定」開始';
   document.getElementById('msOk').disabled = false;
 }
 function confirmMap(){
@@ -2230,7 +2233,7 @@ function startGame(){
   G.mode = 'play'; menuEl.hidden = true; selEl.hidden = true; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = false; quitEl.hidden = false;
   touchEl.hidden = !(isTouch && G.fighters[0].ctrl==='p1');
   buildHud(); camPos.set(0, 6, 40);
-  banner('READY… GO!');
+  G.startT = 1.5; G.goShown = false; banner('預備…');
 }
 function toMenu(){
   clearArena(); mapSelEl.hidden = true; leaveParty(); RS.visible = false; applyMap(sel.map); rebuildAll();
@@ -2302,10 +2305,16 @@ function tick(){
       else if (G.freeze > 0) G.freeze -= dt;
       else {
         if (G.slowmo > 0) G.slowmo -= dt;
+        if (G.startT > 0){   // 預備… → 開始！ : nobody can move (or be attacked by the computer) until GO
+          G.startT -= dt;
+          G.fighters.forEach(f=>{ if (f.ctrl.startsWith('pad')) readPad(+f.ctrl[3]); });   // throw away presses made during the countdown
+          if (!G.goShown && G.startT <= .6){ G.goShown = true; banner('開始！', true); SFX.whistle(); }
+        } else {
         const inputs = G.fighters.map((f,i)=> f.ctrl==='cpu' ? aiInput(f, nearestFoe(f), gdt) : f.ctrl.startsWith('pad') ? readPad(+f.ctrl[3]) : readHuman(f.ctrl==='p1' ? 0 : 1));
         G.fighters.forEach((f,i)=>f.update(gdt, inputs[i]));
         updateProjs(gdt, t); updateFinals(gdt, t); checkHits();
         if (G.endT > 0){ G.endT -= dt; if (G.endT <= 0) showOver(); }
+        }
       }
       updateHud();
     }
