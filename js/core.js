@@ -358,9 +358,9 @@ let audioResets = [], audioFirstErr = 0, audioLastErr = -1e9;
 function resetAudio(){
   // a broken output device can fire the error again for every new context (an endless loop made the page freeze)
   const now = performance.now();
-  if (now - audioLastErr > 30000) audioFirstErr = now;   // a new incident (e.g. just switched to the TV) gets a fresh 10 s
+  if (now - audioLastErr > 30000) audioFirstErr = now;   // a new incident (e.g. just switched to the TV) gets a fresh 2 s
   audioLastErr = now;
-  if (now - audioFirstErr > 10000) return;                // keep trying for 10 s only, then give up quietly
+  if (now - audioFirstErr > 2000) return;                 // keep trying for 2 s only, then give up quietly
   audioResets.push(now);
   try{ if (AC) AC.close(); }catch(_){}
   AC = null; master = null; noiseBuf = null; hostStream = null;   // buffers / streams belong to the old context
@@ -2100,7 +2100,7 @@ function updateSelect(dt, t){
 
 /* ---------- map select (thumbnail cards like the character select; the last card is 隨機 with a big ?) ---------- */
 const mapSelEl = document.getElementById('mapSel'), msStrip = document.getElementById('msStrip');
-const MSEL = { cur:0, list:[], go:0, built:false };
+const MSEL = { cur:0, list:[], go:0, built:false, todo:[], pump:0 };
 const THUMB = {};
 let thumbRT = null;
 // render each stage once into a small picture (no fighters), then restore whatever the scene was showing
@@ -2131,12 +2131,28 @@ function buildMapCards(){
     const c = document.createElement('canvas'); c.width = 160; c.height = 90; const g = c.getContext('2d');
     if (id==='random'){
       g.fillStyle = '#3a2a20'; g.fillRect(0,0,160,90); g.fillStyle = '#f2c14e'; g.font = '900 64px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', 80, 48);
-    } else { g.imageSmoothingEnabled = true; g.drawImage(mapThumb(id), 0, 0, 160, 90); }
+    } else if (THUMB[id]){ g.imageSmoothingEnabled = true; g.drawImage(THUMB[id], 0, 0, 160, 90); }
+    else { g.fillStyle = '#3a2a20'; g.fillRect(0,0,160,90); MSEL.todo.push({id, i, g}); }   // picture arrives a moment later (pumpThumbs)
     const n = document.createElement('span'); n.textContent = id==='random' ? '隨機' : MAPS[id].name;
     b.append(c, n);
     b.onclick = ()=>{ audioOn(); if (MSEL.go > 0) return; if (MSEL.cur !== i) setMapCur(i); };   // only 決定 starts the match (taps on a phone are easy to mis-hit)
     msStrip.appendChild(b);
   });
+}
+// Rendering all the stages in one go froze weak GPUs on the first visit, so draw one thumbnail per tick while the picker is open.
+function pumpThumbs(){
+  if (MSEL.pump || !MSEL.todo.length) return;
+  const step = ()=>{
+    MSEL.pump = 0;
+    if (!MSEL.todo.length || G.mode !== 'mapsel' || MSEL.go > 0) return;   // paused (picker closed / match starting); enterMapSel() restarts it
+    MSEL.todo.sort((a,b)=>Math.abs(a.i-MSEL.cur) - Math.abs(b.i-MSEL.cur));   // cards nearest the highlighted one first
+    const t = MSEL.todo.shift(), vis = {};
+    for (const k in MAPS) vis[k] = MAPS[k].group.visible;
+    t.g.imageSmoothingEnabled = true; t.g.drawImage(mapThumb(t.id), 0, 0, 160, 90);
+    for (const k in MAPS) MAPS[k].group.visible = vis[k];   // mapThumb re-shows one stage when it restores; keep what the picker shows (the ? card hides them all)
+    if (MSEL.todo.length) MSEL.pump = setTimeout(step, 120);
+  };
+  MSEL.pump = setTimeout(step, 80);
 }
 function setMapView(){
   const id = MSEL.list[MSEL.cur], rnd = id==='random';
@@ -2164,6 +2180,7 @@ function enterMapSel(){
   setMapView();
   document.getElementById('msHint').textContent = !isTouch ? 'A／D 或 ←／→ 換地圖，J 或 Enter 決定，K 或 Esc 回選角色' : '點縮圖選地圖，再按「決定」開始';
   document.getElementById('msOk').disabled = false;
+  pumpThumbs();
 }
 function confirmMap(){
   if (MSEL.go > 0) return;
