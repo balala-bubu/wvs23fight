@@ -27,14 +27,14 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 
 ## 3. 外型品質（使用者在意這點）
 - **丟出去的東西、手上的道具一律做成立體模型，不要用 sprite 貼圖**（使用者明確要求過；Ten 的野餐食物就是從貼圖改成立體）。sprite 只用在音符、愛心、特效這類「本來就是平面符號」的東西。
-- 頭髮：用好幾塊有圓角的 rbox 組出輪廓（頂部、後腦、兩側、一片片瀏海），長髮要分側邊、後面、髮尾外翹或內彎；不要只放一兩塊大方塊。可以做「深色髮根」或「髮尾較淺」貼圖（`createLinearGradient` 疊上去）。
-- 側邊頭髮蓋住臉旁時，核心加的耳朵會從頭髮穿出來變成一條膚色線：build 完用 `c.head.children.forEach(o=>{ if (o.isMesh && Math.abs(Math.abs(o.position.x)-0.52)<.01 && Math.abs(o.position.y-0.02)<.01) o.visible=false; })` 藏起來（0.52 = headW/2+0.02）。
+- 頭髮：用好幾塊有圓角的 rbox 組出輪廓（頂部、後腦、兩側、一片片瀏海），長髮要分側邊、後面、髮尾外翹或內彎；不要只放一兩塊大方塊。可以做「深色髮根」或「髮尾較淺」貼圖（`createLinearGradient` 疊上去）。**染髮長出黑髮根（布丁頭）這種對比要做得比直覺更狠**：漸層前 60% 直接壓到近黑（`rgba(8,6,6,1)`）再快速轉淺，臉部貼圖的瀏海和兩側也要用同一組漸層，不然在遊戲裡只會看起來像一顆棕色的頭。
+- 側邊頭髮蓋住臉旁時，核心加的耳朵會從頭髮穿出來變成一條膚色線：build 完用 `c.head.children.forEach(o=>{ if (o.isMesh && Math.abs(o.position.x)>0.4 && Math.abs(o.position.y-0.02)<.01) o.visible=false; })` 藏起來。
 - 衣服貼圖要有細節：針織橫紋、門襟和釦子、蕾絲波浪紋、領口、口袋、袖口條紋、識別證掛繩。正面用 `torsoMat` 陣列 `[+x,-x,+y,-y,front,back]` 放專屬正面貼圖。
 - **貼圖上要寫字（衣服上的英文、招牌）畫布至少 96 寬**：`tex(96,128,(g)=>{ g.scale(2,2); ...照 48×64 座標畫... })`，48 寬的字在遊戲裡會糊成白線。
 - 掛繩做成 V 字：兩條細 rbox，`position.x = s*0.33`、`rotation.z = -s*0.2`（正負號反了會變成往外開的八字）。
 - 特殊服裝用自訂幾何：例如蓬蓬裙用開口 CylinderGeometry 把底邊做成波浪，疊 3～4 層，`side:DoubleSide`，掛在 `c.hips` 上。
 - 長袖：把 `c.R.sh.children[1]` / `c.R.el.children[0]`（裸手臂）換成衣服材質；寬鬆帽T再把這兩段 `scale.set(1.4,1,1.4)`，並把袖子方塊 `sh.children[0]` 縮到 0.84，不然肩膀會鼓一包。短袖：`a.sh.children[0].scale.y = 0.6`。
-- 短褲：大腿 `hp.children[0]`、小腿 `kn.children[0]` 換成膚色材質並 `scale` 0.9；在 `hp` 上加短褲 rbox(0.76,0.86,0.82) 於 y=-0.36、反摺褲管 y=-0.76；短襪加在 `kn` 的 y=-1.22。`kn` 用 `hp.children.find(o=>o.children && o.children.length>=2)` 找。
+- 短褲：大腿 `hp.children[0]`、小腿 `kn.children[0]` 換成膚色材質並 `scale` 0.9；在 `hp` 上加短褲 rbox(0.76,0.86,0.82) 於 y=-0.36、反摺褲管 y=-0.76；短襪加在 `kn` 的 y=-1.22（`kn` 直接用 `c.joints.rKn` / `lKn`）。
 - 寬褲：`c.joints.rHp.children[0]`（大腿）和 `c.joints.rKn.children[0]`（小腿）`scale.set(1.2~1.4, 1, 1.2~1.3)`；靴子在 `kn` 上 y≈-1.36 加一段 cyl。
 - 想換色或換衣服的造型：在 build 裡把會換的材質／mesh 存成 `c.xxx`（collar 裡建立的東西可以掛在 `chest.userData` 再取出），skin 的 `apply(c)` 改 `.material`、`.map` 或 `.color` 再 `needsUpdate = true`。**整套換裝**（上衣、袖子、褲子、配件全換）的做法：build 時兩套配件都建好，分別放進 `teeBits` / `hoodBits` 陣列，寫一個 `c.setOutfit(o)` 切換 `visible`、軀幹 `c.torso.material`（= `c.chest.children[0]`）和手腳材質，build 結尾先 `c.setOutfit('預設')`，skin 只呼叫 `c.setOutfit('另一套')`（見 `jennie.js`）。注意：非原版造型在小頭像上都會被核心加一頂生日帽。
 - 路人（店員、小朋友等）用 `buildChar(...)` 做：`holder`（場景用）裡放 `body`（`scale.setScalar(SC*比例)`），回傳 `c` 並設 `c.holder`。小孩就用 SC*0.6、大頭（headW 1.3）。
