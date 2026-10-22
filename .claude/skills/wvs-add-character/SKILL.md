@@ -16,7 +16,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 把 repo `balala-bubu/wvs23fight` 加進這個對話（add_repo，access: push），用 `git clone --depth 1` 抓下來（timeout 給長一點）。
 - 如果本機已經有 clone：先 `git fetch origin main`，再 `git checkout -b <代號> origin/main`。使用者常常同時開好幾個對話在加角色，舊的本機版本可能已經落後。
 - 只讀這兩個檔：`CLAUDE.md`（結構、共用函式、姿勢和音效清單）和範本 `characters/_template.js`（新增地圖時改讀 `maps/_template.js`）。
-- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**；**黑髮根漸層（布丁頭）、短褲＋短襪、天降大招物件看 `characters/pudding.js`**；**把人包住＋狂按掙脫看 `characters/wxinyy.js`** 的 `escapeMash`）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
+- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**；**黑髮根漸層（布丁頭）、短褲＋短襪、天降大招物件看 `characters/pudding.js`**；**把人包住＋狂按掙脫看 `characters/wxinyy.js`** 的 `escapeMash`；**運氣／暫時強化弱化、地上的封印區、開襟外套露出內搭看 `characters/xuan.js`**）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
 
 ## 2. 角色資料
 使用者會給：代號（只能小寫英文字母；如果有大寫或空格，改成小寫連在一起並告訴使用者）、中文名／英文名、外型（或照片）、個性特色、體型速度跳躍、招式、大招、防禦樣子、勝敗動畫。沒寫的部分照特色自己設計，不要回頭問。使用者希望招式有角色自己的特色，不要只是把別人的招換皮：至少一兩招要有新機制（例如：把人包進泡泡浮起來再破掉、召喚小幫手跑過去撞人、放一支麥克風架讓附近的人被迫跟著跳、丟火鍋落地留一攤會燙人的湯）。
@@ -39,6 +39,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 想換色或換衣服的造型：在 build 裡把會換的材質／mesh 存成 `c.xxx`（collar 裡建立的東西可以掛在 `chest.userData` 再取出），skin 的 `apply(c)` 改 `.material`、`.map` 或 `.color` 再 `needsUpdate = true`。**整套換裝**（上衣、袖子、褲子、配件全換）的做法：build 時兩套配件都建好，分別放進 `teeBits` / `hoodBits` 陣列，寫一個 `c.setOutfit(o)` 切換 `visible`、軀幹 `c.torso.material`（= `c.chest.children[0]`）和手腳材質，build 結尾先 `c.setOutfit('預設')`，skin 只呼叫 `c.setOutfit('另一套')`（見 `jennie.js`）。注意：非原版造型在小頭像上都會被核心加一頂生日帽。
 - 路人（店員、小朋友等）用 `buildChar(...)` 做：`holder`（場景用）裡放 `body`（`scale.setScalar(SC*比例)`），回傳 `c` 並設 `c.holder`。小孩就用 SC*0.6、大頭（headW 1.3）。
 - `buildChar` 內部結構速查（不用再讀 core）：`c.chest.children[0]` = 軀幹（collar 加的東西排在後面）；手臂 `sh.children[0]` = 袖子、`sh.children[1]` = 裸上臂、`el.children[0]` = 前臂；腿 `hp.children[0]` = 大腿、`kn.children[0]` = 小腿、`kn.children[1]` = 鞋；`c.joints.rHp/rKn/lHp/lKn` 可以直接拿，不用自己在 children 裡找。
+- **開襟外套（cardigan）露出裡面的內搭**：32 寬的正面貼圖上，兩側門襟各只留 3～7px，內搭的 V 開口畫到 20px 寬以上。門襟畫太寬（各 11px）在遊戲裡整件就只是一塊米白，看不出有內搭。
 - **掛在胸前的東西 z 要 ≥ 0.49**（軀幹深 0.92，半深 0.46），不然掛繩、項鍊會埋進身體裡只露出一個點。
 - 核心加的耳朵在 `x = ±(headW/2 + 0.02)`，headW 不是 1.0 時座標就不是 0.52；判斷用 `Math.abs(o.position.x) > 0.4 && Math.abs(o.position.y - 0.02) < .01` 比寫死數字可靠。
 - 手勢 `hR/hL` 只有 `fist`、`thumb`、`peace` 三種，其他名稱會讓 applyPose 出錯。
@@ -50,6 +51,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 在 `index.html` 角色區最後一行後面加 `<script>S('characters/<代號>.js')</script>`（地圖則加在地圖區），並把 `S()` 那行預設的 `?v=` 版本號改掉。
 - 範圍傷害、濺射：用 `applyHit(owner, v, {dmg, kb, sc, ang}, dirX, x, y)`，會自動處理防禦、集氣和擊飛；迴圈跑 `G.fighters`、跳過自己、用 `Set` 記錄打過誰。飛行道具物件本身也會被當成 `applyHit` 的參數，所以 `proj({... slow:1.2})` 就會讓被打到的人變慢、`soft:1` 會變成「噗」的軟打擊。
 - 自訂防禦：`shield()` 回傳 mesh（核心每一幀會先 `scale.setScalar(依防禦值)`，所以 `shieldAnim(f)` 裡可以再乘上晃動倍率）；「撐太久會破」直接在 `animate` 裡 `if (s==='shield') f.shieldHP -= 6*dt;`，耗完核心會自動破防並顯示 `breakText`（可配 `breakColor`）。「防禦太久會暈」這類效果放在 `animate` 裡算時間，再把 `f.state='stun'`。
+- **運氣／暫時的強化與弱化**不用自己做：core 的 `f.buffT`（秒）＋ `f.buffDmg` / `f.buffKb` 會直接乘在傷害和擊飛上，`buffDmg` 小於 1 就是削弱（`xuan.js` 的擲筊：聖筊 1.5、陰筊 0.72）。要**削弱對手**的攻擊力則設 `v.sadT`（core 已內建 ×0.7），配上 `v.slowT` 就能做「站進去會被封住運勢」的地面法陣。
 - **需要每一幀更新的狀態或暫時物件**（把人包在泡泡裡、地上出現的道具、持續效果、往前推的聲波）：push 一個 `G.finals` 項目 `{owner, t:0, mesh, update(F,dt){... return 結束?}, dispose(F){...}}`。G.finals 每幀自動更新，進結算畫面會自動清掉，不會殘留；它不會影響其他系統。「定住並慢慢浮起」：在 update 裡每幀設 `v.state='stun'`、`v.vy = 2.6`、`v.vx *= Math.exp(-dt*4)`。
 - **飛行道具落地後要留下東西**（一攤湯、黏液）：proj 沒有落地 hook，用一個 G.finals「看守」項目：每幀 `G.projs.indexOf(p) >= 0` 時記下 `p.x, p.y`；一消失就在最後的位置生成地上物件（`x` 在 `MAIN.x1～MAIN.x2` 之間才生成）。見 `jennie.js` 的 `jenSoup_watch` / `jenSoup_spawn`（持續傷害：每人各自計時 `F.tick[v.slot]`，直接 `v.pct += 2` 並 `v.vy = 12` 燙到跳起來；不要每幀呼叫 `applyHit`，會一直擊飛）。
 - **把人包住／定住的招式一律要能「狂按掙脫」**（使用者明確要求過）：core 會把每次按鍵存成 `v.bAtk/bSp/bJump/bFin` 緩衝，按下那一幀數值會跳高，所以比較上一幀就能數出按了幾下。直接用 `wxinyy.js` 裡的共用函式 `escapeMash(F, v, need)`（F 是任何可以存狀態的物件，回傳 true 代表掙脫）和 `escapeK(F, need)`（0→1 進度，用來把泡泡縮小當進度條）。一般招式 5 下、大招 12 下是測過覺得合理的數字。掙脫時把 `v.state='idle'; v.stunT=0`，爆開但**不要擊飛**（掙脫是獎勵不是懲罰）。
@@ -91,6 +93,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - **一定要看 `c` 的正面近拍**：遊戲鏡頭太遠，640×360 的對戰截圖看不出臉、牙套、頭髮有沒有穿模、衣服上的字糊不糊。近拍是用另一台相機直接 render，不受遊戲鏡頭影響。
 - 結算畫面：`R.t` 大約在 KO 後 2 秒才從 0 開始，所以工具裡的 `w2` 約是 `R.t≈4.5`；要看別的時間點就改等待毫秒數。
 - 對手不要選 tommy（他的勝利動畫有一排士兵會擋住畫面）；工具固定用 waffle 和 kelsey。
+- 戰敗動畫的截圖常常被**對手的勝利動畫**擋住（waffle 會帶一群小朋友站在輸家前面），看不到新角色不是角色壞掉，不用 debug；想看清楚就改用別的對手。
 - 用 evaluate 直接設 `f.state='shield'` 撐不住（下一幀就被改回去），防禦外型不用為此截圖。
 - 只有拼貼圖上看到問題，才針對那一段多截幾張。
 
