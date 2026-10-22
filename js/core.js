@@ -1317,6 +1317,7 @@ function retryParty(){
   if (!joinUI.hidden) joinAsPad(); else { party = null; hostParty(); } }
 // Direct phone<->screen link through PeerJS (used on GitHub Pages / anywhere claude.ai's room isn't available).
 // Exposes the same small interface as the room channel: peers(), presence(), leave().
+const STALE_MS = 10000;   // host: a phone that sent nothing for this long is treated as gone (phones send a heartbeat every 2 s)
 function peerChannel(code, role){
   return new Promise((resolve, reject)=>{
     if (typeof Peer === 'undefined') return reject({code:'no-peerjs', peer:true});
@@ -1328,7 +1329,11 @@ function peerChannel(code, role){
     const ch = { kind:'peer', code,
       peers(){
         const list = [{peer: me.id || 'me', sameTab:true, presence:myPres}];
-        conns.forEach((c,id)=>{ if (c.open) list.push({peer:id, sameTab:false, presence:c.pres || {}}); });
+        conns.forEach((c,id)=>{
+          if (!c.open) return;
+          if (role==='host' && c.pres && c.pres.pad && performance.now() - c.seen > STALE_MS) return;   // phone vanished without saying goodbye
+          list.push({peer:id, sameTab:false, presence:c.pres || {}});
+        });
         return list;
       },
       presence(m){
@@ -1337,7 +1342,10 @@ function peerChannel(code, role){
         conns.forEach(c=>{ if (c.open) try { c.send(myPres); } catch(_){} });
         return Promise.resolve();
       },
-      leave(){ try { me.destroy(); } catch(_){} },
+      leave(){
+        if (role!=='host') conns.forEach(c=>{ try { if (c.open) c.send({bye:1}); } catch(_){} });   // tell the big screen right away instead of waiting for it to notice
+        setTimeout(()=>{ try { me.destroy(); } catch(_){} }, 150);
+      },
       connected(){ return !me.disconnected; },
       // remote play: host sends its screen to one player; players receive it in onStream
       call(id, stream){ try { return me.call(id, stream); } catch(_){ return null; } },
@@ -1345,8 +1353,12 @@ function peerChannel(code, role){
     };
     me.on('call', call=>{ try { call.answer(); } catch(_){ return; } call.on('stream', st=>{ if (ch.onStream) ch.onStream(st); }); });
     const wire = (c)=>{
-      c.pres = {}; conns.set(c.peer, c);
-      c.on('data', d=>{ if (d && typeof d==='object') c.pres = d; });
+      c.pres = {}; c.seen = performance.now(); conns.set(c.peer, c);
+      c.on('data', d=>{
+        if (!d || typeof d!=='object') return;
+        if (d.bye && role==='host'){ conns.delete(c.peer); try { c.close(); } catch(_){} return; }   // phone left on purpose
+        c.pres = d; c.seen = performance.now();
+      });
       c.on('open', ()=>{ try { c.send(myPres); } catch(_){} });
       c.on('close', ()=>conns.delete(c.peer));
       c.on('error', ()=>conns.delete(c.peer));
@@ -1618,6 +1630,10 @@ async function joinAsPad0(){
     rvVid.play().catch(()=>{ rvVid.muted = true; rvVid.play().catch(()=>{}); });
   };
 }
+// phone side: heartbeat so the big screen can tell we're still here; say goodbye if the page is being closed
+setInterval(()=>{ if (party && party.role==='pad' && party.room && party.room.presence){ try { party.room.presence({hb: (party.hb = (party.hb|0) + 1)}).catch(()=>{}); } catch(_){} } }, 2000);
+addEventListener('pagehide', ()=>{ if (party && party.role==='pad'){ try { party.room.leave(); } catch(_){} } });
+addEventListener('pageshow', e=>{ if (e.persisted && party && party.role==='pad') location.reload(); });   // restored from the back/forward cache: the old link is closed
 function leavePad(){
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
   try { rvVid.pause(); rvVid.srcObject = null; } catch(_){}
