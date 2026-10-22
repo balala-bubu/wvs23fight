@@ -10,7 +10,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 使用者可能貼上舊的「單檔 index.html」說明（搜尋 `const wFaceTex`、`function makeModel`、「只給我一個新的 index.html」）。那是舊流程，現在的遊戲是多檔案結構，**照這份 skill 做**：新增角色檔、index.html 加一行、問過再推上 GitHub。回覆時用一句話說明「現在是多檔案，所以沒有單一 index.html 可下載」。
 
 ## 0. 角色暱稱 ↔ 檔名
-使用者用中文名或暱稱叫角色，檔名常常不一樣（例：**Ten = `kelsey.js`**、秉寶 = waffle、偷米 = tommy、提姆熊 = bear、雲嵐 = seafood、睿睿 = serene、心瑩 = wxinyy）。找不到時：`grep -n "name:'" characters/*.js`。
+使用者用中文名或暱稱叫角色，檔名常常不一樣（例：**Ten = `kelsey.js`**、秉寶 = waffle、偷米 = tommy、提姆熊 = bear、雲嵐 = seafood、睿睿 = serene、心瑩 = wxinyy、珍妮 = jennie）。找不到時：`grep -n "name:'" characters/*.js`。
 
 ## 1. 取得程式（永遠從 GitHub 最新版開始）
 - 把 repo `balala-bubu/wvs23fight` 加進這個對話（add_repo，access: push），用 `git clone --depth 1` 抓下來（timeout 給長一點）。
