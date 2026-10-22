@@ -100,3 +100,10 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 只寫「下次會用到」的東西：新的坑放第 5 節、新的做法放第 3／4 節、新的參考角色寫進第 1 節的清單、使用者偏好寫在最相關的那一節。不要寫流水帳，不要重複已經有的條目；舊條目錯了就直接改掉。
 - 可以重複用的腳本放進 `tools/`，skill 裡只寫一行怎麼用。
 - 更新 repo 裡的 `.claude/skills/wvs-add-character/SKILL.md`（跟著角色一起 commit／push），並用 propose_skills 把同樣的完整內容提給使用者帳號裡的 skill（kind: improvement）。
+
+## 省 token 原則
+- 一個角色一個新對話。
+- 參考用的角色檔最多讀一個，而且用 grep 或 sed 只讀需要的那段，不要整份讀。
+- 截圖一律用 `tools/char_shots.py`，不要每次重寫 playwright 腳本。
+- 微調時只改該角色檔案裡的那幾行，不要重讀別的檔案。
+- 回覆保持簡短。
