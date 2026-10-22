@@ -1569,7 +1569,17 @@ function becomeRemote(){
   party.remote = true; party.lastUI = '';
   document.body.classList.add('remote'); rvVid.hidden = false;
 }
+// guard against a double tap / tap + Enter: two joins at once open two connections and the one that loses
+// is never closed, so the host keeps a "ghost" player slot for it
+let joiningPad = false;
 async function joinAsPad(){
+  if (joiningPad || (party && party.role==='pad')) return;
+  joiningPad = true;
+  const jb = document.getElementById('joinBtn'); if (jb) jb.disabled = true;
+  try { await joinAsPad0(); }
+  finally { joiningPad = false; if (jb) jb.disabled = false; }
+}
+async function joinAsPad0(){
   const code = (codeIn.value||'').replace(/\D/g,'');
   if (code.length !== 4){ joinMsg.textContent = '代碼是 4 個數字。'; return; }
   joinMsg.textContent = '連線中…（最多等 10 秒）';
@@ -1586,6 +1596,7 @@ async function joinAsPad(){
     if (err && err.peer){ joinMsg.textContent = (PEER_MSG[err.code] || '連線失敗，請重新整理再試。') + `（${err.code}）`; return; }
     roomWhy = roomWhy || (err && err.code) || 'error'; joinMsg.textContent = await roomDiag(); return;
   }
+  if (party){ try{ room.leave(); }catch(_){} return; }   // already joined some other way: drop this extra link instead of leaving a ghost
   party = { role:'pad', code, room, remote:false, lastSent:'', lastUI:'', lastHud:'', banSeen:null, winSeen:null, since:performance.now() };
   joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
   document.body.classList.add('pad'); document.body.classList.remove('remote'); G.mode = 'pad'; fitPad();
