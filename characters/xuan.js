@@ -210,7 +210,8 @@ function xuAura(f, good){
     return false;
   }});
 }
-/* 擲筊：丟出去 → 0.5 秒後開獎 */
+/* 擲筊：丟出去 → 0.5 秒後開獎。冷卻 9 秒，冷卻中擲只會丟出筊杯、不開獎 */
+const XU_CAST_CD = 9;
 function xuCastBwa(f){
   for (let i=0;i<2;i++){
     const m = xuBwaMesh();
@@ -218,11 +219,13 @@ function xuCastBwa(f){
       dmg:4, kb:5, sc:.3, ang:50, bounce:1, spin:1, soft:1, mesh:m});
   }
   SFX.xuCast();
+  if (f.xuCd > 0){ pop('神明還在忙…(' + Math.ceil(f.xuCd) + 's)', f.x, f.y+8, 'blue'); return; }
+  f.xuCd = XU_CAST_CD;
   G.finals.push({owner:f, t:0, mesh:null, update(F, dt){
     if (F.t < .5) return false;
     const r = Math.random();
-    if (r < .42){ xuSetLuck(f, true); pop('聖筊！大吉・攻擊變強', f.x, f.y+8, 'big'); SFX.xuChime(); burst(f.x, f.y+5, 0xffd34d, 14, 9); }
-    else if (r < .72){ f.meter = Math.min(100, f.meter + 20); pop('笑筊…再問一次', f.x, f.y+8, 'blue'); SFX.xuWood(); }
+    if (r < .26){ xuSetLuck(f, true); pop('聖筊！大吉・攻擊變強', f.x, f.y+8, 'big'); SFX.xuChime(); burst(f.x, f.y+5, 0xffd34d, 14, 9); }
+    else if (r < .62){ f.meter = Math.min(100, f.meter + 20); pop('笑筊…再問一次', f.x, f.y+8, 'blue'); SFX.xuWood(); }
     else { xuSetLuck(f, false); pop('陰筊…凶（但防禦補滿）', f.x, f.y+8, 'red'); SFX.xuDoom(); burst(f.x, f.y+5, 0x6d6ea8, 10, 7); }
     return true;
   }, dispose(){} });
@@ -410,30 +413,36 @@ function xuFinal(f, opp){
       ball.scale.setScalar(k);
       if (F.t > 2.5) F.phase = 2;
     }
-    // 3) 開命盤：大吉（璿獲得加持）或大凶（對手被判出場）
+    // 3) 開命盤：算「對手」的命，運氣越差被轟得越遠
     if (F.phase === 2){
       F.phase = 3;
-      const good = Math.random() < .5;
-      if (good){
-        xuSetLuck(f, true); banner('大吉！'); pop('命盤顯示：大吉！', f.x, f.y+8, 'big'); SFX.xuChime();
-      } else {
-        banner('大凶！'); SFX.xuDoom();
-      }
       SFX.xuShatter(); G.flash = .5; G.shake = Math.max(G.shake, reduce ? .12 : .55);
       burst(cx, 4.2, 0xfff0c0, 22, 14); burst(cx, 4.2, 0xc0a8ff, 18, 12);
       const dir = f.face;
+      let worst = 0;
       for (const u of G.fighters){
         if (u === f || F.hit.has(u) || !u.hittable()) continue;
         if (Math.abs(u.x - cx) < 5 && u.y < 11){
           F.hit.add(u);
           const isTarget = u === v;
-          u.pct += isTarget ? (good ? 16 : 24) : 10;
+          // 每個人各自擲一卦：身上有壞運的更凶，有好運的能擋一下
+          let r = Math.random();
+          if (u.buffT > 0 && (u.buffDmg || 1) < 1) r -= .34;
+          else if (u.buffT > 0) r += .26;
+          if (!isTarget) r += .18;                         // 被濺到的人沒那麼衰
+          const fate = r < .3 ? 2 : r < .66 ? 1 : 0;        // 2 大凶 / 1 中平 / 0 小吉
+          worst = Math.max(worst, fate);
+          u.pct += [10, 17, 26][fate];
           u.state = 'idle'; u.stunT = 0;
-          launch(u, (isTarget && !good ? 26 : 18) + u.pct*.11, 55, Math.sign(u.x - cx) || dir);
-          SFX.hit(40); spark(u.x, u.y+3, 4);
-          pop(isTarget ? (good ? '你的運還不錯啦' : '你這個月…很凶') : '順便算你一卦', u.x, u.y+7.5, isTarget && !good ? 'red' : '');
+          launch(u, [14, 21, 30][fate] + u.pct*.11, 55, Math.sign(u.x - cx) || dir);
+          SFX.hit(fate === 2 ? 55 : 35); spark(u.x, u.y+3, fate === 2 ? 6 : 4);
+          pop(['小吉，算你好運', '中平…有點痛', '大凶！今年犯太歲'][fate], u.x, u.y+7.5, ['blue', '', 'red'][fate]);
+          if (fate === 2) burst(u.x, u.y+3.2, 0x6d6ea8, 14, 11);
         }
       }
+      if (worst === 2){ banner('大凶！'); SFX.xuDoom(); xuSetLuck(f, true); pop('你的凶…是我的吉', f.x, f.y+8, 'big'); }
+      else if (worst === 1) banner('中平。');
+      else { banner('小吉…算你好運'); pop('怎麼會這麼準…不對', f.x, f.y+8, 'blue'); }
       return true;
     }
     return F.t > 4.2;
@@ -518,7 +527,7 @@ registerChar('xuan', {
     uair:{t:[.1,.12,.2], pose:['air','block'], box:[0.3,6.4,1.6], dmg:8, kb:8, sc:.8, ang:85, air:1},
     dair:{t:[.18,.1,.26], pose:['spikeWind','spikeHit'], box:[0.6,0.4,1.8], dmg:12, kb:7, sc:.8, ang:-65, air:1, prop:'orb'},
     // 中必殺：擲筊占卜（自己的運勢）
-    nB:{t:[.22,.08,.4], pose:['throwWind','throwHit'], prop0:'bwa', fire:[[.24,'xuBwaFire']], air:1, text:'擲筊！'},
+    nB:{t:[.26,.08,.62], pose:['throwWind','throwHit'], prop0:'bwa', fire:[[.24,'xuBwaFire']], air:1, text:'擲筊！'},
     // 側必殺：水晶球滾出去
     sB:{t:[.2,.08,.36], pose:['serveWind','serveHit'], prop0:'orb', fire:[[.2,'xuOrbRoll']], air:1, text:'滾吧水晶球～'},
     // 上必殺：踩符咒升天（自救）
@@ -569,6 +578,7 @@ registerChar('xuan', {
   shieldPose: 'ponder', shieldProp: 'talis', breakText: '法陣碎了！', brokePose: 'dizzy',
   finalPose: 'ponder', finalProp: 'orb',
   animate(f, m, s, t, dt){
+    if (f.xuCd > 0) f.xuCd -= dt;                               // 擲筊冷卻
     // 水晶球核心隨運勢變色；運勢中的表情
     const core = m.orb && m.orb.userData.core;
     if (core){
@@ -579,7 +589,7 @@ registerChar('xuan', {
     if (f.buffT > 0 && (s === 'idle' || s === 'run')) m.setFace(f.xuLuck === 1 ? 'lucky' : 'doom');
     else if (s === 'idle' || s === 'run') m.setFace('normal');
   },
-  onSpawn(f){ f.xuLuck = 0; },
+  onSpawn(f){ f.xuLuck = 0; f.xuCd = 0; },
   introPose: 'ponder', readyPose: (t)=> Math.sin(t*10) > 0 ? POSE.peace : POSE.ponder, selectSfx: ()=>SFX.xuChime(),
   winSub: '"Let me read your fortune."',
   final: xuFinal, winSetup: xuWinSetup, winUpdate: xuWinUpdate, loseSetup: xuLoseSetup, loseUpdate: xuLoseUpdate,
