@@ -16,7 +16,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 把 repo `balala-bubu/wvs23fight` 加進這個對話（add_repo，access: push），用 `git clone --depth 1` 抓下來（timeout 給長一點）。
 - 如果本機已經有 clone：先 `git fetch origin main`，再 `git checkout -b <代號> origin/main`。使用者常常同時開好幾個對話在加角色，舊的本機版本可能已經落後。
 - 只讀這兩個檔：`CLAUDE.md`（結構、共用函式、姿勢和音效清單）和範本 `characters/_template.js`（新增地圖時改讀 `maps/_template.js`）。
-- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**；**黑髮根漸層（布丁頭）、短褲＋短襪、天降大招物件看 `characters/pudding.js`**；**把人包住＋狂按掙脫看 `characters/wxinyy.js`** 的 `escapeMash`；**運氣／暫時強化弱化、地上的封印區、開襟外套露出內搭看 `characters/xuan.js`**）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
+- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**；**黑髮根漸層（布丁頭）、短褲＋短襪、天降大招物件看 `characters/pudding.js`**；**把人包住＋狂按掙脫看 `characters/wxinyy.js`** 的 `escapeMash`；**運氣／暫時強化弱化、地上的封印區、開襟外套露出內搭看 `characters/xuan.js`**；**召喚別的角色當投射物、整套換裝（T恤↔Polo）、全畫面濾鏡、結算畫面讓全部角色出場看 `characters/ichung.js`**）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
 
 ## 2. 角色資料
 使用者會給：代號（只能小寫英文字母；如果有大寫或空格，改成小寫連在一起並告訴使用者）、中文名／英文名、外型（或照片）、個性特色、體型速度跳躍、招式、大招、防禦樣子、勝敗動畫。沒寫的部分照特色自己設計，不要回頭問。使用者希望招式有角色自己的特色，不要只是把別人的招換皮：至少一兩招要有新機制（例如：把人包進泡泡浮起來再破掉、召喚小幫手跑過去撞人、放一支麥克風架讓附近的人被迫跟著跳、丟火鍋落地留一攤會燙人的湯）。
@@ -38,6 +38,10 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 寬褲：`c.joints.rHp.children[0]`（大腿）和 `c.joints.rKn.children[0]`（小腿）`scale.set(1.2~1.4, 1, 1.2~1.3)`；靴子在 `kn` 上 y≈-1.36 加一段 cyl。
 - 想換色或換衣服的造型：在 build 裡把會換的材質／mesh 存成 `c.xxx`（collar 裡建立的東西可以掛在 `chest.userData` 再取出），skin 的 `apply(c)` 改 `.material`、`.map` 或 `.color` 再 `needsUpdate = true`。**整套換裝**（上衣、袖子、褲子、配件全換）的做法：build 時兩套配件都建好，分別放進 `teeBits` / `hoodBits` 陣列，寫一個 `c.setOutfit(o)` 切換 `visible`、軀幹 `c.torso.material`（= `c.chest.children[0]`）和手腳材質，build 結尾先 `c.setOutfit('預設')`，skin 只呼叫 `c.setOutfit('另一套')`（見 `jennie.js`）。注意：非原版造型在小頭像上都會被核心加一頂生日帽。
 - 路人（店員、小朋友等）用 `buildChar(...)` 做：`holder`（場景用）裡放 `body`（`scale.setScalar(SC*比例)`），回傳 `c` 並設 `c.holder`。小孩就用 SC*0.6、大頭（headW 1.3）。
+- **真人角色可能已經在地圖裡建過模**：`maps/mecls.js` 有憶中老師、`maps/*.js` 裡也有其他路人。新增這種角色前先 `grep -n "<中文名>" maps/*.js`，直接把那段 `buildChar({...})` 搬進角色檔再加衣服和道具，省掉一輪外型來回。
+- **召喚別的角色當投射物**（老師叫學生出來打人、召喚小幫手）：`CHARS[kind].build(body)` 是全域的，做一個 `holder`＋縮小的 `body`（`body.scale.setScalar(SC*0.72)`、`body.position.y = -r`），build 完把 `c.props` 全部 `visible=false`，`holder.rotation.y = face>0 ? Math.PI/2 : -Math.PI/2`，再丟進 `proj({mesh:holder})`，並把 `holder.kid` 存到 `p.kid`，在 `animate` 裡 `applyPose(p.kid, runPose(p.t*16), 1)` 讓他跑步。整份 `CHAR_ORDER.filter(k=>k!==自己)` 隨機抽一個就有「隨機學生」。記得 `CHARS[k].build` 要包 try/catch。
+- **全畫面濾鏡（國旗色、黑白、夜視）**：做一片 `PlaneGeometry(46,17)` 的 `MeshBasicMaterial({transparent:true, depthTest:false, depthWrite:false, fog:false})`，`renderOrder=998`、`frustumCulled=false`，`camera.add(plane)`＋`plane.position.z = -11`，這樣鏡頭怎麼移都蓋滿畫面；`dispose` 時 `camera.remove()`。opacity 0.45 左右才看得出顏色，0.3 以下在遊戲裡幾乎看不到。
+- **結算畫面讓全部角色出場**：`CHAR_ORDER` 逐一 build 成 `SC*0.46` 的小人排兩排（每排 9 個、間距 1.9，z 分別 -4.2 / -7.4），一開始 `visible=false`、`scale .001`，時間到再依序彈出來。17 隻一起建大約一瞬間，結算畫面跑得動。
 - `buildChar` 內部結構速查（不用再讀 core）：`c.chest.children[0]` = 軀幹（collar 加的東西排在後面）；手臂 `sh.children[0]` = 袖子、`sh.children[1]` = 裸上臂、`el.children[0]` = 前臂；腿 `hp.children[0]` = 大腿、`kn.children[0]` = 小腿、`kn.children[1]` = 鞋；`c.joints.rHp/rKn/lHp/lKn` 可以直接拿，不用自己在 children 裡找。
 - **開襟外套（cardigan）露出裡面的內搭**：32 寬的正面貼圖上，兩側門襟各只留 3～7px，內搭的 V 開口畫到 20px 寬以上。門襟畫太寬（各 11px）在遊戲裡整件就只是一塊米白，看不出有內搭。
 - **掛在胸前的東西 z 要 ≥ 0.49**（軀幹深 0.92，半深 0.46），不然掛繩、項鍊會埋進身體裡只露出一個點。
@@ -61,6 +65,9 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 結算畫面要借別的角色出場（例如推偷米的輪椅）：其他角色檔的 build 函式和道具是全域的，可以直接用（`buildTommy(body)`、`buildWheelchair()`），但要先 `typeof buildTommy === 'function'` 防呆，並把借來模型的 `props` 全部 `visible=false`、用 `setFace` 換表情、`applyPose(tm, POSE.sit, 1)`。輪椅這種「世界尺寸」的物件加在 holder（不縮放），角色放在 holder 裡 `scale.setScalar(SC)` 的 body。
 
 ## 5. 常見錯誤（這幾個踩過，寫之前先避開）
+- **左手是 `c.Lf`，不是 `c.L`**：`buildChar` 回傳的是 `{root, hips, chest, head, R, Lf, extra, joints}`。寫 `c.L.sh` 會在 `makeModel` 直接丟 `Cannot read properties of undefined`，整個遊戲開不起來。保險作法是用 `c.joints.lSh / lEl / lHd / rHp / rKn...`。
+- **`g.add(at(mesh,...)).rotation.x = ...` 會轉到整個 group**：`Group.add()` 回傳的是 group 本身不是那個 mesh。要轉單一片就先存成變數再 `.rotation.x = ...`，不然整盤咖哩會躺著。
+- **`tone()` 只有 6 個參數**（freq,dur,type,vol,slide,when）：多傳一個 0 會把 `when` 擠掉，延遲音完全不會響。
 - **全域撞名會讓整個遊戲打不開**，不是只有新角色壞掉：所有角色檔共用同一個全域範圍，重複的頂層 `const` 一拋錯，後面每一個角色檔都不會載入。所有頂層 const／function 都加角色前綴，而且前綴要**先確認沒人用過**：
   `grep -ln "\bkt[A-Z]\|\bKT_" characters/*.js js/core.js maps/*.js`（把 kt／KT 換成你的前綴，沒有輸出才能用）。
 - **自訂音效、姿勢的名稱也要加前綴**：`sfx:{}` 和 `poses:{}` 會合併進全域的 `SFX` / `POSE`，取名 `chomp`、`splash`、`eat` 會蓋掉別的角色的同名音效／姿勢。用 `jenChomp`、`jenEat` 這種名字。
