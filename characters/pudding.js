@@ -159,9 +159,15 @@ function pdWrap_start(att, v){
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.15,2.15,0.4,20), new THREE.MeshLambertMaterial({color:0x9d5a1c, transparent:true, opacity:.75, depthWrite:false}));
   cap.position.y = 2.6; g.add(cap);
   scene.add(g);
-  pop('布丁包起來！', v.x, v.y+8, 'big'); SFX.pdWobble();
-  G.finals.push({pdWrap:1, owner:att, victim:v, t:0, mesh:g, dur:1.5, update(F, dt){
+  pop('布丁包起來！快按鈕掙脫！', v.x, v.y+8, 'big'); SFX.pdWobble();
+  G.finals.push({pdWrap:1, owner:att, victim:v, t:0, mesh:g, dur:1.5, need:5, update(F, dt){
     const w = F.victim;
+    if (w.state!=='dead' && escapeMash(F, w, F.need)){       // 狂按 5 下就自己撞破布丁
+      w.state = 'idle'; w.stunT = 0;
+      burst(w.x, w.y+3, 0xf6d98c, 16, 11); burst(w.x, w.y+3, 0x9d5a1c, 6, 7); SFX.pdPlop();
+      pop('掙脫！', w.x, w.y+7.5, 'big');
+      return true;
+    }
     if (w.state==='dead' || F.t >= F.dur){
       if (w.hittable()){
         w.pct += 6; launch(w, 13 + w.pct*.08, 58, Math.sign(w.x - (F.owner ? F.owner.x : w.x - 1)) || 1);
@@ -172,7 +178,7 @@ function pdWrap_start(att, v){
     }
     w.state = 'stun'; w.stunT = Math.max(w.stunT || 0, .12); w.move = null;
     w.vy = 2.4; w.vx *= Math.exp(-dt*5); w.onGround = false;
-    const j = 1 + Math.sin(F.t*18)*.1;
+    const j = (1 + Math.sin(F.t*18)*.1)*(1 - escapeK(F, F.need)*.3);
     g.position.set(w.x, w.y + 2.7, 0); g.scale.set(j, 2 - j, j);
     mat.opacity = .62*Math.min(1, (F.dur - F.t)/.3);
     return false;

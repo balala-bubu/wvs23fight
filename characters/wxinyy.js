@@ -188,18 +188,34 @@ function buildWxinyy(parent){
   return c;
 }
 
+/* 被包住時狂按任何按鈕就能提早掙脫。core 把每次按鍵存成 bAtk/bSp/bJump/bFin 緩衝（按下那一幀會跳高），
+   所以只要比較上一幀的數值就能數出按了幾下。F 可以是任何物件（G.finals 項目，或大招裡的一個泡泡）。 */
+function escapeMash(F, v, need){
+  const b = [v.bAtk, v.bSp, v.bJump, v.bFin];
+  if (!F.mashP){ F.mashP = b.slice(); F.mashN = 0; }
+  for (let i=0;i<4;i++) if (b[i] > F.mashP[i] + 1e-4) F.mashN++;
+  F.mashP = b;
+  return F.mashN >= need;
+}
+function escapeK(F, need){ return Math.min(1, (F.mashN || 0)/need); }    // 0→1，用來把泡泡縮小當進度條
+
 // ---------- bubble trap (a "final" entry so it is cleaned up with the match) ----------
 function xyTrap(att, v, sec, size){
   if (v.xyTrapped) return;
   v.xyTrapped = true; v.state = 'stun'; v.stunT = sec; v.move = null; v.vx *= .3; v.vy = 2;
   const mesh = xyBubble3D(size || 3.4); scene.add(mesh);
-  pop('被泡泡包住了！', v.x, v.y+8, 'blue');
-  G.finals.push({owner:att, v, t:0, mesh, update(F, dt){
+  pop('被泡泡包住了！快按鈕掙脫！', v.x, v.y+8, 'blue');
+  G.finals.push({owner:att, v, t:0, mesh, need:5, update(F, dt){
     const V = F.v;
+    if (escapeMash(F, V, F.need) && V.state!=='dead'){
+      V.xyTrapped = false; V.state = 'idle'; V.stunT = 0;
+      burst(V.x, V.y+3.2, 0xcfeeff, 14, 11); SFX.xyPop(); pop('掙脫！', V.x, V.y+7.5, 'big');
+      return true;
+    }
     if (V.state==='stun' && V.stunT > 0 && V.state!=='dead'){
       V.vy = 2.6; V.vx *= Math.exp(-dt*4);
       F.mesh.position.set(V.x, V.y + 3.2 + Math.sin(F.t*4)*.15, .3);
-      const w = 1 + Math.sin(F.t*7)*.05; F.mesh.scale.set(w, 2 - w, w);
+      const w = (1 + Math.sin(F.t*7)*.05)*(1 - escapeK(F, F.need)*.3); F.mesh.scale.set(w, 2 - w, w);
       return false;
     }
     V.xyTrapped = false;
@@ -228,12 +244,21 @@ function xyFinal(f, opp){
         if (v===f || !v.hittable() || F.caught.some(c=>c.v===v)) continue;
         if (Math.abs(v.x - b.x) < b.r + 1 && v.y + 3 > b.y - b.r && v.y < b.y + b.r){
           F.caught.push({v, b}); v.state = 'stun'; v.stunT = 9; v.move = null; v.vx = 0; v.pct += 4;
-          b.vy = 0; SFX.xyPop(); pop('抓到了！', v.x, v.y+8, 'blue');
+          b.vy = 0; SFX.xyPop(); pop('抓到了！狂按才掙脫得開！', v.x, v.y+8, 'blue');
         }
       }
     }
-    for (const c of F.caught){
-      if (F.t < 3.2){ c.v.vy = 3; c.v.vx *= .8; c.b.x = c.v.x; c.b.y = c.v.y + 3.2; c.b.m.position.set(c.b.x, c.b.y, .3); }
+    // 大招的泡泡比較硬：要按 12 下才掙脫得開（下必殺只要 5 下）
+    for (let i = F.caught.length - 1; i >= 0; i--){
+      const c = F.caught[i];
+      if (F.t >= 3.2) continue;
+      if (c.v.state!=='dead' && escapeMash(c, c.v, 12)){
+        c.b.m.visible = false; c.v.state = 'idle'; c.v.stunT = 0;
+        burst(c.v.x, c.v.y+3.2, 0xcfeeff, 16, 12); SFX.xyPop(); pop('掙脫！', c.v.x, c.v.y+7.5, 'big');
+        F.caught.splice(i, 1); continue;
+      }
+      c.v.vy = 3; c.v.vx *= .8; c.b.x = c.v.x; c.b.y = c.v.y + 3.2; c.b.m.position.set(c.b.x, c.b.y, .3);
+      const w = 1 - escapeK(c, 12)*.35; c.b.m.scale.set(w, 2 - w, w);
     }
     if (F.t >= 3.2 && !F.popped){
       F.popped = true; SFX.boom(); G.shake = reduce ? .2 : 1; G.flash = .3;
