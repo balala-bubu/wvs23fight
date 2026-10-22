@@ -139,6 +139,54 @@ async def main():
         check('6b. cancel while connecting leaves no ghost', t is None, 'slots appeared after %ss' % t if t is not None else '')
         await pad.close()
 
+        # 7. phone taps 再來一局, then the screen goes back to character select: the phone must be free to pick again
+        TRACK = "window.__pcs=[];(function(){var O=RTCPeerConnection;window.RTCPeerConnection=function(a,b){var p=new O(a,b);window.__pcs.push(p);return p;};window.RTCPeerConnection.prototype=O.prototype;})();"
+        pad = await ctx.new_page(); watch(pad, 'phone5'); await pad.add_init_script(TRACK)
+        await pad.goto(qr)
+        await wait_slots(host, 1, 10); await host.wait_for_timeout(800)
+        slot = await host.evaluate("party.slots.findIndex(Boolean)")
+        await host.evaluate("()=>{ startGame(); G.winner=G.fighters[0]; showOver(); }")
+        await pad.wait_for_timeout(1500)
+        await pad.evaluate("document.getElementById('padStart').click()")
+        await host.wait_for_timeout(400)
+        await host.evaluate("enterSelect()")
+        await host.wait_for_timeout(2500)
+        st = await host.evaluate("(s)=>({mode:G.mode, ready:SEL.ready[s]})", slot)
+        lock = await pad.evaluate("document.getElementById('padSelBox').classList.contains('lock')")
+        check('7a. after 再來一局 + back to select, phone is not stuck as ready', st['mode'] == 'select' and not st['ready'] and not lock, dict(st, lock=lock))
+        want = await host.evaluate("(s)=>CHAR_ORDER.find(k=>k!==sel.p[s])", slot)
+        await pad.evaluate("(k)=>document.querySelector('[data-pick=\"'+k+'\"]').click()", want)
+        await host.wait_for_timeout(1500)
+        got = await host.evaluate("(s)=>sel.p[s]", slot)
+        check('7b. phone can change its character there', got == want, '%s -> %s' % (want, got))
+
+        # 8. phone P1 picks a computer player's costume (tapping the costume before 決定 too)
+        await pad.evaluate("document.getElementById('padGo').click()")   # 準備好了
+        await host.wait_for_timeout(1200)
+        cpu = await host.evaluate("activeSlot()")
+        k = await host.evaluate("CHAR_ORDER.find(k=>skinCount(k)>1 && k!==sel.p[%d])" % max(cpu, 0))
+        if cpu >= 1 and k:
+            await pad.evaluate("(k)=>document.querySelector('[data-pick=\"'+k+'\"]').click()", k); await pad.wait_for_timeout(500)
+            await pad.evaluate("document.getElementById('padSkins').children[1].click()"); await pad.wait_for_timeout(500)
+            await pad.evaluate("document.getElementById('padGo').click()"); await host.wait_for_timeout(1200)   # 決定電腦 -> costume step
+            await pad.evaluate("document.getElementById('padGo').click()"); await host.wait_for_timeout(1200)   # 決定造型
+            r = await host.evaluate("(c)=>({p:sel.p[c], skin:sel.skin[c], ready:SEL.ready[c], mode:G.mode})", cpu)
+            check('8. phone picks the computer player\'s costume', r['p'] == k and r['skin'] == 1 and (r['ready'] or r['mode'] == 'mapsel'), r)
+        else:
+            check('8. phone picks the computer player\'s costume', False, 'no CPU turn (act=%s) or no character with costumes' % cpu)
+
+        # 9. the phone's link drops (screen sleep / Wi-Fi hiccup): it reconnects by itself, no code needed
+        await pad.evaluate("window.__pcs.forEach(p=>{try{p.close()}catch(e){}})")
+        await pad.wait_for_timeout(300)
+        down = await pad.evaluate("!party.room.linked()")
+        t0, ok, who = time.time(), False, ''
+        while time.time() - t0 < 15:
+            await pad.wait_for_timeout(500)
+            who = await pad.evaluate("document.getElementById('padSlot').textContent")
+            if await pad.evaluate("party.room.linked()") and who.startswith('P') and (await host.evaluate(SLOTS))['n'] == 1: ok = True; break
+        check('9. dropped phone link reconnects by itself', down and ok, 'link went down=%s, back after %.1fs, phone shows %s' % (down, time.time() - t0, who))
+        await pad.close()
+
         check('no page errors', not errs, errs[:3] if errs else '')
         await b.close()
 

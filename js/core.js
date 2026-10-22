@@ -1324,8 +1324,31 @@ function peerChannel(code, role){
     const hostId = 'shizhi-brawl-' + code;
     let me;
     try { me = role==='host' ? new Peer(hostId, {debug:0}) : new Peer({debug:0}); } catch(e){ return reject({code:'no-peerjs', peer:true}); }
-    let myPres = {code}, done = false;
+    let myPres = {code}, done = false, left = false, rejoinT = null;
     const conns = new Map();
+    const BACKLOG = 128 * 1024;   // a slow phone link: don't pile up old states, send the newest one once it drains
+    const sendTo = (c)=>{
+      if (!c.open) return;
+      const dc = c.dataChannel;
+      if (dc && dc.bufferedAmount > BACKLOG){ c.pend = true; return; }
+      c.pend = false; try { c.send(myPres); } catch(_){}
+    };
+    const flushT = setInterval(()=>{ if (me.destroyed){ clearInterval(flushT); return; } conns.forEach(c=>{ if (c.pend) sendTo(c); }); }, 250);
+    const linked = ()=>{ for (const c of conns.values()) if (c.open) return true; return false; };
+    // phone: the link to the big screen dropped (screen locked, Wi-Fi hiccup, app switch) -> quietly dial again with the same id,
+    // so the host gives back a slot and the player never has to re-enter the code
+    const rejoin = (delay = 1000)=>{
+      if (role==='host' || left || !done || me.destroyed || rejoinT) return;
+      rejoinT = setTimeout(()=>{
+        rejoinT = null;
+        if (left || me.destroyed || linked()) return;
+        if (me.disconnected){ try { me.reconnect(); } catch(_){} rejoin(1500); return; }
+        let c; try { c = me.connect(hostId, {reliable:true}); } catch(_){ rejoin(2000); return; }
+        if (!c){ rejoin(2000); return; }
+        wire(c);
+        setTimeout(()=>{ if (!c.open && !left){ try { c.close(); } catch(_){} if (conns.get(c.peer)===c) conns.delete(c.peer); rejoin(1000); } }, 8000);
+      }, delay);
+    };
     const ch = { kind:'peer', code,
       peers(){
         const list = [{peer: me.id || 'me', sameTab:true, presence:myPres}];
@@ -1339,29 +1362,36 @@ function peerChannel(code, role){
       presence(m){
         myPres = Object.assign({}, myPres, m, {code});
         for (const k in myPres) if (myPres[k]===null) delete myPres[k];
-        conns.forEach(c=>{ if (c.open) try { c.send(myPres); } catch(_){} });
+        conns.forEach(sendTo);
         return Promise.resolve();
       },
       leave(){
+        left = true; if (rejoinT){ clearTimeout(rejoinT); rejoinT = null; }
         if (role!=='host') conns.forEach(c=>{ try { if (c.open) c.send({bye:1}); } catch(_){} });   // tell the big screen right away instead of waiting for it to notice
-        setTimeout(()=>{ try { me.destroy(); } catch(_){} }, 150);
+        setTimeout(()=>{ try { me.destroy(); } catch(_){} clearInterval(flushT); }, 150);
       },
       connected(){ return !me.disconnected; },
+      linked,
+      kick(){ if (!linked()) rejoin(0); },   // phone came back to the foreground: reconnect now, not later
       // remote play: host sends its screen to one player; players receive it in onStream
       call(id, stream){ try { return me.call(id, stream); } catch(_){ return null; } },
       onStream:null,
     };
     me.on('call', call=>{ try { call.answer(); } catch(_){ return; } call.on('stream', st=>{ if (ch.onStream) ch.onStream(st); }); });
     const wire = (c)=>{
+      const old = conns.get(c.peer);
+      if (old && old !== c){ old.replaced = true; try { old.close(); } catch(_){} }   // same phone dialled again: the new link wins
       c.pres = {}; c.seen = performance.now(); conns.set(c.peer, c);
       c.on('data', d=>{
         if (!d || typeof d!=='object') return;
-        if (d.bye && role==='host'){ conns.delete(c.peer); try { c.close(); } catch(_){} return; }   // phone left on purpose
+        if (d.bye && role==='host'){ if (conns.get(c.peer)===c) conns.delete(c.peer); try { c.close(); } catch(_){} return; }   // phone left on purpose
         c.pres = d; c.seen = performance.now();
       });
-      c.on('open', ()=>{ try { c.send(myPres); } catch(_){} });
-      c.on('close', ()=>conns.delete(c.peer));
-      c.on('error', ()=>conns.delete(c.peer));
+      c.on('open', ()=>{ c.seen = performance.now(); sendTo(c); });
+      // only forget the link that actually closed (an old one closing must not drop its replacement)
+      const gone = ()=>{ if (conns.get(c.peer)===c) conns.delete(c.peer); if (!c.replaced) rejoin(); };
+      c.on('close', gone);
+      c.on('error', gone);
     };
     const fail = (codeStr)=>{ if (!done){ done = true; try { me.destroy(); } catch(_){} reject({code:codeStr, peer:true}); } };
     me.on('open', ()=>{
@@ -1373,7 +1403,9 @@ function peerChannel(code, role){
     if (role==='host') me.on('connection', wire);
     me.on('error', e=>fail((e && e.type) || 'error'));
     // keep the signalling link alive if it drops
-    me.on('disconnected', ()=>{ try { if (!me.destroyed) me.reconnect(); } catch(_){} });
+    // (phones lose it whenever the screen sleeps; keep trying every few seconds instead of only once)
+    const resig = ()=>{ if (left || me.destroyed || !me.disconnected) return; try { me.reconnect(); } catch(_){} setTimeout(resig, 3000); };
+    me.on('disconnected', ()=>setTimeout(resig, 300));
   });
 }
 const PEER_MSG = {
@@ -1558,8 +1590,13 @@ function partyHostTick(){
     msg.ban = [banN, banLast];
     msg.win = G.mode==='result' && G.winner ? G.winner.D.name : null;
   }
-  const s = JSON.stringify(msg);
-  if (s !== party.lastSent){ party.lastSent = s; party.room.presence(msg).catch(()=>{}); }
+  // Menu / state changes go out at once; fast-changing numbers (meter, %, hit counters) at most ~15 times a second.
+  // Sending every frame filled slow phone links with a queue of old states, which is what made phones lag.
+  const s = JSON.stringify(msg), now = performance.now();
+  const key = JSON.stringify([msg.st, msg.slots, msg.kinds, msg.rst, msg.act, msg.ast, msg.mcur, msg.stocks, msg.win]);
+  if (s !== party.lastSent && (key !== party.lastKey || now - (party.sentAt||0) >= 66)){
+    party.lastSent = s; party.lastKey = key; party.sentAt = now; party.room.presence(msg).catch(()=>{});
+  }
 }
 function readPad(slot){
   const id = party && party.slots[slot];
@@ -1633,6 +1670,7 @@ async function joinAsPad0(){
 // phone side: heartbeat so the big screen can tell we're still here; say goodbye if the page is being closed
 setInterval(()=>{ if (party && party.role==='pad' && party.room && party.room.presence){ try { party.room.presence({hb: (party.hb = (party.hb|0) + 1)}).catch(()=>{}); } catch(_){} } }, 2000);
 addEventListener('pagehide', ()=>{ if (party && party.role==='pad'){ try { party.room.leave(); } catch(_){} } });
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && party && party.role==='pad' && party.room && party.room.kick) try { party.room.kick(); } catch(_){} });
 addEventListener('pageshow', e=>{ if (e.persisted && party && party.role==='pad') location.reload(); });   // restored from the back/forward cache: the old link is closed
 function leavePad(){
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
@@ -1663,6 +1701,7 @@ function padTick(){
   const peers = party.room.peers();
   const me = peers.find(p=>p.sameTab), host = peers.find(p=>!p.sameTab && p.presence && p.presence.host);
   let who = '連線中…', state = '等待大螢幕開房', slot = -1, hp = host && host.presence;
+  if (!host && party.room.linked && !party.room.linked()){ who = '重新連線中…'; state = '連線斷了一下，正在自動接回，不用重新輸入房號'; }
   if (hp && hp.remote) becomeRemote();
   if (hp && (hp.rst|0) !== padRst){ padRst = hp.rst|0; padReady = false; party.lastUI = ''; }   // host went back to character select: un-ready
   if (hp){
@@ -1910,7 +1949,9 @@ const syncVibBtn = ()=>{ padVibBtn.textContent = '震動：' + (vibOn ? '開' : 
 padVibBtn.onclick = ()=>{ vibOn = !vibOn; try{ localStorage.setItem('wvs.vib', vibOn ? '1' : '0'); }catch(_){} syncVibBtn(); buzz(40); };
 syncVibBtn();
 document.getElementById('padGo').onclick = ()=>{ if (padCpuMode){ padC.cgo++; buzz(15); return; } padC.st++; padReady = !padReady; if (party) party.lastUI = ''; buzz(15); };
-document.getElementById('padStart').onclick = ()=>{ padC.st++; padReady = !padReady; if (party) party.lastUI = ''; buzz(15); };
+// 再來一局 is a one-shot request (the st counter), not a "ready" toggle: leaving padReady on here made the phone
+// arrive locked + auto-confirmed when the screen went back to character select instead
+document.getElementById('padStart').onclick = ()=>{ padC.st++; padReady = false; if (party) party.lastUI = ''; buzz(15); };
 function syncMenu(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.mode===sel.mode)));
   document.querySelectorAll('[data-map]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.map===sel.map)));
@@ -1976,6 +2017,7 @@ function activeSlot(){
 }
 function enterSelect(){
   audioOn(); clearArena(); mapSelEl.hidden = true; if (party) party.cpuSeen = null;
+  if (party && party.role==='host') party.rst = (party.rst|0) + 1;   // every way back here (results, pause, map select) un-readies the phones
   G.mode = 'select'; G.paused = false; pauseEl.hidden = true;
   menuEl.hidden = true; selEl.hidden = false; overEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   SEL.ready = [false,false,false,false]; SEL.stage = [0,0,0,0]; SEL.countdown = 0; SEL.okT = [9,9,9,9]; SEL.key = '';
@@ -2088,8 +2130,10 @@ function phoneDirectsCpu(){
   const pr = pad0(), sd = party.cpuSeen || (party.cpuSeen = {pick:undefined, skin:undefined, go:undefined});
   if (sd.go === undefined){ sd.pick = pr.cpick; sd.skin = +pr.cskin||0; sd.go = +pr.cgo||0; return; }
   if (SEL.stage[a]){
-    const ws = +pr.cskin||0;
-    if (ws !== sd.skin){ sd.skin = ws; if (ws < skinCount(sel.p[a]) && ws !== (sel.skin[a]||0)) moveSel(a, ws - (sel.skin[a]||0)); }
+    // match what the phone shows, not "what changed since last frame": a costume tapped before the costume step,
+    // or the same costume number as the previous computer player, used to be ignored
+    const ws = +pr.cskin||0; sd.skin = ws;
+    if (pr.cpick === sel.p[a] && ws < skinCount(sel.p[a]) && ws !== (sel.skin[a]||0)) moveSel(a, ws - (sel.skin[a]||0));
   } else if (pr.cpick !== sd.pick){
     sd.pick = pr.cpick; const want = ROSTER.indexOf(pr.cpick);
     if (want >= 0 && want !== SEL.cur[a]) moveSel(a, want - SEL.cur[a]);
@@ -2281,8 +2325,7 @@ function confirmMap(){
 function backFromMapSel(){
   if (MSEL.go > 0) return;
   mapSelEl.hidden = true;
-  if (party && party.role==='host') party.rst = (party.rst|0) + 1;   // phones un-ready themselves
-  enterSelect();
+  enterSelect();   // (enterSelect bumps party.rst so the phones un-ready themselves)
 }
 function mapKey(code){
   const L = ['KeyA','ArrowLeft'], R = ['KeyD','ArrowRight'], OK = ['KeyJ','Enter','NumpadEnter','Space','Comma','KeyF'], NO = ['KeyK','Escape','Period','KeyG'];
