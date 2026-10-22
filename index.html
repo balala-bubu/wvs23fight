@@ -226,6 +226,7 @@ body.remote .pTop .padWho span{color:#fff}
 .title{text-align:center;pointer-events:none}
 .title h1{margin:0;display:flex;justify-content:center;align-items:baseline;gap:.18em;font-family:var(--ui);font-weight:900;font-size:clamp(34px,7vw,56px);letter-spacing:.06em;color:#fff;transform:skewX(-8deg);text-shadow:3px 3px 0 var(--p1),6px 6px 0 #000;text-wrap:balance;transition:font-size .25s}
 .title h1 span:last-child{color:var(--gold);text-shadow:3px 3px 0 #b8501f,6px 6px 0 #000}
+.title h1 img{display:block;width:auto;max-width:92vw;height:clamp(60px,12vh,110px);object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.55));transition:height .25s}
 .title p{margin:6px 0 0;font-family:var(--pixel);font-size:22px;color:var(--gold);letter-spacing:.5em;text-indent:.5em;text-shadow:2px 2px 0 #000}
 /* home screen: big logo over a random stage; the title shrinks away on the inner screens */
 #menu.home{justify-content:center;gap:clamp(12px,4vh,40px)}
@@ -234,8 +235,10 @@ body.remote .pTop .padWho span{color:#fff}
    and the two characters get the middle of the screen to themselves */
 @media (orientation:portrait){ #menu.home{justify-content:space-between} #menu.home .scr{width:min(540px,100%)} }
 #menu.home .title h1{font-size:clamp(40px,9vw,96px)}
+#menu.home .title h1 img{height:clamp(110px,32vh,320px)}
 #menu.home .title p{font-size:clamp(20px,3.4vw,34px)}
 #menu:not(.home) .title h1{font-size:clamp(18px,3.2vw,26px);text-shadow:2px 2px 0 var(--p1),4px 4px 0 #000}
+#menu:not(.home) .title h1 img{height:clamp(44px,9vh,72px)}
 #menu:not(.home) .title p{display:none}
 .joinLink{font-size:14px;color:var(--dim);border-style:dashed}
 .joinLink b{color:var(--gold);margin-left:4px}
@@ -262,6 +265,7 @@ body.remote .pTop .padWho span{color:#fff}
   #menu{gap:6px;overflow:hidden}
   #menu.home{gap:10px}
   #menu.home .title h1{font-size:clamp(30px,7vw,48px)}
+  #menu.home .title h1 img{height:clamp(70px,27vh,140px)}
   #menu.home .title p{font-size:18px}
   #menu:not(.home) .title{display:none}
   .big{padding:10px 14px} .big b{font-size:21px} .big span{font-size:12px}
@@ -362,7 +366,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 <button id="quit" hidden>Ⅱ 換角色</button>
 
 <div id="menu" class="home">
-  <div class="title"><h1><span>世志</span><span>大亂鬥</span></h1><p>BRAWL</p></div>
+  <div class="title"><h1><img src="logo.webp?v=1" alt="世志大亂鬥" draggable="false"></h1><p>BRAWL</p></div>
   <div class="sheet scr" id="scrTitle">
     <div class="bigBtns">
       <button class="big" id="goSolo"><b>一個人玩</b><span>對電腦，或兩個人用同一個鍵盤</span></button>
@@ -538,7 +542,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
-var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261022ic';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261022id';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
 <script>S('js/qrcode.js')</script>
 <script>S('js/core.js')</script>
 <!-- 角色：新增角色就在這裡加一行（順序＝選角畫面順序） -->
