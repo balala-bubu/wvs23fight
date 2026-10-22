@@ -114,7 +114,7 @@
   }
 
   /* --- 動畫 --- */
-  const tick = new THREE.Mesh(new THREE.BoxGeometry(0.01,0.01,0.01), new THREE.MeshBasicMaterial({visible:false}));
+  const tick = new THREE.Mesh(new THREE.PlaneGeometry(.01,.01), new THREE.MeshBasicMaterial({transparent:true, opacity:0, depthWrite:false}));   // 不能用 visible:false，three 會跳過它，onBeforeRender 就不會被呼叫
   tick.frustumCulled = false; g.add(tick);
   let last = performance.now(), u = 0, ang = 0;
   const tmp = new THREE.Vector3();
