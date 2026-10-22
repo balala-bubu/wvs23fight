@@ -142,6 +142,61 @@ const kelScissorTex = tex(40,40,(g)=>{
   g.strokeStyle='#e0533a'; g.lineWidth=3.5; g.beginPath(); g.arc(13,32,5,0,7); g.stroke(); g.beginPath(); g.arc(27,32,5,0,7); g.stroke();
   g.fillStyle='#8f949c'; g.beginPath(); g.arc(20,19,2.4,0,7); g.fill();
 });
+/* 野餐食物的立體模型（丟出去會轉） */
+function kelFood3D(n){
+  const g = new THREE.Group(), M = (c)=>L({color:c});
+  if (n==='牛奶'){
+    g.add(at(rbox(0.62,0.95,0.62,.08,M(0xf4f1e8)),0,0,0));
+    g.add(at(rbox(0.64,0.3,0.64,.05,M(0x4f7fd0)),0,0.32,0));
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0,0.44,0.34,4,1), M(0xf4f1e8)); roof.rotation.y = Math.PI/4; roof.position.y = 0.64; g.add(roof);
+    g.add(at(rbox(0.06,0.12,0.5,.2,M(0xf4f1e8)),0,0.84,0));
+    g.add(at(rbox(0.34,0.16,0.02,.1,M(0x3a4a66)),0,-0.05,0.32));
+  } else if (n==='漢堡'){
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.62,14,8,0,Math.PI*2,0,Math.PI/2), M(0xd99a4e)); top.scale.set(1,.7,1); top.position.y = 0.22; g.add(top);
+    [[-.2,.52],[.18,.56],[0,.44],[.3,.4]].forEach(([x,y])=>g.add(at(rbox(0.07,0.03,0.05,.3,M(0xfaf0d0)),x,y,0.32)));
+    g.add(at(cyl(0.66,0.66,0.08,M(0x7cb342),14),0,0.17,0));
+    g.add(at(cyl(0.6,0.6,0.08,M(0xd94f4f),14),0,0.1,0));
+    g.add(at(cyl(0.6,0.6,0.18,M(0x7a3b22),14),0,-0.02,0));
+    g.add(at(cyl(0.62,0.58,0.22,M(0xe0a95c),14),0,-0.22,0));
+    g.rotation.x = 0.3;
+  } else if (n==='薯條'){
+    g.add(at(cyl(0.42,0.3,0.7,M(0xc0392b),4),0,-0.15,0).rotateY(Math.PI/4));
+    g.add(at(rbox(0.42,0.1,0.02,.2,M(0xf2c14e)),0,-0.1,0.3));
+    for (let i=0;i<7;i++){ const fr = rbox(0.09,0.75,0.09,.2,M(0xf2c14e)); fr.position.set(-0.24 + i*0.08, 0.35 + (i%3)*0.06, (i%2)*0.1 - 0.05); fr.rotation.z = (i-3)*0.06; g.add(fr); }
+  } else if (n==='披薩'){
+    const sh = new THREE.Shape(); sh.moveTo(0,0.75); sh.lineTo(0.6,-0.5); sh.lineTo(-0.6,-0.5); sh.closePath();
+    const sl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:0.12, bevelEnabled:false}), M(0xe8c07a)); sl.position.z = -0.06; g.add(sl);
+    g.add(at(rbox(1.3,0.2,0.22,.5,M(0xd99a4e)),0,-0.52,0));
+    [[0,.25],[-.2,-.15],[.22,-.12]].forEach(([x,y])=>{ const p = cyl(0.12,0.12,0.04,M(0xc0392b),10); p.rotation.x = Math.PI/2; p.position.set(x,y,0.08); g.add(p); });
+    [[-.1,.0],[.1,.3]].forEach(([x,y])=>g.add(at(rbox(0.1,0.08,0.03,.3,M(0x4f9a3c)),x,y,0.08)));
+  } else if (n==='三明治'){
+    [[0xeccf95,0],[0x7cb342,0.13],[0xe07a5f,0.22],[0xf4c430,0.3],[0xeccf95,0.43]].forEach(([c,y],i)=>{
+      const sh = new THREE.Shape(); sh.moveTo(-0.62,-0.45); sh.lineTo(0.62,-0.45); sh.lineTo(0,0.55); sh.closePath();
+      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth: i%4===0 ? 0.12 : 0.07, bevelEnabled:false}), M(c)); m.rotation.x = -Math.PI/2; m.position.y = y; g.add(m);
+    });
+    g.rotation.x = 1.0;
+  } else if (n==='沙拉'){
+    const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.62,16,8,0,Math.PI*2,Math.PI/2,Math.PI/2), new THREE.MeshLambertMaterial({color:0xe9e4d6, side:THREE.DoubleSide})); g.add(bowl);
+    [[-.25,.05],[.2,.1],[0,-.2],[.3,-.15],[-.2,-.25]].forEach(([x,z],i)=>g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6), M(i%2 ? 0x5aa83c : 0x7cc44e)),x,0.05,z)));
+    [[.1,.0],[-.15,.15]].forEach(([x,z])=>g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6), M(0xd94f4f)),x,0.16,z)));
+    g.rotation.x = 0.5;
+  } else if (n==='柚子'){
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.6,16,12), M(0xb5c23f)); b.scale.set(1,.92,1); g.add(b);
+    g.add(at(cyl(0.05,0.06,0.2,M(0x4a7a2a),6),0,0.6,0));
+    const lf = rbox(0.4,0.04,0.2,.5,M(0x4a7a2a)); lf.position.set(0.2,0.66,0); lf.rotation.z = 0.4; g.add(lf);
+  }
+  return g;
+}
+function kelScissor3D(){
+  const g = new THREE.Group(), steel = L({color:0xb8bcc4}), red = L({color:0xe0533a});
+  [-1,1].forEach(s=>{
+    const arm = new THREE.Group(); arm.rotation.z = s*0.35; g.add(arm);
+    arm.add(at(rbox(0.12,1.1,0.05,.3,steel),0,0.45,s*0.03));
+    const h = new THREE.Mesh(new THREE.TorusGeometry(0.2,0.07,6,12), red); h.position.set(0,-0.32,s*0.03); arm.add(h);
+  });
+  g.add(at(cyl(0.07,0.07,0.16,L({color:0x8f949c}),8),0,0,0).rotateX(Math.PI/2));
+  return g;
+}
 const KEL_PHIL = ['亞里斯多德','蘇格拉底','柏拉圖','莊子'];
 const kelBustNameTex = KEL_PHIL.map(n=>tex(64,20,(g)=>{ g.fillStyle='#d8d2c4'; g.fillRect(0,0,64,20); g.fillStyle='#3a342c'; g.font='bold 11px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(n,32,11); }));
 
@@ -511,11 +566,11 @@ registerChar('kelsey', {
   fire: {
   kelPicnic(f){
     if (Math.random() < .1){                                                                              // 低機率：剪刀，比較痛
-      proj({owner:f, x:f.x+f.face*1.8, y:f.y+4.6, vx:f.face*24, vy:4, g:16, r:1.0, life:1.6, dmg:13, kb:13, sc:1.0, ang:40, mesh:spriteOf(kelScissorTex,1.7), spin:1});
+      proj({owner:f, x:f.x+f.face*1.8, y:f.y+4.6, vx:f.face*24, vy:4, g:16, r:1.0, life:1.6, dmg:13, kb:13, sc:1.0, ang:40, mesh:kelScissor3D(), spin:1});
       pop('剪刀！？', f.x, f.y+7.5, 'red'); SFX.swing(); return;
     }
     const food = KEL_FOODS[Math.floor(Math.random()*KEL_FOODS.length)];
-    proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*15, vy:11, g:28, r:.95, life:2.2, bounce:1, dmg:6, kb:6, sc:.5, ang:48, soft:1, mesh:spriteOf(food.t,1.6), spin:1});
+    proj({owner:f, x:f.x+f.face*1.6, y:f.y+4.6, vx:f.face*15, vy:11, g:28, r:.95, life:2.2, bounce:1, dmg:6, kb:6, sc:.5, ang:48, soft:1, mesh:kelFood3D(food.n), spin:1});
     pop(food.n + '！', f.x, f.y+7);
   },
   kelPlan0(f){ FIRE._kelPlan(f,0); }, kelPlan1(f){ FIRE._kelPlan(f,1); },
