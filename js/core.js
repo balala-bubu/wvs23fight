@@ -1559,7 +1559,16 @@ function readPad(slot){
 }
 
 /* phone side */
+// QR-code entry: the join screen shows only "connecting to room 1234…" + a spinner (no form to tap)
+function setAutoJoin(on, code){
+  joinUI.classList.toggle('auto', !!on);
+  document.getElementById('joinH').textContent = on ? `正在連線到房間 ${code}…` : '輸入房號';
+  document.getElementById('joinBack').textContent = on ? '取消' : '返回';
+  const wp = document.getElementById('waitPic');
+  if (on && wp && !wp.firstChild){ try { wp.appendChild(waitingPicture()); } catch(_){} }
+}
 function showJoin(){
+  setAutoJoin(false);
   audioOn(); menuEl.hidden = true; joinUI.hidden = false; joinMsg.textContent = ''; codeIn.value = '';
   setTimeout(()=>{ try{ codeIn.focus(); }catch(_){} }, 50);
 }
@@ -1571,13 +1580,13 @@ function becomeRemote(){
 }
 // guard against a double tap / tap + Enter: two joins at once open two connections and the one that loses
 // is never closed, so the host keeps a "ghost" player slot for it
-let joiningPad = false;
+let joiningPad = false, joinAborted = false;
 async function joinAsPad(){
   if (joiningPad || (party && party.role==='pad')) return;
-  joiningPad = true;
+  joiningPad = true; joinAborted = false;
   const jb = document.getElementById('joinBtn'); if (jb) jb.disabled = true;
   try { await joinAsPad0(); }
-  finally { joiningPad = false; if (jb) jb.disabled = false; }
+  finally { joiningPad = false; if (jb) jb.disabled = false; setAutoJoin(false); }   // a failed QR join falls back to the normal form (with the error message)
 }
 async function joinAsPad0(){
   const code = (codeIn.value||'').replace(/\D/g,'');
@@ -1596,6 +1605,7 @@ async function joinAsPad0(){
     if (err && err.peer){ joinMsg.textContent = (PEER_MSG[err.code] || '連線失敗，請重新整理再試。') + `（${err.code}）`; return; }
     roomWhy = roomWhy || (err && err.code) || 'error'; joinMsg.textContent = await roomDiag(); return;
   }
+  if (joinAborted){ try{ room.leave(); }catch(_){} return; }   // the player pressed cancel/back while connecting
   if (party){ try{ room.leave(); }catch(_){} return; }   // already joined some other way: drop this extra link instead of leaving a ghost
   party = { role:'pad', code, room, remote:false, lastSent:'', lastUI:'', lastHud:'', banSeen:null, winSeen:null, since:performance.now() };
   joinUI.hidden = true; padUI.hidden = false; touchEl.hidden = true;
@@ -1851,7 +1861,7 @@ document.querySelectorAll('[data-count]').forEach(b=>b.onclick = ()=>{ sel.count
 document.querySelectorAll('[data-stocks]').forEach(b=>b.onclick = ()=>{ sel.stocks = +b.dataset.stocks; syncMenu(); });
 document.getElementById('joinBtn').onclick = joinAsPad;
 codeIn.addEventListener('keydown', e=>{ if (e.key==='Enter') joinAsPad(); });
-document.getElementById('joinBack').onclick = ()=>{ joinUI.hidden = true; showScr('scrTitle'); };
+document.getElementById('joinBack').onclick = ()=>{ joinAborted = true; setAutoJoin(false); joinUI.hidden = true; showScr('scrTitle'); };
 const padLeaveBtn = document.getElementById('padLeave');
 let padLeaveArm = 0;
 const padLeaveRest = ()=>{ padLeaveArm = 0; padLeaveBtn.textContent = '離開'; padLeaveBtn.classList.remove('arm'); };
@@ -2133,6 +2143,53 @@ function mapThumb(id){
     models.forEach((m,i)=>{ if (m) m.holder.visible = vis[i]; });
   } catch(e){ const g = c.getContext('2d'); g.fillStyle = '#3a2a20'; g.fillRect(0,0,W,H); }
   return c;
+}
+// Waiting picture for the QR-code join screen: 白狗 (Karl) running, his little white dogs chasing behind.
+// Drawn once with the game's own models (sprint pose + buildDog), then used as a still image.
+let waitPic = null;
+function waitingPicture(){
+  if (waitPic) return waitPic;
+  const W = 640, H = 360, out = document.createElement('canvas'); out.width = W; out.height = H; waitPic = out;
+  const g = out.getContext('2d');
+  const bg = g.createRadialGradient(W*.5, H*.55, 20, W*.5, H*.55, W*.62); bg.addColorStop(0, '#3d2f27'); bg.addColorStop(1, '#16100d');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 5; g.lineCap = 'round';   // speed lines
+  [[.04,.24,.26],[.01,.40,.34],[.07,.56,.24],[.03,.72,.30]].forEach(([x,y,l])=>{ g.beginPath(); g.moveTo(W*x, H*y); g.lineTo(W*(x+l), H*y); g.stroke(); });
+  const hid = [], keep = { bg: scene.background, fn: scene.fog && scene.fog.near, ff: scene.fog && scene.fog.far, ca: renderer.getClearAlpha(), cc: renderer.getClearColor(new THREE.Color()).getHex() };
+  const made = []; let rt = null;
+  try {
+    if (!CHARS.karl || typeof buildDog !== 'function') throw new Error('no karl');
+    scene.children.forEach(o=>{ if (!o.isLight){ hid.push([o, o.visible]); o.visible = false; } });   // only the lights stay on
+    scene.background = null; if (scene.fog){ scene.fog.near = 900; scene.fog.far = 1000; }
+    const m = makeModel('karl'); made.push(m.holder);
+    m.setFace('normal'); applyPose(m, POSE.sprint, 1);
+    m.holder.position.set(1.7, 0, 0); m.holder.rotation.set(0, Math.PI/2 - 0.4, 0);
+    [[-2.5, 0.0, 1.3], [-5.0, 1.1, 1.2], [-7.3, 0.2, 1.1], [-9.4, 0.9, 1.0]].forEach(([x, y, s], i)=>{   // the skill's little white dogs
+      const d = buildDog(); made.push(d.g);
+      d.g.children[0].onBeforeRender = ()=>{};   // freeze the gallop animation on a clear pose (three calls this, so it must stay a function)
+      const reach = i % 2 ? -0.55 : 0.7;      // alternate stretched / gathered strides
+      d.legs.forEach((l, k)=>{ l.rotation.z = (k < 2 ? reach : -reach); });
+      d.g.position.set(x, y, i % 2 ? -0.5 : 0.4); d.g.rotation.y = -0.4; d.g.scale.setScalar(s); scene.add(d.g);
+    });
+    const cam = new THREE.PerspectiveCamera(30, W/H, 1, 300); cam.position.set(-3.0, 3.2, 16.5); cam.lookAt(-3.0, 2.7, 0); cam.updateMatrixWorld();
+    rt = new THREE.WebGLRenderTarget(W, H, {minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter});
+    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, cam); renderer.setRenderTarget(null);
+    const buf = new Uint8Array(W*H*4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+    const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; const tg = tmp.getContext('2d'), img = tg.createImageData(W, H);
+    for (let y=0;y<H;y++) img.data.set(buf.subarray((H-1-y)*W*4, (H-y)*W*4), y*W*4);   // GL rows are bottom-up
+    tg.putImageData(img, 0, 0);
+    const gy = (1 - new THREE.Vector3(0, 0, 0).project(cam).y) / 2 * H;   // where the ground is on screen
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 3; g.beginPath(); g.moveTo(W*.04, gy + 2); g.lineTo(W*.96, gy + 2); g.stroke();
+    g.drawImage(tmp, 0, 0);
+  } catch(e){
+    console.warn('waitingPicture:', e && e.message || e);
+    g.font = '96px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🐕💨', W/2, H/2);   // models not available: still show something friendly
+  } finally {
+    made.forEach(o=>scene.remove(o)); hid.forEach(([o, v])=>{ o.visible = v; });
+    scene.background = keep.bg; if (scene.fog && keep.fn != null){ scene.fog.near = keep.fn; scene.fog.far = keep.ff; }
+    renderer.setClearColor(keep.cc, keep.ca); renderer.setRenderTarget(null); if (rt) rt.dispose();
+  }
+  return out;
 }
 function buildMapCards(){
   if (MSEL.built) return; MSEL.built = true;
@@ -2418,6 +2475,6 @@ function boot(){
   buildPortraits();
   applyMap(sel.map); rebuildAll(); syncMenu(); showScr('scrTitle');
   const roomQ = (location.search.match(/[?&]room=(\d{4})(?!\d)/) || [])[1];   // opened from the host's QR code: fill in the room number and connect
-  if (roomQ){ try{ showJoin(); }catch(_){} codeIn.value = roomQ; setTimeout(joinAsPad, 300); }
+  if (roomQ){ try{ showJoin(); }catch(_){} codeIn.value = roomQ; setAutoJoin(true, roomQ); setTimeout(joinAsPad, 300); }
   tick();
 }

@@ -129,6 +129,11 @@ body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden
 #joinUI h2{margin:0;font-size:22px}
 #codeIn{font-family:var(--pixel);font-size:48px;text-align:center;letter-spacing:.3em;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;color:var(--gold);padding:6px;width:100%;box-sizing:border-box}
 #joinMsg{margin:0;font-size:13px;color:var(--dim);min-height:1.4em}
+/* opened from the host's QR code: no form to tap, just "connecting…" with a still picture (白狗 running, little white dogs chasing) */
+#joinUI .waitPic{display:none;width:min(320px,100%);margin:16px auto 10px}
+#joinUI .waitPic canvas{display:block;width:100%;height:auto;border-radius:14px}
+#joinUI.auto .waitPic{display:block}
+#joinUI.auto #codeIn,#joinUI.auto #joinBtn,#joinUI.auto .joinNote{display:none}
 #padUI{position:fixed;inset:0;background:radial-gradient(circle at 50% 40%,#2a201a,#120e0c)}
 .padTop{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;padding-left:max(70px,env(safe-area-inset-left,0px));padding-right:max(70px,env(safe-area-inset-right,0px))}
 .padWho{display:grid;text-align:center}
@@ -475,6 +480,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 <div id="joinUI" hidden>
   <div class="sheet">
     <h2 id="joinH">輸入房號</h2>
+    <div class="waitPic" id="waitPic" aria-hidden="true"></div>
     <p class="joinNote">大螢幕上顯示的 4 位數字；不管是哪一種多人模式都是輸入這組</p>
     <input id="codeIn" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="手把代碼">
     <button class="go" id="joinBtn">連線</button>
@@ -532,7 +538,7 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
-var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261022b';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261022d';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
 <script>S('js/qrcode.js')</script>
 <script>S('js/core.js')</script>
 <!-- 角色：新增角色就在這裡加一行（順序＝選角畫面順序） -->
