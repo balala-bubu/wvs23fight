@@ -16,7 +16,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 把 repo `balala-bubu/wvs23fight` 加進這個對話（add_repo，access: push），用 `git clone --depth 1` 抓下來（timeout 給長一點）。
 - 如果本機已經有 clone：先 `git fetch origin main`，再 `git checkout -b <代號> origin/main`。使用者常常同時開好幾個對話在加角色，舊的本機版本可能已經落後。
 - 只讀這兩個檔：`CLAUDE.md`（結構、共用函式、姿勢和音效清單）和範本 `characters/_template.js`（新增地圖時改讀 `maps/_template.js`）。
-- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
+- 需要參考時，最多再讀一個相近的角色檔（重型角色看 `characters/bear.js`；有飛行道具和移動型大招看 `characters/seafood.js`；眼鏡看 `characters/waffle.js` 的 `face(head)`；**長髮女生、自訂防禦、結算畫面帶路人、落地留下一攤東西看 `characters/serene.js`**；**換整套衣服（短褲↔長褲、T恤↔帽T）、地上危險區、大招從天上掉喇叭看 `characters/jennie.js`**；**黑髮根漸層（布丁頭）、短褲＋短襪、天降大招物件看 `characters/pudding.js`**；**把人包住＋狂按掙脫看 `characters/wxinyy.js`** 的 `escapeMash`）。真的需要核心細節才用 grep 找 `js/core.js` 的那一段（`function buildChar`、`function applyHit`、`function updateProjs`、`function startResults` 是最常需要的四段）。
 
 ## 2. 角色資料
 使用者會給：代號（只能小寫英文字母；如果有大寫或空格，改成小寫連在一起並告訴使用者）、中文名／英文名、外型（或照片）、個性特色、體型速度跳躍、招式、大招、防禦樣子、勝敗動畫。沒寫的部分照特色自己設計，不要回頭問。使用者希望招式有角色自己的特色，不要只是把別人的招換皮：至少一兩招要有新機制（例如：把人包進泡泡浮起來再破掉、召喚小幫手跑過去撞人、放一支麥克風架讓附近的人被迫跟著跳、丟火鍋落地留一攤會燙人的湯）。
@@ -38,6 +38,9 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 寬褲：`c.joints.rHp.children[0]`（大腿）和 `c.joints.rKn.children[0]`（小腿）`scale.set(1.2~1.4, 1, 1.2~1.3)`；靴子在 `kn` 上 y≈-1.36 加一段 cyl。
 - 想換色或換衣服的造型：在 build 裡把會換的材質／mesh 存成 `c.xxx`（collar 裡建立的東西可以掛在 `chest.userData` 再取出），skin 的 `apply(c)` 改 `.material`、`.map` 或 `.color` 再 `needsUpdate = true`。**整套換裝**（上衣、袖子、褲子、配件全換）的做法：build 時兩套配件都建好，分別放進 `teeBits` / `hoodBits` 陣列，寫一個 `c.setOutfit(o)` 切換 `visible`、軀幹 `c.torso.material`（= `c.chest.children[0]`）和手腳材質，build 結尾先 `c.setOutfit('預設')`，skin 只呼叫 `c.setOutfit('另一套')`（見 `jennie.js`）。注意：非原版造型在小頭像上都會被核心加一頂生日帽。
 - 路人（店員、小朋友等）用 `buildChar(...)` 做：`holder`（場景用）裡放 `body`（`scale.setScalar(SC*比例)`），回傳 `c` 並設 `c.holder`。小孩就用 SC*0.6、大頭（headW 1.3）。
+- `buildChar` 內部結構速查（不用再讀 core）：`c.chest.children[0]` = 軀幹（collar 加的東西排在後面）；手臂 `sh.children[0]` = 袖子、`sh.children[1]` = 裸上臂、`el.children[0]` = 前臂；腿 `hp.children[0]` = 大腿、`kn.children[0]` = 小腿、`kn.children[1]` = 鞋；`c.joints.rHp/rKn/lHp/lKn` 可以直接拿，不用自己在 children 裡找。
+- **掛在胸前的東西 z 要 ≥ 0.49**（軀幹深 0.92，半深 0.46），不然掛繩、項鍊會埋進身體裡只露出一個點。
+- 核心加的耳朵在 `x = ±(headW/2 + 0.02)`，headW 不是 1.0 時座標就不是 0.52；判斷用 `Math.abs(o.position.x) > 0.4 && Math.abs(o.position.y - 0.02) < .01` 比寫死數字可靠。
 - 手勢 `hR/hL` 只有 `fist`、`thumb`、`peace` 三種，其他名稱會讓 applyPose 出錯。
 - 手持道具掛在 `c.R.hd`，「往手指方向」是 -y。手持麥克風：握把在 0～-0.5、麥克風頭在 -0.7，手舉到嘴邊時頭就會朝上靠近嘴巴。揮的武器（吉他、球棒）：握的那端在 0，重的那端往 -y。
 - 立體食物小技巧：`cyl` 轉 `rotation.x = π/2` 可以讓切面朝鏡頭（蛋餅切段看得到蛋）；三角形（披薩、三明治）用 `THREE.Shape` + `ExtrudeGeometry`；半圓（折起來的餅）用 `CylinderGeometry(r,r,h,18,1,false,0,Math.PI)`；碗用 `SphereGeometry` 下半球 + `DoubleSide`；盤子、鍋子類整組 `rotation.x = 0.3~0.55` 讓上面的料看得到。
@@ -49,6 +52,7 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - 自訂防禦：`shield()` 回傳 mesh（核心每一幀會先 `scale.setScalar(依防禦值)`，所以 `shieldAnim(f)` 裡可以再乘上晃動倍率）；「撐太久會破」直接在 `animate` 裡 `if (s==='shield') f.shieldHP -= 6*dt;`，耗完核心會自動破防並顯示 `breakText`（可配 `breakColor`）。「防禦太久會暈」這類效果放在 `animate` 裡算時間，再把 `f.state='stun'`。
 - **需要每一幀更新的狀態或暫時物件**（把人包在泡泡裡、地上出現的道具、持續效果、往前推的聲波）：push 一個 `G.finals` 項目 `{owner, t:0, mesh, update(F,dt){... return 結束?}, dispose(F){...}}`。G.finals 每幀自動更新，進結算畫面會自動清掉，不會殘留；它不會影響其他系統。「定住並慢慢浮起」：在 update 裡每幀設 `v.state='stun'`、`v.vy = 2.6`、`v.vx *= Math.exp(-dt*4)`。
 - **飛行道具落地後要留下東西**（一攤湯、黏液）：proj 沒有落地 hook，用一個 G.finals「看守」項目：每幀 `G.projs.indexOf(p) >= 0` 時記下 `p.x, p.y`；一消失就在最後的位置生成地上物件（`x` 在 `MAIN.x1～MAIN.x2` 之間才生成）。見 `jennie.js` 的 `jenSoup_watch` / `jenSoup_spawn`（持續傷害：每人各自計時 `F.tick[v.slot]`，直接 `v.pct += 2` 並 `v.vy = 12` 燙到跳起來；不要每幀呼叫 `applyHit`，會一直擊飛）。
+- **把人包住／定住的招式一律要能「狂按掙脫」**（使用者明確要求過）：core 會把每次按鍵存成 `v.bAtk/bSp/bJump/bFin` 緩衝，按下那一幀數值會跳高，所以比較上一幀就能數出按了幾下。直接用 `wxinyy.js` 裡的共用函式 `escapeMash(F, v, need)`（F 是任何可以存狀態的物件，回傳 true 代表掙脫）和 `escapeK(F, need)`（0→1 進度，用來把泡泡縮小當進度條）。一般招式 5 下、大招 12 下是測過覺得合理的數字。掙脫時把 `v.state='idle'; v.stunT=0`，爆開但**不要擊飛**（掙脫是獎勵不是懲罰）。
 - 「放在場上的裝置」（麥克風架、陷阱）：同一個角色只留一個，新放的時候把舊的 `F.t` 推到 `F.dur`；在空中放就讓它自己用 `vy` 掉到 `y=0`（超出 MAIN 範圍就掉出場、`y<-20` 結束）。
 - 飛行道具 `proj()` 的 mesh 位置就是 `(p.x, p.y)`，落地反彈發生在 `p.y = p.r`。所以「腳在原點」的模型（小人、動物）要把模型往下移 `-r`（例如 `body.position.y = -1.3`、`r:1.3`），不然會浮在半空。proj 沒有每幀 hook；要讓小人跑步，在角色的 `animate` 裡跑 `G.projs` 找自己的（`p.owner===f`）再 `applyPose(p.kid, runPose(p.t*16), 1)`。`spin:1` 會讓立體模型一直翻滾；鍋子、盤子這種「翻了會灑」的東西不要加 spin。
 - 結算：加到場景的東西放 `R.items`，掛在角色身上的放 `R.attach`；動畫要 6 秒左右就設 `longWin`／`longLose: true`。贏家在 x≈-3.5，輸家在 x≈9.5、z≈-5；約 5.8 秒後右下角會蓋上結算選單，所以戰敗動畫的重點要在 5.5 秒前演完。「燈光暗掉」：在角色前方 z+3.4 放一片黑色半透明 PlaneGeometry（`opacity` 從 0 漸變到 0.7，`depthWrite:false`），聚光燈用開口 `ConeGeometry` + 地上一個 `CircleGeometry` 光圈，熄燈前用 `Math.sin(R.t*60)>0` 閃兩下。
@@ -65,6 +69,8 @@ description: Add a new character or map to the 世志大亂鬥 game in GitHub re
 - **要給觀眾看的東西不要用手上的 prop**：掛在 `c.R.hd` 的道具在結算畫面常常背對鏡頭、看起來像一塊黑板。平板、卡片、海報這類「畫面要看清楚」的物件，改成 scene 物件、正面朝 +z、擺在角色身邊（x 往右 2～3、y 約 RS_Y+5），並放進 `R.items`。
 - 角色的 `animate(f,m,s,t,dt)` 想加快出招速度，就直接推進 `f.moveT`，但別推過 `m.t[0]`（startup），否則會跳過出招判定。
 - **大招先把人困住或抬高、再擊飛的，很容易太強**：被抬高的人再用接近垂直的角度打出去，20% 就會從上面飛出場。這類擊飛用 `launch(v, 22 + v.pct*.11, 55, dir)` 左右，測試時印 `pct` 並看有沒有直接出現 KO。連續好幾拍的大招，前面幾拍用 `kb:4, sc:0` 讓人小跳就好，最後一拍才擊飛。
+- **天降大招物件不要做太大**：半徑超過 ~5 就會佔掉半個畫面、擋住所有人和標語。整顆布丁 scale 8.5 太誇張，5.4 剛好；落地高度要跟著改（物件半高），判定半徑也要一起縮，不然看起來小、打擊範圍卻還是超大。
+- **共用函式放在先載入的那個角色檔**：script 順序照 index.html，被晚載入的檔案「在函式裡呼叫」沒問題（執行時才查全域），但不要在頂層就呼叫別的角色檔定義的東西。
 - **從天上掉下來的大招物件**：鏡頭上緣大約在 y≈20，起始高度放 15～24、速度 8～12，大招開始 1.5 秒內就要看得到，不然玩家以為大招沒反應。左右兩邊的物件 x 用 `Math.max(MAIN.x1+3, f.x-11)` / `Math.min(MAIN.x2-3, f.x+11)` 夾在舞台內。
 - 寫完把整份檔案掃一遍有沒有「打到一半的奇怪行」（例如 `.rotateY(0) && new THREE.Group()` 這種），`node --check` 抓不到語意錯誤。
 
