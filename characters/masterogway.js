@@ -360,7 +360,7 @@ function masterogwayWinSetup(R){
   const W = R.W;
   R.hat = mogHardHat(); R.hat.position.set(0,0.62,0); R.hat.scale.setScalar(1.05); W.m.head.add(R.hat); R.attach.push(R.hat);
   R.bld = mogBuilding();
-  R.bld.position.set(W.m.holder.position.x + 9, RS_Y - 19, -7);
+  R.bld.position.set(W.m.holder.position.x, RS_Y - 19, -7);                // 正後方：和贏家同一個 x，不再蓋到輸家身上
   scene.add(R.bld); R.items.push(R.bld);
   R.dust = 0;
 }
