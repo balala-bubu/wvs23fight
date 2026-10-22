@@ -2,7 +2,8 @@
 'use strict';
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:false});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+let pxRatio = Math.min(devicePixelRatio, 2);   // lowered automatically by tick() if this machine can't keep up
+renderer.setPixelRatio(pxRatio);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xd8a786, 45, 140);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.8, 500);
@@ -2377,7 +2378,24 @@ quitEl.onclick = ()=>setPause(true);
 /* =================== loop =================== */
 const camPos = new THREE.Vector3(0, 5, 22), camLook = new THREE.Vector3(0, 3.4, 0);
 const clock = new THREE.Clock();
+// GPU safety: some browsers (Chrome on a 120 Hz Mac) call requestAnimationFrame twice as often and the full-screen post pass
+// then saturates the GPU until the whole browser stalls. So: (1) draw at most ~60 frames a second, (2) if frames are
+// still slow, step the render resolution down (never back up).
+let lastFrameT = 0, perfN = 0, perfSum = 0;
+function guardPerf(ms){
+  if (ms <= 0 || ms > 500) return;   // first frame / tab was in the background
+  perfN++; perfSum += ms;
+  if (perfN < 40) return;
+  const avg = perfSum / perfN; perfN = 0; perfSum = 0;
+  if (avg > 30 && pxRatio > 0.75){
+    pxRatio = pxRatio > 1.5 ? 1.5 : pxRatio > 1 ? 1 : 0.75;
+    renderer.setPixelRatio(pxRatio); resize();
+  }
+}
 function tick(){
+  const nowT = performance.now();
+  if (G.mode !== 'pad' && nowT - lastFrameT < 13){ requestAnimationFrame(tick); return; }   // too soon: wait for the next display refresh
+  guardPerf(nowT - lastFrameT); lastFrameT = nowT;
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
   if (canvas.clientWidth && (canvas.clientWidth !== lastW || canvas.clientHeight !== lastH)) resize();
   if (G.mode==='pad'){ padTick(); requestAnimationFrame(tick); return; }
