@@ -2378,23 +2378,24 @@ quitEl.onclick = ()=>setPause(true);
 /* =================== loop =================== */
 const camPos = new THREE.Vector3(0, 5, 22), camLook = new THREE.Vector3(0, 3.4, 0);
 const clock = new THREE.Clock();
-// GPU safety: some browsers (Chrome on a 120 Hz Mac) call requestAnimationFrame twice as often and the full-screen post pass
-// then saturates the GPU until the whole browser stalls. So: (1) draw at most ~60 frames a second, (2) if frames are
-// still slow, step the render resolution down (never back up).
+// GPU safety: run as smoothly as the screen allows (no frame cap by default, so a 120 Hz display gets 120 fps), but if the
+// machine can't keep up, step the render resolution down (2 -> 1.5 -> 1 -> 0.75, never back up). A very slow stretch
+// skips a step. Optional manual cap: open the page with ?fps=60 (or 30) if a browser still stalls.
+const FPS_CAP = +((location.search.match(/[?&]fps=(\d+)/) || [])[1]) || 0, MIN_FRAME_MS = FPS_CAP ? 1000/FPS_CAP - 3.5 : 0;
 let lastFrameT = 0, perfN = 0, perfSum = 0;
 function guardPerf(ms){
   if (ms <= 0 || ms > 500) return;   // first frame / tab was in the background
   perfN++; perfSum += ms;
-  if (perfN < 40) return;
+  if (perfN < 30) return;
   const avg = perfSum / perfN; perfN = 0; perfSum = 0;
-  if (avg > 30 && pxRatio > 0.75){
-    pxRatio = pxRatio > 1.5 ? 1.5 : pxRatio > 1 ? 1 : 0.75;
+  if (avg > 25){   // slower than ~40 fps
+    for (let s = avg > 80 ? 2 : 1; s > 0 && pxRatio > 0.75; s--) pxRatio = pxRatio > 1.5 ? 1.5 : pxRatio > 1 ? 1 : 0.75;
     renderer.setPixelRatio(pxRatio); resize();
   }
 }
 function tick(){
   const nowT = performance.now();
-  if (G.mode !== 'pad' && nowT - lastFrameT < 13){ requestAnimationFrame(tick); return; }   // too soon: wait for the next display refresh
+  if (MIN_FRAME_MS && G.mode !== 'pad' && nowT - lastFrameT < MIN_FRAME_MS){ requestAnimationFrame(tick); return; }   // only with ?fps=
   guardPerf(nowT - lastFrameT); lastFrameT = nowT;
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
   if (canvas.clientWidth && (canvas.clientWidth !== lastW || canvas.clientHeight !== lastH)) resize();
