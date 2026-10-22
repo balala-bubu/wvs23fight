@@ -8,13 +8,13 @@ const MUSIC = {
   amusement: 'amusement.mp3',  // 遊樂園
   dayu:      'school.mp3',     // 兩所國小共用
   qimei:     'school.mp3',
-  mecls:     'mecls.mp3',      // 承先教室
-  park:      'park.mp3',       // 秋日公園
-  ntu:       'ntu.mp3',        // 台大總圖
-  maogong:   'maogong.mp3',    // 貓公部落
+  mecls:     'school.mp3',      // 承先教室
+  park:      'school.mp3',       // 秋日公園
+  ntu:       'school.mp3',        // 台大總圖
+  maogong:   'school.mp3',    // 貓公部落
   sea:       'sea.mp3',        // 海底王國
   space:     'space.mp3',      // 太空戰場
-  india:     'maogong.mp3'     // 印度街頭（暫時沿用）
+  india:     'india.mp3'       // 印度街頭
 };
 const MUSIC_DEFAULT = null;
 
