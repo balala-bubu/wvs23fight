@@ -21,6 +21,7 @@ Bump the default `?v=` number in the `S()` helper at the bottom of `index.html` 
 2. Write `characters/<kind>.js` (kind = lowercase letters only).
 3. Add `<script>S('characters/<kind>.js')</script>` to `index.html` after the other characters (`S()` appends the page's `?v=` so a new `?v=` number always loads fresh files; a plain `<script src>` also works but may be served from cache). Nothing else in core changes.
 4. Test: `python3 tools/smoke_test.py` (headless; runs every character's moves, finals, wins and losses on every map; prints page errors). For a small change (a costume, a tweak to one character) run just one match: `python3 tools/smoke_test.py --only=<char>` (about 20 s) and look for `errors: 0`; run the full test only for core changes or a brand-new character/map.
+5. Look at it: `python3 tools/char_shots.py <kind>` (close-ups of the model and both skins, final, win, lose → one contact sheet). Full recipe: `.claude/skills/wvs-add-character/SKILL.md`.
 
 ## Costumes (skins)
 - Optional `skins:[{name:'生日帽', apply(c){ ... }}]` in registerChar. After picking a character the select screen asks for a costume (skin 0 = 原版); `apply(c)` adds meshes to the built model, e.g. `birthdayHat(colorA, colorB, pom)` on `c.head` at y≈0.6. Stored in `sel.skin[i]`.
