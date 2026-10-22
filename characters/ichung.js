@@ -84,14 +84,28 @@ const icPoloFrontTex = tex(96,128,(g)=>{
 });
 const icPoloPantsTex = tex(32,32,(g)=>speckle(g,32,32,'#2f3441',['#383e4c','#272b36'],.5));
 
+/* 白 T 恤＋漁夫帽（出隊爬山那張） */
+function icWhiteBase(g){ speckle(g,32,32,'#f4f4f0',['#ffffff','#e6e6e0'],.3); }
+const icWhiteTex = tex(32,32,icWhiteBase);
+const icWhiteFrontTex = tex(96,128,(g)=>{
+  g.scale(3,4);
+  icWhiteBase(g);
+  g.fillStyle='#e2e2dc'; g.beginPath(); g.moveTo(11,0); g.quadraticCurveTo(16,4,21,0); g.lineTo(21,1.6); g.quadraticCurveTo(16,6,11,1.6); g.closePath(); g.fill();
+  g.strokeStyle='#d9533f'; g.lineWidth=.9; g.beginPath(); g.arc(16,15,3.2,0,7); g.stroke();                 // 胸前小圓 logo
+  g.fillStyle='#3a6ab0'; g.fillRect(14.6,13.6,2.8,2.8);
+});
+const icBlackPantsTex = tex(32,32,(g)=>speckle(g,32,32,'#1d1d22',['#26262c','#161619'],.5));
+
 /* =================== 模型 =================== */
 function buildIchung(parent){
   const hairM = L({map:blackHairTex}), faceM = L({map:icFaces.normal}), skinM = L({map:icSkinTex});
   const teeM = L({map:icTeeTex}), teeFrontM = L({map:icTeeFrontTex});
   const poloM = L({map:icPoloTex}), poloFrontM = L({map:icPoloFrontTex});
   const teePantsM = L({map:icTeePantsTex}), poloPantsM = L({map:icPoloPantsTex});
+  const whiteM = L({map:icWhiteTex}), whiteFrontM = L({map:icWhiteFrontTex}), blackPantsM = L({map:icBlackPantsTex});
   const teeMats  = [teeM, teeM, teeM, teeM, teeFrontM, teeM];
   const poloMats = [poloM, poloM, poloM, poloM, poloFrontM, poloM];
+  const whiteMats = [whiteM, whiteM, whiteM, whiteM, whiteFrontM, whiteM];
 
   const c = buildChar({
     skinM, faceM, headW:1.0, headH:1.15,
@@ -122,12 +136,30 @@ function buildIchung(parent){
   const legs = [c.joints.rHp.children[0], c.joints.lHp.children[0], c.joints.rKn.children[0], c.joints.lKn.children[0]];
 
   c.setOutfit = (o)=>{
-    const polo = (o === 'polo');
-    c.torso.material = polo ? poloMats : teeMats;
-    sleeves.forEach(s=>{ if (s) s.material = polo ? poloM : teeM; });
-    legs.forEach((l,i)=>{ if (l && i < 2) l.material = polo ? poloPantsM : teePantsM; else if (l) l.material = polo ? poloPantsM : teePantsM; });
+    const polo = (o === 'polo'), white = (o === 'white');
+    c.torso.material = white ? whiteMats : polo ? poloMats : teeMats;
+    sleeves.forEach(s=>{ if (s) s.material = white ? whiteM : polo ? poloM : teeM; });
+    const pm = white ? blackPantsM : polo ? poloPantsM : teePantsM;
+    legs.forEach(l=>{ if (l) l.material = pm; });
     poloCollar.forEach(k=>k.visible = polo);
   };
+
+  /* ---- 漁夫帽＋背包（出隊爬山那套） ---- */
+  const bucket = new THREE.Group(); c.head.add(bucket); bucket.visible = false;
+  {
+    const hm = L({map:tex(16,16,(g)=>speckle(g,16,16,'#cbb28c',['#d6bd96','#bda67f'],.45))});
+    bucket.add(at(cyl(0.56,0.62,0.42,hm,16),0,0.66,-0.02));                 // 帽冠
+    const brim = cyl(0.95,0.95,0.09,hm,18); brim.position.set(0,0.47,-0.02); brim.rotation.x = 0.08; bucket.add(brim);
+    bucket.add(at(cyl(0.63,0.63,0.08,L({color:0xb49a74}),16),0,0.52,-0.02));  // 帽帶
+    const cord = at(cyl(0.02,0.02,0.5,L({color:0xa8906c}),5),0,-0.2,0.5); cord.rotation.x = 0.25; bucket.add(cord);
+  }
+  const pack = new THREE.Group(); c.chest.add(pack); pack.visible = false;
+  {
+    const pm = L({color:0x24242a});
+    pack.add(at(rbox(1.1,1.4,0.55,.3,pm),0,1.4,-0.72));                      // 背包本體
+    for (const sx of [-1,1]){ const st = rbox(0.17,1.5,0.1,.3,pm); st.position.set(sx*0.34,1.45,0.5); st.rotation.z = -sx*0.07; pack.add(st); }
+  }
+  c.setHat = (on)=>{ bucket.visible = pack.visible = !!on; };
 
   /* ---- 道具 ---- */
   // 壘球棒
@@ -206,7 +238,7 @@ function buildIchung(parent){
   c.setOld = ()=>{};
   let faceNow = 'normal';
   c.setFace = (f)=>{ const k = icFaces[f] ? f : 'normal'; if (k !== faceNow){ faceNow = k; faceM.map = icFaces[k]; faceM.needsUpdate = true; } };
-  c.setOutfit('tee');
+  c.setOutfit('tee'); c.setHat(false);
   return c;
 }
 
@@ -312,7 +344,7 @@ function icFinal(f, opp){
   const filter = icFlagFilter(); camera.add(filter); if (!camera.parent) scene.add(camera);
   G.finals.push({owner:f, target:opp, t:0, filter, next:0.55, nextFan:0.9, hit:new Set(), boomed:false,
     update(F, dt){
-      const o = F.t < .5 ? F.t/.5*.46 : F.t > 4.2 ? Math.max(0, (4.8 - F.t)/.6*.46) : .46;
+      const o = F.t < .5 ? F.t/.5*.26 : F.t > 4.2 ? Math.max(0, (4.8 - F.t)/.6*.26) : .26;
       F.filter.material.opacity = o;
       // 天上掉下來的印度食物
       if (F.t > F.next && F.t < 3.9){
@@ -326,10 +358,15 @@ function icFinal(f, opp){
       }
       // 剛開 IG 就被一堆印度人加好友：他們從兩邊跑過來
       if (F.t > F.nextFan && F.t < 3.7){
-        F.nextFan = F.t + 0.75;
+        F.nextFan = F.t + 0.65;
         const dir = rnd() < .5 ? 1 : -1;
+        // 隨機挑一層平台跑，不要全部擠在最下面
+        const surf = (PLATS.length && rnd() < .62) ? PLATS[(rnd()*PLATS.length)|0] : null;
+        const sy = surf ? surf.y : (MAIN.y || 0);
+        const sx1 = surf ? surf.x1 : MAIN.x1, sx2 = surf ? surf.x2 : MAIN.x2;
         const h = icBuildFan(); h.rotation.y = dir > 0 ? Math.PI/2 : -Math.PI/2;
-        const p = proj({owner:f, x:f.x - dir*15, y:f.y + 1.55, vx:dir*19, vy:0, g:0, r:1.5, life:1.8,
+        const p = proj({owner:f, x:dir > 0 ? sx1 - 4 : sx2 + 4, y:sy + 1.55, vx:dir*19, vy:0, g:0, r:1.5,
+                        life:Math.min(2.6, (sx2 - sx1 + 9)/19),
                         dmg:6, kb:6, sc:.4, ang:40, mesh:h});
         p.kid = h.kid;
         if (!F.said){ F.said = true; pop('IG 一開就被印度人加爆！', f.x, f.y + 7, 'blue'); }
@@ -368,6 +405,34 @@ function icWinSetup(R){
     if (c.props) for (const nm in c.props) c.props[nm].visible = false;
     R.icCrew.push({c, h, ph: i * 0.7});
   });
+  // 飛機（載他從印度飛回台灣）
+  R.icJet = null;
+  try {
+    if (typeof buildJet === 'function'){ const j = buildJet(); j.scale.setScalar(1.3); scene.add(j); R.items.push(j); R.icJet = j; }
+  } catch (e) { R.icJet = null; }
+  // 回到台灣就升旗
+  {
+    const ft = tex(96,64,(g)=>{
+      g.fillStyle='#fe0000'; g.fillRect(0,0,96,64);
+      g.fillStyle='#000095'; g.fillRect(0,0,48,32);
+      g.fillStyle='#ffffff';
+      g.save(); g.translate(24,16);
+      for (let i=0;i<12;i++){ g.rotate(Math.PI/6); g.beginPath(); g.moveTo(-3.4,0); g.lineTo(0,-12); g.lineTo(3.4,0); g.closePath(); g.fill(); }
+      g.restore();
+      g.beginPath(); g.arc(24,16,6.4,0,7); g.fill();
+      g.fillStyle='#000095'; g.beginPath(); g.arc(24,16,5.1,0,7); g.fill();
+      g.fillStyle='#ffffff'; g.beginPath(); g.arc(24,16,4.2,0,7); g.fill();
+    });
+    const pole = new THREE.Group();
+    pole.add(at(cyl(0.13,0.13,10,L({color:0xd8d4cc}),8),0,5,0));
+    pole.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6), L({color:0xffe066})),0,10.1,0));
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(5.4,3.6),
+      new THREE.MeshBasicMaterial({map:ft, side:THREE.DoubleSide, fog:false, transparent:true}));
+    flag.position.set(2.8,8.2,0); pole.add(flag);
+    pole.position.set(R.icHome.x + 6.5, RS_Y, R.icHome.z - 2.5); scene.add(pole); R.items.push(pole);
+    R.icFlag = {pole, flag};
+    pole.visible = false;
+  }
   // 雲（飛回來的尾巴）
   R.icCloud = [];
   for (let i=0;i<7;i++){
@@ -383,11 +448,21 @@ function icWinUpdate(R, dt, k){
     hp.x = H.x + 22 * (1 - u); hp.y = H.y + 9 * (1 - u * u); hp.z = H.z - 3 * (1 - u);
     m.holder.rotation.z = -0.25 * (1 - u);
     applyPose(m, POSE.icFly, k); m.setFace('laugh');
+    if (R.icJet){ R.icJet.visible = true; R.icJet.position.set(hp.x + 0.6, hp.y + 1.5, hp.z - 1.3); R.icJet.rotation.z = -0.1 * (1 - u); }
     R.icCloud.forEach((c, i)=>{ const q = Math.max(0, u - i * .06); c.position.set(hp.x + 2.4 + i * 1.9, hp.y + 0.4 + Math.sin(i) * .7, hp.z - 1.4); c.material.opacity = Math.max(0, .55 - q * .55); });
     once('icw0', .25, ()=>{ SFX2.jet(); popAt('回來囉～', W, 9, 'big'); });
   } else {
     hp.x = H.x; hp.y = H.y; hp.z = H.z; m.holder.rotation.z = 0;
+    if (R.icJet){ const q = R.t - 1.9; R.icJet.position.set(H.x + 0.6 - q*42, H.y + 1.5 + q*16, H.z - 1.3); R.icJet.visible = q < 0.9; }
     R.icCloud.forEach(c=>{ c.material.opacity = Math.max(0, c.material.opacity - dt); });
+    if (R.icFlag && R.t > 2.1){                                              // 回到台灣，升旗
+      const F = R.icFlag, q = Math.min(1, (R.t - 2.1) / 1.6);
+      F.pole.visible = true;
+      F.flag.position.y = -1.0 + 9.2 * q;                                    // 一路升到旗桿頂
+      F.flag.position.z = Math.sin(R.t * 3) * .12;                            // 風吹
+      F.flag.rotation.y = Math.sin(R.t * 2.2) * .12;
+      once('icwF', 2.2, ()=>SFX2.fanfare());
+    }
     if (R.t < 3.3){
       applyPose(m, POSE.icShout, k); m.setFace('shout');
       once('icw1', 2.0, ()=>{ SFX2.fanfare(); G.shake = reduce ? .1 : .4; popAt('This is Real Magical Moment!', W, 9.5, 'big'); });
@@ -449,13 +524,23 @@ function icLoseUpdate(R, dt, k){
     once('icl2', 2.4, ()=>pop('不要啊～', L0.x, RS_Y + 6.5, 'big'));
   } else {                                                                     // 被睿睿拖走
     const u = Math.min(1, (R.t - 3.4) / 2.2);
-    applyPose(m, POSE.flat, k); m.holder.rotation.z = 1.5;
-    hp.x = L0.x + 16 * u; hp.y = L0.y + .5;
+    // 躺著被拖：頭朝 -x、腳朝 +x，身體跟著地面顛一下
+    applyPose(m, POSE.flat, k); m.holder.rotation.z = -1.5 + Math.sin(R.t * 11) * .05;
+    hp.x = L0.x - 14 * u; hp.y = L0.y + .5 + Math.abs(Math.sin(R.t * 11)) * .12;
     R.icDream.forEach(f=>f.visible = false);
-    R.icFans.forEach((h, i)=>{ h.position.x = L0.x + 6 + 16 * u + i * 2.2; h.position.y = RS_Y + 1.55; if (h.kid) applyPose(h.kid, POSE.cheer, k); });
+    R.icFans.forEach((h, i)=>{ h.position.x = L0.x + 4 - 14 * u - i * 2.2; h.position.y = RS_Y + 1.55; if (h.kid) applyPose(h.kid, POSE.cheer, k); });
     if (R.icSer){
-      const S = R.icSer; S.h.position.set(hp.x + 3.4, RS_Y, L0.z + .6); S.h.rotation.y = Math.PI / 2;
-      applyPose(S.c, runPose(R.t * 9), k);
+      const S = R.icSer, J = S.c.joints;
+      // 睿睿倒退走，兩隻手真的抓著老師的腳踝
+      S.h.position.set(hp.x - 4.0, RS_Y, L0.z + .35); S.h.rotation.y = Math.PI / 2;
+      applyPose(S.c, POSE.icPull, k);
+      const sw = Math.sin(R.t * 8);
+      J.rHp.rotation.x = sw * .5; J.lHp.rotation.x = -sw * .5;
+      J.rKn.rotation.x = Math.max(0, -sw) * .7; J.lKn.rotation.x = Math.max(0, sw) * .7;
+      S.h.rotation.z = -.1 - sw * .03;
+      if (S.c.setFace) try { S.c.setFace('normal'); } catch (e) {}
+      // 拖行的灰塵
+      if (Math.random() < dt * 12) burst(hp.x + 1.6, RS_Y + .2, 0xcfc4b0, 2, 3);
     }
     once('icl3', 3.6, ()=>{ SFX.icWhoosh(); popAt('睿睿：老師，再去一次印度啦！', Lz, 7.5, 'blue'); });
     once('icl4', 4.8, ()=>popAt('我還沒講完笑話…', Lz, 7, 'blue'));
@@ -508,6 +593,7 @@ registerChar('ichung', {
     icPhone:  S_({rSh:[-1.35,0,-0.35], rEl:[-1.6], lSh:[-1.2,0,0.4], lEl:[-1.75], head:[0.28], chest:[0.12]}),
     icHeli:   S_({rSh:[-2.9,0,-0.2], lSh:[-1.0,0,0.9], rEl:[-0.2], lEl:[-0.6], rHp:[-0.25], lHp:[-0.15], rKn:[0.5], lKn:[0.4], drop:0}),
     icFly:    S_({rSh:[-2.9,0,-0.45], lSh:[-2.9,0,0.45], rEl:[0], lEl:[0], rHp:[0.35], lHp:[0.3], rKn:[-0.25], lKn:[-0.2], chest:[-0.2], head:[-0.25], drop:0}),
+    icPull:   S_({rSh:[-1.35,0,-0.28], lSh:[-1.3,0,0.28], rEl:[-0.25], lEl:[-0.25], chest:[0.3], head:[0.2], drop:-0.3, rKn:[0.3], lKn:[0.3]}),
     icShout:  S_({rSh:[-2.7,0,-0.5], lSh:[-2.7,0,0.5], rEl:[-0.3], lEl:[-0.3], head:[-0.3], chest:[-0.2], rKn:[0.15], lKn:[0.15], drop:-0.1}),
   },
   sfx: {
@@ -524,6 +610,8 @@ registerChar('ichung', {
     g.fillStyle = IC_SKIN; g.fillRect(18,6,10,7); g.fillRect(36,6,10,7);
   },
   skins: [
+    { name:'漁夫帽白T', apply(c){ c.setOutfit('white'); c.setHat(true); },
+      portrait(g){ g.fillStyle = '#cbb28c'; g.fillRect(2,16,60,7); g.fillRect(14,6,36,11); } },
     { name:'灰藍 Polo', apply(c){ c.setOutfit('polo'); },
       portrait(g){ g.fillStyle = IC_POLO; g.fillRect(14,54,36,10); } },
     { name:'生日帽', apply(c){ const h = birthdayHat('#1f6fc4','#ffe066',0xffffff); h.position.set(0.04,0.7,-0.02); c.head.add(h); } },
