@@ -251,7 +251,7 @@ const sun = new THREE.DirectionalLight(0xffc18a, 0.95); sun.position.set(-6,12,9
 const rimL = new THREE.DirectionalLight(0xff8a5a, 0.35); rimL.position.set(5,4,-8); scene.add(rimL);
 let curMap = 'park';
 function applyMap(id){
-  curMap = id; const M = MAPS[id];
+  curMap = id; const M = MAPS[id]; if (typeof Music!=='undefined') Music.sync();
   for (const k in MAPS) MAPS[k].group.visible = k===id;
   M.group.scale.x = MAPK;
   MAIN.x1 = -M.W*MAPK; MAIN.x2 = M.W*MAPK;
@@ -2299,7 +2299,7 @@ function setMapCur(i){
 }
 function enterMapSel(){
   audioOn(); clearArena(); buildMapCards(); if (party) party.mapSeen2 = null;
-  G.mode = 'mapsel'; G.paused = false; MSEL.go = 0;
+  G.mode = 'mapsel'; G.paused = false; MSEL.go = 0; if (typeof Music!=='undefined') Music.sync();
   pauseEl.hidden = true; menuEl.hidden = true; selEl.hidden = true; overEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   mapSelEl.hidden = false; RS.visible = false;
   MAPK = sel.count===4 ? 1.45 : sel.count===3 ? 1.25 : 1;
@@ -2401,12 +2401,12 @@ function startGame(){
   G.mode = 'play'; menuEl.hidden = true; selEl.hidden = true; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = false; quitEl.hidden = false;
   touchEl.hidden = !(isTouch && G.fighters[0].ctrl==='p1');
   buildHud(); camPos.set(0, 6, 40);
-  G.startT = 1.5; G.goShown = false; banner('預備…');
+  G.startT = 1.5; G.goShown = false; banner('預備…'); if (typeof Music!=='undefined') Music.sync();
 }
 function toMenu(){
   clearArena(); mapSelEl.hidden = true; if (!(sel.mode==='party' && party && party.role==='host')) leaveParty(); partyBox.hidden = true; RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
-  scrNow = ''; // force the (cached) home showcase back after a match
+  scrNow = ''; if (typeof Music!=='undefined') Music.sync(); // force the (cached) home showcase back after a match
   showScr('scrTitle');
 }
 function showOver(){
