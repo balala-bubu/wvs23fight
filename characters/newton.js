@@ -347,6 +347,67 @@ function nwLoseUpdate(R, dt, k){
   }
 }
 
+// ---------------- 柚子裝（造型）：柚子皮玩偶服套在身上，露出頭和四肢，切開的柚子頂蓋在頭上 ----------------
+let nwPmCache = null;
+function nwPm(){   // 貼圖第一次用到才畫；前後存取亂數種子，才不會改到其他角色的貼圖
+  if (nwPmCache) return nwPmCache;
+  const keepSeed = seed;
+  const YEL = '#ecd278', YC = ['#e2c76a','#f3dd88','#d9bd5c','#f6e49a'];
+  const pores = (g,w,h)=>{ g.fillStyle = 'rgba(150,115,40,.35)'; for (let i=0;i<w*h/26;i++) g.fillRect((rnd()*w)|0,(rnd()*h)|0,1,1); };
+  const body = tex(256,80,(g,w,h)=>{
+    speckle(g,w,h,YEL,YC,.5); pores(g,w,h);
+    g.fillStyle = 'rgba(168,120,60,.55)';                                              // 柚子皮上的咖啡色斑點
+    [[92,64,6,2],[96,66,4,2],[170,60,5,2],[40,50,4,2],[212,38,5,2],[70,30,3,2]].forEach(([x,y,a,b])=>g.fillRect(x,y,a,b));
+    // 臉：貼在柚子的正面（texture 中央 = 正前方）
+    const ring = (x,y)=>{
+      g.fillStyle = '#f4e6a0'; g.beginPath(); g.ellipse(x,y,5,4.6,0,0,7); g.fill();
+      g.strokeStyle = '#5b3320'; g.lineWidth = 2; g.beginPath(); g.ellipse(x,y,5,4.6,0,0,7); g.stroke();
+    };
+    ring(114,27); ring(145,19);                                                        // 兩顆空心圓眼睛（右眼比較高）
+    g.fillStyle = 'rgba(244,190,190,.92)';                                             // 淡粉色腮紅
+    g.beginPath(); g.ellipse(108,43,5.5,3.6,0,0,7); g.fill(); g.beginPath(); g.ellipse(152,42,5.5,3.6,0,0,7); g.fill();
+    g.fillStyle = '#7ec3de'; g.strokeStyle = '#4f9ab8'; g.lineWidth = 0.8;             // 右眼流下來的藍色眼淚
+    g.beginPath(); g.moveTo(154,28); g.quadraticCurveTo(158.5,35,158,38); g.arc(154,38,4,0,Math.PI); g.quadraticCurveTo(149.5,35,154,28); g.fill(); g.stroke();
+    g.fillStyle = '#d6f1f8'; g.fillRect(155,35,1,3);
+    g.fillStyle = '#c93a20'; g.strokeStyle = '#fbf0d6'; g.lineWidth = 1;               // 紅色驚慌的「ㄇ」形嘴巴
+    g.beginPath(); g.moveTo(125,57); g.bezierCurveTo(125,46,139,46,139,57); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#a82a16'; g.fillRect(127,55,10,2);
+  });
+  const peel = tex(32,32,(g,w,h)=>{ speckle(g,w,h,YEL,YC,.5); pores(g,w,h); });
+  seed = keepSeed;
+  return (nwPmCache = { body, peel });
+}
+function nwPomeloSuit(c){
+  const P = nwPm();
+  const bodyM = L({map:P.body, side:THREE.DoubleSide}), peelM = L({map:P.peel}), pithM = L({color:0xf6f0d2});
+  // 1) 藏起原本的上衣，四肢露出皮膚（袖子、短褲都換成膚色）
+  c.chest.children[0].visible = false;
+  [c.R, c.Lf].forEach(a=>{ a.sh.children[0].material = nwSkinM; });
+  [c.joints.rHp, c.joints.lHp].forEach(j=>j.children[0].material = nwSkinM);
+  // 2) 梨形柚子身體（Lathe：中間最寬，上下收窄；前後壓扁一點）
+  const pts = [], N = 26, y0 = -0.8, y1 = 2.15;
+  for (let i=0;i<=N;i++){
+    const t = i/N;
+    pts.push(new THREE.Vector2(1.1 + 0.45*Math.sin(Math.PI*Math.pow(t,0.75)) - 0.38*t*t, y0 + (y1-y0)*t));
+  }
+  const body = new THREE.Mesh(new THREE.LatheGeometry(pts, 28, -Math.PI, Math.PI*2), bodyM);   // phiStart=-π：貼圖正中央剛好在正前方
+  body.scale.z = 0.8; c.chest.add(body);
+  [[1.1,y0],[0.7,y1]].forEach(([r,y])=>{                                              // 下擺和領口的白色果皮邊
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(r,0.08,6,28), pithM);
+    rim.scale.set(1,0.8,1); rim.rotation.x = Math.PI/2; rim.position.y = y; c.chest.add(rim);
+  });
+  // 3) 手臂從柚子兩側的洞伸出來：肩膀往外移，中間補一小段膚色肩膀
+  c.R.sh.position.set(-1.65,1.55,0); c.Lf.sh.position.set(1.65,1.55,0);
+  [-1,1].forEach(s=>{ const stub = cyl(0.3,0.26,0.62,nwSkinM,8); stub.rotation.z = Math.PI/2; stub.position.set(s*1.36,1.55,0); c.chest.add(stub); });
+  // 4) 切開的柚子頂：圓頂＋白色果皮切面，歪歪蓋在頭上，頂端有小蒂頭
+  const cap = new THREE.Group();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.9,18,10,0,Math.PI*2,0,Math.PI/2), peelM); dome.scale.set(1,0.8,0.95); cap.add(dome);
+  const pith = new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,0.07,18), pithM); pith.scale.set(1,1,0.95); pith.position.y = -0.02; cap.add(pith);
+  cap.add(at(cyl(0.06,0.09,0.1,L({color:0x7a5a2c}),6),0,0.72,0));
+  cap.position.set(0.12,0.5,0.02); cap.rotation.set(0.1,0,-0.3);
+  c.head.add(cap);
+}
+
 // ---------------- register ----------------
 registerChar('newton', {
   stats: { name:'成自然', en:'Newton', tag:'健身・電機・半導體・存股', weight:1.15, run:13, air:10.5, jumpV:29, djV:25, jumps:2 },
@@ -370,7 +431,8 @@ registerChar('newton', {
       g.fillStyle = '#9b9ea6'; g.fillRect(24,54,16,5);                               // 帽 T 的領子
       g.fillStyle = '#bd1b20'; g.fillRect(30,58,4,6);
     } },
-  { name:'生日帽', apply(c){ const h = birthdayHat('#ff8f6b','#ffe066',0x7fd0ff); h.position.set(0.05,0.68,-0.02); c.head.add(h); } }],
+  { name:'生日帽', apply(c){ const h = birthdayHat('#ff8f6b','#ffe066',0x7fd0ff); h.position.set(0.05,0.68,-0.02); c.head.add(h); } },
+  { name:'柚子裝', apply: nwPomeloSuit }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['jabR','punch2'], box:[2.0,3.8,1.5], dmg:7, kb:9, sc:.75, ang:38, text:'肌肉！'},
