@@ -1952,7 +1952,8 @@ document.getElementById('padMapBack').onclick = ()=>{ padC.mbk++; padReady = fal
 const vibButtons = [...document.querySelectorAll('[data-vibration]')];
 function syncVibBtn(){
   vibButtons.forEach(b=>{
-    b.hidden = !vibSupported;   // unsupported devices (iPhone/iPad Safari, desktop): hide the switch entirely
+    // hide the switch on iPhone/iPad Safari (no API) and on computers (desktop Chrome has the API but no motor)
+    b.hidden = !vibSupported || !((navigator.maxTouchPoints || 0) > 0 || matchMedia('(pointer:coarse)').matches);
     b.textContent = '震動：' + (vibOn ? '開' : '關');
     b.disabled = !vibSupported;
     b.setAttribute('aria-pressed', String(vibSupported && vibOn));
