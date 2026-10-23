@@ -7,6 +7,7 @@ const Volleyball=(()=>{
   let slowFrames=0,frameWindow=0,pixelRatio=1.5;
   let renderer,setupCamera,replayCamera,impact,impactLife=0,arena,ball,ballShadow,target,reticle,trail,trailRibbon,strikeLabel,strikeCanvas,strikeTexture,labelLife=0,trailPoints=[],players=[],models=new Map(),rings=[],shadows=[],views=[],match=null,playMode='solo',screen='setup',last=0,clock=0,muted=false,audio=null,feedbackTime=0,practice=false,network=null;
   const replay=new VolleyReplay();let replayEnabled=true;
+  let soloEntry=false,localPointer=null,localMove=0;
   const held=new Set(),padButtons=new Map();const colors=['#ff7a3d','#4fa3ff','#5fd36a','#d070e0'];const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   function sound(kind='hit'){
     if(muted)return;try{audio ||=new (window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});const t=audio.currentTime;
@@ -29,7 +30,7 @@ const Volleyball=(()=>{
   }
   function modelLineup(){
     const lineup=[$('hero').value,$('partner').value,$('rival').value,$('rivalPartner').value];players.forEach(m=>m.holder.visible=false);players=[];
-    lineup.forEach((kind,i)=>{const skin=selectedSkins[i],key=kind+':'+skin+':'+i;let m=models.get(key);if(!m){m=makeModel(kind,skin);m.body.scale.setScalar(.60);m.holder.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();const size=new THREE.Vector3();o.geometry.boundingBox.getSize(size);o.castShadow=size.y>.65&&size.x>.35;o.receiveShadow=true;}});models.set(key,m);}const portrait=document.querySelector('.choicePortrait[data-player="'+i+'"]');const face=CHARS[kind].face?.image;if(portrait&&face?.toDataURL)portrait.src=face.toDataURL();m.holder.visible=true;m.setFace?.('normal');m.holder.position.set(i%2?-2.5:2.5,0,(i<2?1:-1)*(i%2?2.7:9.8));m.holder.rotation.y=i<2?Math.PI:0;if(screen==='setup'){const selecting=$('setup').dataset.step==='lineup';m.holder.position.set(selecting?10+(i%2)*5:10+i*2.2,.1,selecting?3+Math.floor(i/2)*5:5+(i%2)*.5);m.holder.rotation.y=Math.atan2(setupCamera.position.x-m.holder.position.x,setupCamera.position.z-m.holder.position.z);}applyPose(m,POSE.stance,1);players.push(m);});
+    lineup.forEach((kind,i)=>{const skin=selectedSkins[i],key=kind+':'+skin+':'+i;let m=models.get(key);if(!m){m=makeModel(kind,skin);m.body.scale.setScalar(.60);m.holder.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();const size=new THREE.Vector3();o.geometry.boundingBox.getSize(size);o.castShadow=size.y>.65&&size.x>.35;o.receiveShadow=true;}});models.set(key,m);}const portrait=document.querySelector('.choicePortrait[data-player="'+i+'"]');const face=CHARS[kind].face?.image;if(portrait&&face?.toDataURL)portrait.src=face.toDataURL();m.holder.visible=true;m.setFace?.('normal');m.holder.position.set(i%2?-2.5:2.5,0,(i<2?1:-1)*(i%2?2.7:9.8));m.holder.rotation.y=i<2?Math.PI:0;if(screen==='setup'){const selecting=$('setup').dataset.step==='lineup';m.holder.position.set(selecting?10+(i%2)*5:10+i*2.2,.1,selecting?3+Math.floor(i/2)*5:5+(i%2)*.5);if(selecting&&matchMedia('(pointer:coarse)').matches&&innerWidth<1000)m.holder.position.set(8.3+i*2.8,.1,6);m.holder.rotation.y=Math.atan2(setupCamera.position.x-m.holder.position.x,setupCamera.position.z-m.holder.position.z);}applyPose(m,POSE.stance,1);players.push(m);});
   }
   let selectedSlot=0;const selectedReady=[false,false,false,false],selectedSkins=[0,0,0,0],selectionStages=[0,0,0,0],selectionIDs=['hero','partner','rival','rivalPartner'];
   function lobbyState(){return {step:$('setup').dataset.step,slots:selectionIDs.map((id,i)=>({kind:$(id).value,skin:selectedSkins[i],stage:selectionStages[i],ready:selectedReady[i]}))};}
@@ -73,8 +74,8 @@ const Volleyball=(()=>{
   }
   function names(){return players.map(m=>CHARS[m.kind].stats.name);}
   function setupStep(step){
-    $('setup').dataset.step=step;document.querySelector('#nav .home').hidden=step!=='entry';$('lobbyHome').hidden=step==='entry';
-    if(setupCamera){if(step==='lineup'){setupCamera.position.set(23,10,30);setupCamera.lookAt(12.5,.5,6);}else{setupCamera.position.set(24,9,26);setupCamera.lookAt(6.5,2.5,1);}}
+    $('setup').dataset.step=step;document.body.classList.toggle('soloFlow',soloEntry&&step!=='entry');document.querySelector('#nav .home').hidden=step!=='entry';$('lobbyHome').hidden=step==='entry';
+    if(setupCamera){if(step==='lineup'){if(matchMedia('(pointer:coarse)').matches&&innerWidth<1000){setupCamera.position.set(12.5,6.5,6+Math.max(17,6.3/(Math.tan(setupCamera.fov*Math.PI/360)*setupCamera.aspect)));setupCamera.lookAt(12.5,1.2,6);}else{setupCamera.position.set(23,10,30);setupCamera.lookAt(12.5,.5,6);}}else{setupCamera.position.set(24,9,26);setupCamera.lookAt(6.5,2.5,1);}}
     document.querySelectorAll('[data-setup-pane]').forEach(p=>p.hidden=p.dataset.setupPane!==step);
     $('setup').querySelector('.setupBox').scrollTop=0;
     if(players.length){modelLineup();if(step==='lineup')refreshSelection();}
@@ -115,17 +116,33 @@ const Volleyball=(()=>{
       screen='result';$('pointBanner').hidden=true;$('result').hidden=false;$('pause').hidden=true;$('touchControls').hidden=true;$('finishPractice').hidden=true;$('resultTitle').textContent=(e.winner===0?'藍隊':'紅隊')+'勝出！';$('resultScore').textContent=e.score[0]+' : '+e.score[1];$('resultStats').textContent='Nice 擊球 '+match.perfects+' 次\n最長回合 '+match.longest+' 次觸球';
     }
   }
-  function showSetup(){setupStep('entry');replay.reset();$('replayLayer').hidden=true;screen='setup';match=null;labelLife=0;strikeLabel.visible=false;held.clear();document.body.classList.remove('playing');['views','scoreboard','pause','help','pauseModal','result','pointBanner','touchControls','finishPractice'].forEach(id=>$(id).hidden=true);$('setup').hidden=false;modelLineup();reticle.visible=target.visible=trail.visible=trailRibbon.visible=false;network?.updateSeats(humanIDs(),names());}
+  function showSetup(){setupStep('entry');replay.reset();$('replayLayer').hidden=true;screen='setup';match=null;resetLocalStick();labelLife=0;strikeLabel.visible=false;held.clear();document.body.classList.remove('playing');['views','scoreboard','pause','help','pauseModal','result','pointBanner','touchControls','finishPractice'].forEach(id=>$(id).hidden=true);$('setup').hidden=false;modelLineup();reticle.visible=target.visible=trail.visible=trailRibbon.visible=false;network?.updateSeats(humanIDs(),names());}
   function start(isPractice=false,help=true){
-    replay.reset();$('replayLayer').hidden=true;sound('serve');practice=isPractice;screen='play';document.querySelector('#nav .home').hidden=true;$('lobbyHome').hidden=true;modelLineup();held.clear();match=new VolleyMatch({mode:playMode,difficulty:$('difficulty').value,practice:isPractice,onEvent});createViews();$('setup').hidden=true;$('result').hidden=true;$('views').hidden=false;$('scoreboard').hidden=false;$('pause').hidden=false;$('pause').textContent='暫停';$('finishPractice').hidden=!practice;$('practiceNote').hidden=!practice;$('matchLabel').textContent=practice?'PRACTICE / 不計分':'5 POINT MATCH';$('team0').textContent=playMode==='coop'?'你們':'藍隊';$('team1').textContent='紅隊';
-    document.body.classList.add('playing');$('touchControls').hidden=!matchMedia('(pointer:coarse)').matches||match.humans.length>1;network?.updateSeats(match.humans,names());
+    replay.reset();$('replayLayer').hidden=true;sound('serve');practice=isPractice;screen='play';resetLocalStick();document.querySelector('#nav .home').hidden=true;$('lobbyHome').hidden=true;modelLineup();held.clear();match=new VolleyMatch({mode:playMode,difficulty:$('difficulty').value,practice:isPractice,onEvent});createViews();$('setup').hidden=true;$('result').hidden=true;$('views').hidden=false;$('scoreboard').hidden=false;$('pause').hidden=false;$('pause').textContent='暫停';$('finishPractice').hidden=!practice;$('practiceNote').hidden=!practice;$('matchLabel').textContent=practice?'PRACTICE / 不計分':'5 POINT MATCH';$('team0').textContent=playMode==='coop'?'你們':'藍隊';$('team1').textContent='紅隊';
+    document.body.classList.add('playing');$('touchControls').hidden=!matchMedia('(pointer:coarse)').matches||match.humans.length>1||network?.isRemote(match.humans[0]);network?.updateSeats(match.humans,names());
     if(help){match.paused=true;$('help').hidden=false;}$('helpGo').focus();
   }
-  function pause(value){if(!match||!['play','point'].includes(match.status))return;match.paused=value;held.clear();match.players.forEach(p=>p.move=0);$('pauseModal').hidden=!value;$('pause').textContent=value?'繼續':'暫停';}
+  function pause(value){if(!match||!['play','point'].includes(match.status))return;match.paused=value;resetLocalStick();held.clear();match.players.forEach(p=>p.move=0);$('pauseModal').hidden=!value;$('pause').textContent=value?'繼續':'暫停';}
   function playerInput(index,action,value){if(match&&screen==='play')match.input(index,action,value);}
+  function resetLocalStick(){localMove=0;localPointer=null;const stick=$('localStick');if(stick){stick.style.setProperty('--local-x','0px');stick.style.setProperty('--local-y','0px');stick.classList.remove('active');stick.setAttribute('aria-valuenow','0');}if(match)match.input(match.humans[0],'move',0);}
+  function updateLocalAction(){
+    if(!match||$('touchControls').hidden)return;const p=match.players[match.humans[0]],task=match.task(p.id),air=p.y>.45,jumping=task==='approach'||task==='spike'&&!air;
+    const title=jumping?'起跳':task==='block'?(air?'攔網中':'起跳攔網'):({toss:'拋球',serve:'發球',receive:'接球',set:'舉球',spike:'扣球',cover:'等候',wait:'準備'}[task]||'準備');
+    $('localActionLabel').textContent=title;$('localAction').setAttribute('aria-label',title);$('localActionIcon').textContent=jumping?'↟':task==='spike'?'↘':task==='block'?'⊓':task==='receive'?'◉':'↑';
+    $('localAction').disabled=match.paused||match.status!=='play'||replay.active||['cover','wait'].includes(task)||(task==='approach'||task==='block')&&air;
+    $('localActionHint').textContent=task==='spike'&&air?'球到手邊，再按扣球':jumping?'按一下起跳':'跟著提示按一下';
+  }
+  function initLocalTouch(){
+    const stick=$('localStick');const drag=e=>{if(e.pointerId!==localPointer)return;e.preventDefault();const r=stick.getBoundingClientRect(),knob=$('localStickKnob').getBoundingClientRect(),radius=(r.width-knob.width)/2-5;let x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;const distance=Math.hypot(x,y);if(distance>radius){x*=radius/distance;y*=radius/distance;}const axis=x/radius;localMove=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;stick.style.setProperty('--local-x',x+'px');stick.style.setProperty('--local-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(localMove*100)));};
+    stick.onpointerdown=e=>{if(e.button!==0||localPointer!==null)return;e.preventDefault();localPointer=e.pointerId;stick.setPointerCapture(e.pointerId);stick.classList.add('active');drag(e);};stick.onpointermove=drag;
+    const stop=e=>{if(e.pointerId===localPointer)resetLocalStick();};stick.onpointerup=stop;stick.onpointercancel=stop;stick.onlostpointercapture=stop;
+    stick.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(['Home','Escape'].includes(e.key)){resetLocalStick();return;}localPointer='keyboard';localMove=e.key==='ArrowLeft'?-1:1;stick.style.setProperty('--local-x',localMove*32+'px');};stick.onkeyup=e=>{if(localPointer==='keyboard'){e.preventDefault();e.stopPropagation();resetLocalStick();}};stick.onblur=resetLocalStick;
+    const press=()=>{if(!$('localAction').disabled)playerInput(match?.humans[0],'action');};$('localAction').onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();press();};$('localAction').onclick=e=>{if(e.detail===0)press();};
+    for(const type of ['gesturestart','gesturechange','gestureend','touchmove'])$('touchControls').addEventListener(type,e=>e.preventDefault(),{passive:false});
+  }
   function keyboardInputs(){
     if(!match||match.paused)return;const bindings=[['KeyA','KeyD'],['ArrowLeft','ArrowRight'],['KeyF','KeyH'],['Numpad4','Numpad6']];
-    match.humans.forEach((id,index)=>{if(network?.isRemote(id))return;const [left,right]=bindings[index];let gp=null;try{gp=navigator.getGamepads?.()[index];}catch(_){}let move=held.has(left)?-1:held.has(right)?1:0;if(gp&&Math.abs(gp.axes[0])>.2)move=gp.axes[0];match.input(id,'move',move);
+    match.humans.forEach((id,index)=>{if(network?.isRemote(id))return;const [left,right]=bindings[index];let gp=null;try{gp=navigator.getGamepads?.()[index];}catch(_){}let move=index===0&&localPointer!==null?localMove:held.has(left)?-1:held.has(right)?1:0;if(gp&&Math.abs(gp.axes[0])>.2)move=gp.axes[0];match.input(id,'move',move);
       if(gp){for(const [b,a]of [[0,'jump'],[1,'hit']]){const key=index+':'+b,down=!!gp.buttons[b]?.pressed;if(down&&!padButtons.get(key))match.input(id,a);padButtons.set(key,down);}}
     });
   }
@@ -161,7 +178,7 @@ const Volleyball=(()=>{
         pointer.style.left=clamp((projected.x*.5+.5)*v.rect.w,12,v.rect.w-30)+'px';pointer.style.top=clamp((-projected.y*.5+.5)*v.rect.h,90,v.rect.h-80)+'px';
       });
     }
-    network?.broadcast();
+    updateLocalAction();network?.broadcast();
     if(!match?.paused)labelLife=Math.max(0,labelLife-dt);strikeLabel.visible=labelLife>0&&!!match&&!replay.playing;strikeLabel.position.copy(ball.position).add(new THREE.Vector3(0,1.15,0));strikeLabel.material.opacity=Math.min(1,labelLife*4);ball.material.color.set(match?(replay.playing?replay.sample()?.flight?.color:match.flight?.color||match.strike?.color)||'#ffffff':'#ffffff');
     impactLife=Math.max(0,impactLife-dt);impact.visible=impactLife>0&&!replay.playing;impact.material.opacity=impactLife/.18;impact.scale.setScalar(1+(1-impactLife/.18)*2.2);impact.quaternion.copy((replay.playing?replayCamera:views[0]?.camera||setupCamera).quaternion);
     ballShadow.position.set(ball.position.x,.17,ball.position.z);ballShadow.scale.setScalar(.6+ball.position.y*.06);ballShadow.material.opacity=clamp(.27-ball.position.y*.015,.08,.27);
@@ -178,7 +195,7 @@ const Volleyball=(()=>{
     if(replay.playing){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=true;renderer.render(scene,replayCamera);return;}
     renderer.setScissorTest(true);views.forEach((v,i)=>{const r=v.rect;renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);renderer.shadowMap.autoUpdate=i===0;const occluders=players.filter((m,id)=>id!==v.id&&match.players[id].team===match.players[v.id].team&&Math.hypot(m.holder.position.x-v.camera.position.x,m.holder.position.z-v.camera.position.z)<8);occluders.forEach(m=>m.holder.visible=false);renderer.render(scene,v.camera);occluders.forEach(m=>m.holder.visible=true);});renderer.setScissorTest(false);
   }
-  function resize(){replayCamera.aspect=innerWidth/innerHeight;replayCamera.fov=replayCamera.aspect<1?66:48;replayCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);setupCamera.aspect=innerWidth/innerHeight;setupCamera.fov=innerWidth/innerHeight<.9?62:45;setupCamera.updateProjectionMatrix();layoutViews();}
+  function resize(){replayCamera.aspect=innerWidth/innerHeight;replayCamera.fov=replayCamera.aspect<1?66:48;replayCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);setupCamera.aspect=innerWidth/innerHeight;setupCamera.fov=innerWidth/innerHeight<.9?62:45;setupCamera.updateProjectionMatrix();layoutViews();if(!match&&players.length&&$('setup').dataset.step==='lineup')setupStep('lineup');}
   function loop(t){requestAnimationFrame(loop);const dt=Math.min(last?(t-last)/1000:1/60,.15);last=t;if(document.hidden)return;updateScene(dt);render();slowFrames++;frameWindow+=dt;if(slowFrames>=90){if(frameWindow/slowFrames>.032&&pixelRatio>1){pixelRatio=1;renderer.setPixelRatio(1);resize();}slowFrames=frameWindow=0;}}
   function configureNetwork(){network=new VolleyNetwork({getState:()=>match?{...match.snapshot(),names:names(),screen}: {humans:humanIDs(),names:names(),screen:'setup',lobby:lobbyState()},getRoster:roster,onSelection:selectFromPhone,input:playerInput,onDisconnect:()=>{if(match&&screen==='play')pause(true);}});}
   function boot(){
@@ -187,8 +204,8 @@ const Volleyball=(()=>{
     const openRoom=()=>{$('roomHost').hidden=false;$('roomConnectionMode').hidden=false;$('roomModal').querySelector('h2').textContent='跟朋友玩';$('roomModal').hidden=false;};
     const openJoin=()=>{$('roomHost').hidden=true;$('roomConnectionMode').hidden=true;$('roomModal').querySelector('h2').textContent='加入房間';$('roomModal').hidden=false;$('joinCode').focus();};
     $('lobbyHome').onclick=()=>setupStep('entry');
-    $('volleySolo').onclick=()=>{$('playMode').querySelector('[data-value="solo"]').hidden=false;$('playMode').querySelector('[data-value="solo"]').click();$('friendsNote').hidden=true;setupStep('rules');};
-    $('volleyFriends').onclick=()=>setupStep('party');
+    $('volleySolo').onclick=()=>{soloEntry=true;if(network.peer)network.close();$('playMode').querySelector('[data-value="solo"]').hidden=false;$('playMode').querySelector('[data-value="solo"]').click();$('friendsNote').hidden=true;setupStep('rules');};
+    $('volleyFriends').onclick=()=>{soloEntry=false;setupStep('party');};
     $('partyBack').onclick=()=>setupStep('entry');$('partyJoin').onclick=openJoin;
     const friendRules=remote=>{selectedReady.fill(false);selectionStages.fill(0);selectedSlot=0;network.setRemote(remote);$('playMode').querySelector('[data-value="solo"]').hidden=false;$('playMode').querySelector('[data-value="coop"]').click();$('friendsNote').hidden=false;setupStep('rules');updateModeDescription();};$('volleyLocal').onclick=()=>friendRules(false);$('volleyRemote').onclick=()=>friendRules(true);
     $('setupEntryBack').onclick=()=>setupStep($('friendsNote').hidden?'entry':'party');$('setupNext').onclick=()=>setupStep('lineup');$('setupRulesBack').onclick=()=>setupStep('rules');
@@ -200,9 +217,9 @@ const Volleyball=(()=>{
       if(!match||match.paused||screen!=='play'||!$('roomModal').hidden)return;const handled=['KeyA','KeyD','KeyJ','KeyK','Space','ArrowLeft','ArrowRight','Enter','ShiftLeft','ShiftRight','KeyF','KeyH','KeyR','KeyT','Numpad4','Numpad6','Numpad1','Numpad2'];if(!handled.includes(e.code))return;e.preventDefault();held.add(e.code);if(e.repeat)return;
       const actions=[{KeyJ:'hit',KeyK:'jump',Space:'jump'},{Enter:'hit',ShiftLeft:'jump',ShiftRight:'jump'},{KeyR:'hit',KeyT:'jump'},{Numpad1:'hit',Numpad2:'jump'}];match.humans.forEach((id,i)=>{if(actions[i][e.code])match.input(id,actions[i][e.code]);});
     });document.addEventListener('keyup',e=>held.delete(e.code));
-    document.querySelectorAll('[data-action]').forEach(b=>b.onpointerdown=e=>{e.preventDefault();playerInput(match?.humans[0],'hit'===b.dataset.action?'hit':'jump');});
+    initLocalTouch();document.querySelectorAll('[data-action]').forEach(b=>b.onpointerdown=e=>{e.preventDefault();playerInput(match?.humans[0],'hit'===b.dataset.action?'hit':'jump');});
     document.querySelectorAll('[data-move]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(match)match.players[match.humans[0]].move=Number(b.dataset.move);held.add(Number(b.dataset.move)<0?'KeyA':'KeyD');};const stop=()=>{held.delete('KeyA');held.delete('KeyD');};b.onpointerup=stop;b.onpointercancel=stop;});
-    addEventListener('resize',resize);addEventListener('blur',()=>{held.clear();if(!network?.connectedCount)pause(true);});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause(true);last=0;});$('court').addEventListener('webglcontextlost',e=>{e.preventDefault();pause(true);$('feedback').textContent='畫面暫停，請重新載入球館';});
+    addEventListener('resize',resize);addEventListener('blur',()=>{resetLocalStick();held.clear();if(!network?.connectedCount)pause(true);});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause(true);last=0;});$('court').addEventListener('webglcontextlost',e=>{e.preventDefault();pause(true);$('feedback').textContent='畫面暫停，請重新載入球館';});
     resize();updateSlots();showSetup();$('loading').hidden=true;requestAnimationFrame(loop);
   }
   return {boot,input:playerInput,get state(){return match?{...match.snapshot(),screen,lineup:players.map(m=>({kind:m.kind,skin:m.skin})),replay:{active:replay.active,playing:replay.playing,cursor:replay.cursor},cameras:views.map(v=>({player:v.id,position:v.camera.position.toArray(),look:v.look.toArray(),fov:v.camera.fov,rect:{...v.rect}}))}:{screen:'setup',humans:humanIDs(),lobby:lobbyState()};}};
