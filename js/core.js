@@ -933,16 +933,19 @@ function applyHit(att, v, h, dirX, hx, hy){
   let dmg = h.dmg, kbBase = h.kb;
   if (att && att.sadT > 0){ dmg *= .7; kbBase *= .7; }
   if (att && att.buffT > 0){ dmg *= att.buffDmg || 1.3; kbBase *= att.buffKb || 1.15; }   // temporary power-up (e.g. 熊化)
+  const noCharge = inFinal(att);   // damage from a final never charges anyone's meter
   if (v.state==='shield'){
     v.shieldHP -= dmg*1.4; v.vx = dirX*7; SFX.shield(); spark(hx, hy, 1.2);
-    if (att) att.meter = Math.min(100, att.meter + dmg*.3);
+    if (att && !noCharge) att.meter = Math.min(100, att.meter + dmg*.3);
     if (v.shieldHP <= 0) v.breakShield();
     G.freeze = .04; return true;
   }
   const before = v.pct;
   v.pct = Math.min(999, v.pct + dmg);
-  if (att){ att.meter = Math.min(100, att.meter + dmg*1.1); }
-  v.meter = Math.min(100, v.meter + dmg*.55);
+  if (!noCharge){
+    if (att) att.meter = Math.min(100, att.meter + dmg*1.1);
+    v.meter = Math.min(100, v.meter + dmg*.55);
+  }
   let kb = (kbBase + v.pct*h.sc*.12) / v.D.weight;
   const armored = v.state==='move' && v.move && v.move.armor && v.moveT < v.move.t[0] && kb < 26;
   spark(hx, hy, 1.4 + Math.min(2, kb*.06));
@@ -1011,8 +1014,12 @@ function updateProjs(dt, t){
 function other(f){ return nearestFoe(f); }
 function startFinal(f){
   f.meter = 0; f.state = 'final'; f.move = null; f.vx = 0; G.flash = .6;
+  const n0 = G.finals.length;
   f.C.final(f, other(f));
+  for (let i = n0; i < G.finals.length; i++) G.finals[i].isFinal = true;   // tag only what the final itself spawned (G.finals also holds ordinary move effects)
 }
+// true while f's final is running: hits it deals neither charge f's meter nor the victim's (no chain finals in 4-player)
+function inFinal(f){ return !!f && (f.state === 'final' || G.finals.some(F => F.isFinal && F.owner === f)); }
 // every entry in G.finals has update(F, dt, t) → true when finished, and optional dispose(F)
 function disposeFinal(F){ if (F.dispose) F.dispose(F); else if (F.mesh){ scene.remove(F.mesh); freeObj(F.mesh); } }
 function updateFinals(dt, t){
