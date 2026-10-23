@@ -17,9 +17,10 @@ const MUSIC = {
   india:     'india.mp3'       // 印度街頭
 };
 const MUSIC_DEFAULT = null;
+const MUSIC_RESULT = 'victory.mp3';   // 結尾頁（生日派對除外）播一次就停，不循環
 
 const Music = (()=>{
-  const DIR = 'audio/', VOL = 0.35, PAUSE_K = 0.35, FADE = 0.25, FADE_END = 0.8, KEY = 'wvs_music_muted';
+  const DIR = 'audio/', VOL = 0.35, RESULT_K = 0.4, PAUSE_K = 0.35, FADE = 0.25, FADE_END = 0.8, KEY = 'wvs_music_muted';
   let muted = false;
   try{ muted = localStorage.getItem(KEY) === '1'; }catch(_){}
   let ctx = null, gain = null, src = null, cur = null;      // cur = file currently playing (or being faded out)
@@ -29,11 +30,12 @@ const Music = (()=>{
 
   function want(){
     const m = G.mode;
-    if (m === 'pad' || m === 'result') return null;
+    if (m === 'pad') return null;
+    if (m === 'result') return (typeof RES !== 'undefined' && RES && RES.party) ? null : MUSIC_RESULT;   // 生日結尾維持原本的生日歌
     const id = m === 'play' ? curMap : 'lobby';
     return (id in MUSIC) ? MUSIC[id] : (MUSIC_DEFAULT || null);
   }
-  function target(){ return muted ? 0 : VOL * (G.paused ? PAUSE_K : 1); }
+  function target(){ return muted ? 0 : VOL * (G.paused ? PAUSE_K : 1) * (G.mode === 'result' ? RESULT_K : 1); }
   function ramp(to, sec){
     if (!gain || !ctx) return;
     const t = ctx.currentTime, g = gain.gain;
@@ -73,7 +75,7 @@ const Music = (()=>{
       if (buf && bufFile !== f){ buf = null; bufFile = null; }    // drop the previous decode before loading the next
       const b = await load(f, ctx);
       if (!b || my !== token || ctx !== AC || want() !== f) return;
-      src = ctx.createBufferSource(); src.buffer = b; src.loop = true; src.connect(gain);
+      src = ctx.createBufferSource(); src.buffer = b; src.loop = (f !== MUSIC_RESULT); src.connect(gain);
       gain.gain.cancelScheduledValues(ctx.currentTime); gain.gain.setValueAtTime(0, ctx.currentTime);
       src.start(0); cur = f; ramp(target(), FADE);
     }catch(e){ /* music must never break the game */ }
