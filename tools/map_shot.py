@@ -32,7 +32,7 @@ async def main():
             elif f'127.0.0.1:{PORT}' in u: await r.continue_()
             else: await r.abort()
         await pg.route('**/*', route)
-        await pg.goto(f'http://127.0.0.1:{PORT}/index.html?v=7'); await pg.wait_for_timeout(1500)
+        await pg.goto(f'http://127.0.0.1:{PORT}/brawl.html?v=7'); await pg.wait_for_timeout(1500)
         kinds = await pg.evaluate('CHAR_ORDER')
         if MAP not in await pg.evaluate('MAP_ORDER'): sys.exit(f'map {MAP!r} is not registered')
         for n in (2, 4):

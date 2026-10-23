@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#120e0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="世志大亂鬥">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="description" content="秉寶與偷米的 PS2 風格 3D 平台格鬥遊戲，可以用手機當手把。">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>世志大亂鬥</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<style>
+/* Layout: full-bleed 3D arena; menu is a bottom sheet over the character showcase; HUD cards pinned to an edge (single dark arcade look) */
+:root{
+  --bg:#120e0c; --ink:#f6eedf; --dim:#bfae95; --panel:rgba(20,15,12,.84); --line:rgba(246,238,223,.16);
+  --p1:#ff7a3d; --p2:#4fa3ff; --p3:#5fd36a; --p4:#d070e0; --gold:#f2c14e;
+  --pixel:"VT323", ui-monospace, "Courier New", monospace;
+  --ui:"Noto Sans TC", system-ui, "PingFang TC", sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{touch-action:manipulation}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#pops{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.pop{position:absolute;transform:translate(-50%,-50%);font-weight:900;font-size:22px;color:#fff;white-space:nowrap;text-shadow:2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000;animation:rise 1s ease-out forwards}
+.pop.big{font-size:38px;color:var(--gold)}
+.pop.blue{color:#a9d4ff}
+.pop.red{color:#ff8a6a}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}14%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}100%{opacity:0;transform:translate(-50%,-170%) scale(1)}}
+.banner{position:fixed;left:0;right:0;top:30%;text-align:center;font-weight:900;font-size:clamp(30px,7vw,64px);color:var(--gold);text-shadow:3px 3px 0 #000,-3px 3px 0 #000,3px -3px 0 #000,-3px -3px 0 #000;pointer-events:none;animation:bann 1.7s ease-out forwards;padding-inline:16px}
+@keyframes bann{0%{opacity:0;transform:scale(1.6)}12%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(.96)}}
+.pop.dmg{font-family:var(--pixel);font-weight:400;font-size:28px;color:#ffe9a8}
+#hud{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;flex-wrap:wrap;justify-content:center;width:max-content;max-width:96vw;gap:8px;pointer-events:none}
+@media (orientation:portrait){ body.touch #hud{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 62px)} }
+.card{display:flex;align-items:center;gap:8px;background:rgba(20,15,12,.72);border:1px solid var(--line);border-left:4px solid var(--pc);border-radius:10px;padding:4px 10px 5px 8px}
+.card .who{display:grid;gap:3px}
+.card .nm{font-size:11px;color:var(--dim);white-space:nowrap}
+.card .nm b{color:var(--pc);margin-left:5px;letter-spacing:.06em}
+.card .pc{font-family:var(--pixel);font-size:34px;line-height:.8;min-width:2.7ch;text-align:right;font-variant-numeric:tabular-nums}
+.stk{display:flex;gap:3px;height:7px}
+.stk i{width:7px;height:7px;border-radius:50%;background:var(--pc)}
+.meter{height:3px;width:58px;background:rgba(255,255,255,.14);border-radius:2px;overflow:hidden}
+.meter b{display:block;height:100%;width:0;background:var(--gold)}
+.meter.full b{animation:glow .45s infinite alternate}
+@keyframes glow{to{background:#fff6cf}}
+#quit{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);background:rgba(20,15,12,.6);border:1px solid var(--line);color:var(--dim);font:inherit;font-size:13px;border-radius:999px;padding:5px 14px;cursor:pointer}
+#menu{justify-content:center}
+#menu .title{margin-bottom:8px}
+.scr{width:min(560px,100%)}
+.scrH{margin:0;font-size:20px;font-weight:900;letter-spacing:.06em}
+.bigBtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.big{font:inherit;text-align:left;background:linear-gradient(135deg,rgba(255,122,61,.22),rgba(79,163,255,.18));border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;color:var(--ink);cursor:pointer;display:grid;gap:4px;transition:transform .12s, border-color .12s}
+.big:hover{transform:translateY(-2px);border-color:var(--gold)}
+.big b{font-size:28px;font-weight:900;letter-spacing:.06em}
+.big span{font-size:13px;color:var(--dim)}
+.ruleRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ruleRow > span{width:3em;font-size:13px;color:var(--dim);letter-spacing:.1em}
+#sel{position:fixed;inset:0;pointer-events:none}
+#sel button, #sel .party{pointer-events:auto}
+.selTop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding-left:max(70px,env(safe-area-inset-left,0px));padding-right:max(70px,env(safe-area-inset-right,0px))}
+.selTop > b{font-family:var(--pixel);font-weight:400;font-size:26px;letter-spacing:.2em;color:var(--ink);text-shadow:2px 2px 0 #000;background:rgba(20,15,12,.55);padding:2px 16px;border-radius:999px}
+#sel .party{background:rgba(20,15,12,.75);backdrop-filter:blur(6px);max-width:420px}
+.plate{position:absolute;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 190px);display:grid;justify-items:start;gap:0;transform:skewX(-8deg)}
+.plate.right{left:auto;right:max(18px,env(safe-area-inset-right,0px));justify-items:end}
+.plate .tag{font-family:var(--pixel);font-size:22px;color:var(--pc);text-shadow:2px 2px 0 #000}
+.plate .nm{font-size:clamp(40px,7vw,76px);font-weight:900;line-height:1;color:#fff;text-shadow:3px 3px 0 var(--pc),6px 6px 0 #000}
+.plate .en{font-family:var(--pixel);font-size:24px;letter-spacing:.2em;color:var(--pc);text-shadow:2px 2px 0 #000;border-top:3px solid var(--pc);padding-top:2px}
+.plate .st{font-style:normal;font-size:14px;color:var(--dim);margin-top:4px;text-shadow:1px 1px 0 #000}
+.plate.ok .st{font-family:var(--pixel);font-size:40px;line-height:1;color:var(--gold);animation:stamp .3s cubic-bezier(.2,1.8,.4,1)}
+@keyframes stamp{from{transform:scale(2.4);opacity:0}}
+.plate.top{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 96px)} .plate.top .nm{font-size:clamp(26px,4.5vw,46px)}
+.selBottom{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;align-items:center;gap:10px;padding-left:16px;padding-right:16px}
+.portraits{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;pointer-events:auto}
+.porWrap{position:relative;display:grid;justify-items:center;gap:4px}
+.skins[hidden],.portraits[hidden]{display:none} .skins .por{width:96px;height:96px} .skins .porWrap > span{font-size:15px;font-weight:700}
+.por{width:78px;height:78px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.35);padding:0;background:#000;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4);transition:transform .12s}
+.por canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.por.hot{transform:scale(1.12)}
+.por.c0{border-color:var(--p1)} .por.c1{border-color:var(--p2)} .por.c0.c1{border-color:var(--gold)} .por.c2{border-color:var(--p3)} .por.c3{border-color:var(--p4)}
+.porWrap > span{font-size:12px;color:var(--ink);text-shadow:1px 1px 0 #000}
+.mk{position:absolute;top:-14px;font-family:var(--pixel);font-size:18px;line-height:1;text-shadow:1px 1px 0 #000,-1px 1px 0 #000,1px -1px 0 #000,-1px -1px 0 #000;pointer-events:none}
+.mk.m0{left:-6px;color:var(--p1)} .mk.m1{right:-6px;color:var(--p2)} .mk.m2{left:-6px;top:auto;bottom:16px;color:var(--p3)} .mk.m3{right:-6px;top:auto;bottom:16px;color:var(--p4)}
+.selBtns{display:flex;gap:8px;pointer-events:auto}
+.selBtns .go{padding:10px 28px} .selBtns .ghost{padding:10px 18px}
+.selHint{font-size:12px;color:var(--dim);text-shadow:1px 1px 0 #000;text-align:center}
+@media (max-width:640px){ .plate{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)} .plate .nm{font-size:40px} .plate .en{font-size:18px} .por{width:64px;height:64px} }
+/* short landscape screens (phones): compact name cards, two neat rows per side so P1/P3 and P2/P4 never overlap */
+@media (max-height:560px){
+  .plate, .plate.top{top:calc(env(safe-area-inset-top,0px) + 54px);bottom:auto}
+  .plate.top{top:calc(env(safe-area-inset-top,0px) + 148px)}
+  .plate .tag{font-size:14px}
+  .plate .nm, .plate.top .nm{font-size:26px;text-shadow:2px 2px 0 var(--pc),4px 4px 0 #000}
+  .plate .en{font-size:12px;border-top-width:2px;padding-top:1px}
+  .plate .st{font-size:11px;margin-top:2px}
+  .plate.ok .st{font-size:22px}
+  .selTop{gap:4px}
+  #sel .party{padding:6px 10px;gap:4px;max-width:380px}
+  .party .code b{font-size:30px}
+  #partyQR{width:84px;height:84px}
+  #sel .party.hasQR{max-width:500px}
+  .party p{font-size:11px;line-height:1.45}
+}
+.party{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+.partyInfo{display:grid;gap:8px;min-width:0}
+.party.hasQR{grid-template-columns:1fr auto;align-items:center;gap:14px}
+#partyQR{width:132px;height:132px;image-rendering:pixelated;border-radius:6px;background:#fff;display:block}
+#sel .party.hasQR{max-width:580px}
+.party .code{display:flex;align-items:baseline;gap:12px}
+.party .code span{font-size:12px;color:var(--dim);letter-spacing:.08em}
+.party .code b{font-family:var(--pixel);font-size:48px;line-height:.8;color:var(--gold);letter-spacing:.12em}
+.party p{margin:0;font-size:12px;color:var(--dim);line-height:1.6}
+#padList{display:flex;gap:8px;flex-wrap:wrap}
+#padList span{font-size:13px;border-radius:999px;padding:3px 10px;border:1px solid var(--line)}
+#padList span.on{border-color:var(--gold);color:var(--ink)}
+#joinUI{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#joinUI .sheet{width:min(360px,100%);text-align:center}
+#joinUI h2{margin:0;font-size:22px}
+#codeIn{font-family:var(--pixel);font-size:48px;text-align:center;letter-spacing:.3em;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;color:var(--gold);padding:6px;width:100%;box-sizing:border-box}
+#joinMsg{margin:0;font-size:13px;color:var(--dim);min-height:1.4em}
+/* opened from the host's QR code: no form to tap, just "connecting…" with a still picture (白狗 running, little white dogs chasing) */
+#joinUI .waitPic{display:none;width:min(320px,100%);margin:16px auto 10px}
+#joinUI .waitPic canvas{display:block;width:100%;height:auto;border-radius:14px}
+#joinUI.auto .waitPic{display:block}
+#joinUI.auto #codeIn,#joinUI.auto #joinBtn,#joinUI.auto .joinNote{display:none}
+#padUI{position:fixed;inset:0;background:radial-gradient(circle at 50% 40%,#2a201a,#120e0c)}
+.padTop{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;padding-left:max(70px,env(safe-area-inset-left,0px));padding-right:max(70px,env(safe-area-inset-right,0px))}
+.padWho{display:grid;text-align:center}
+.padWho b{font-size:22px;font-weight:900}
+.padWho span{font-size:12px;color:var(--dim)}
+.padTop .seg button{font-size:15px}
+#padUI .ghost{padding:6px 12px;font-size:13px}
+#padLeave.arm{border-color:#c45a2c;color:#ffb48c}
+body.pad #touch{z-index:2}
+body.pad #stickZone{top:110px}
+/* phone-as-controller: big gamepad layout */
+body.pad .stick{width:176px;height:176px;margin:-88px 0 0 -88px;border-width:3px;background:rgba(255,255,255,.06)}
+body.pad .knob{width:80px;height:80px;margin:-40px 0 0 -40px}
+body.pad .acts{width:380px;height:320px;right:max(28px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform-origin:100% 100%}
+body.pad .tb{border-width:3px;box-shadow:0 6px 0 rgba(0,0,0,.35)}
+body.pad .tb.on{box-shadow:0 2px 0 rgba(0,0,0,.35)}
+body.pad .tb.atk{width:136px;height:136px;right:0;bottom:0;font-size:28px}
+body.pad .tb.jump{width:108px;height:108px;right:150px;bottom:-6px;font-size:24px}
+body.pad .tb.sp{width:108px;height:108px;right:14px;bottom:150px;font-size:24px}
+body.pad .tb.shield{width:92px;height:92px;right:146px;bottom:122px;font-size:19px}
+body.pad .tb.fin{width:96px;height:96px;right:262px;bottom:170px;font-size:19px}
+@media (max-height:420px){ body.pad .acts{transform:scale(.82)} body.pad .stick{transform:scale(.85)} }
+@media (max-height:340px){ body.pad .acts{transform:scale(.7)} }
+body.pad #c{visibility:hidden}
+#pause{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,7,6,.55);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#pause .sheet{width:min(300px,100%);text-align:center}
+#pause h2{margin:0;font-size:28px;font-weight:900;letter-spacing:.2em}
+
+/* phone controller: fixed 800x370 landscape stage, scaled (and rotated if held upright) to fit */
+#padUI{position:fixed;inset:0;overflow:hidden;touch-action:none;background:radial-gradient(circle at 50% 45%,#2c211b,#100c0a);z-index:5}
+#padStage{position:absolute;left:0;top:0;width:800px;height:370px;transform-origin:0 0}
+.pTop{position:absolute;left:24px;right:24px;top:10px;height:58px;display:flex;align-items:center;gap:12px}
+.pTop .padWho{margin-right:auto;text-align:left}
+.pTop .padWho b{font-size:24px}
+.pTop .go{padding:10px 18px;font-size:17px}
+.pTop .ghost{padding:8px 14px;font-size:14px}
+#pZone{position:absolute;left:0;top:72px;width:430px;bottom:0;touch-action:none}
+.pBase{position:absolute;left:70px;top:132px;width:196px;height:196px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.05);pointer-events:none}
+.pKnob{position:absolute;left:50%;top:50%;width:88px;height:88px;margin:-44px 0 0 -44px;border-radius:50%;background:rgba(246,238,223,.72);box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.pb{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:3px solid rgba(255,255,255,.32);color:#fff;font:inherit;font-weight:900;display:flex;align-items:center;justify-content:center;touch-action:none;text-shadow:1px 1px 0 #000;box-shadow:0 6px 0 rgba(0,0,0,.35);-webkit-user-select:none;user-select:none}
+.pb.on{transform:translate(-50%,-50%) scale(.92);filter:brightness(1.35);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.pb.atk{width:132px;height:132px;font-size:30px;background:#c45a2c}
+.pb.jump{width:104px;height:104px;font-size:26px;background:#6a625a}
+.pb.sp{width:104px;height:104px;font-size:24px;background:#3a6fae}
+.pb.shield{width:84px;height:84px;font-size:19px;background:#2a221d}
+.pb.fin{width:88px;height:88px;font-size:19px;background:#4a3d22;color:rgba(255,255,255,.5)}
+.pb.fin.ready{background:#f2c14e;color:#1b1410;text-shadow:none;animation:pulse .6s infinite alternate}
+/* remote play: the host's screen streams in behind the controller */
+.subH{margin:4px 0 -4px;font-size:12px;letter-spacing:.1em;color:var(--dim);font-weight:700}
+.big.rmt{background:linear-gradient(135deg,rgba(242,193,78,.22),rgba(79,163,255,.18))}
+#rvVid{position:absolute;left:0;top:0;width:800px;height:370px;object-fit:contain;background:#000;pointer-events:none}
+body.remote #padUI{background:#000}
+body.remote .pb{opacity:.5}
+body.remote .pb.on{opacity:.8}
+body.remote .pBase{opacity:.55}
+body.remote .pTop{background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));border-radius:12px;padding:0 8px}
+body.remote .pTop .padWho span{color:#fff}
+#rvHud{position:absolute;left:50%;bottom:6px;transform:translateX(-50%) scale(.72);transform-origin:50% 100%;display:flex;gap:6px;pointer-events:none;white-space:nowrap}
+#rvBan{position:absolute;left:0;right:0;top:120px;text-align:center;font-weight:900;font-size:46px;color:var(--gold);text-shadow:3px 3px 0 #000,-3px 3px 0 #000,3px -3px 0 #000,-3px -3px 0 #000;pointer-events:none}
+#rvBan.show{animation:bann 1.7s ease-out forwards}
+/* phone controller: character-select overlay (big tap targets; the stick and buttons are hidden meanwhile so nothing can eat a tap) */
+#padUI.selecting #pZone,#padUI.selecting .pBase,#padUI.selecting .pb{display:none}
+#padSelBox{position:absolute;left:0;top:70px;width:800px;height:300px;display:flex;gap:14px;padding:4px 20px 14px;box-sizing:border-box;z-index:3}
+#padGrid{flex:1;min-width:0;display:grid;grid-template-columns:repeat(var(--cols,5),1fr);grid-auto-rows:1fr;gap:8px}
+.pcard{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:0;padding:6px 2px 5px;font:inherit;color:var(--ink);background:rgba(255,255,255,.06);border:3px solid rgba(255,255,255,.16);border-radius:14px;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.pcard canvas{flex:1;min-height:0;aspect-ratio:1/1;border-radius:50%;image-rendering:pixelated;background:#000;pointer-events:none}
+.pcard span{font-size:16px;font-weight:900;line-height:1.1;white-space:nowrap;pointer-events:none;text-shadow:1px 1px 0 #000}
+.pcard:active{transform:scale(.95)}
+.pcard[aria-pressed="true"]{border-color:var(--pc,var(--gold));background:rgba(255,255,255,.16);box-shadow:0 0 0 3px var(--pc,var(--gold)),0 6px 0 rgba(0,0,0,.4);transform:translateY(-2px)}
+.pcard[aria-pressed="true"]::after{content:"✓";position:absolute;right:5px;top:2px;font-size:15px;font-weight:900;color:var(--pc,var(--gold))}
+#padMapBox{position:absolute;left:0;top:70px;width:800px;height:290px;z-index:3;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px}
+#padMapBox .msStrip{width:100%;padding:14px 24px 8px;pointer-events:auto;touch-action:pan-x pan-y}
+#padMapBox .mcard{width:176px} #padMapBox .mcard canvas{width:176px;height:99px}
+#padMapBox .selBtns .go{padding:14px 40px;font-size:20px} #padMapBox .selBtns .ghost{padding:14px 22px;font-size:16px}
+#padSelBox.lock #padGrid{opacity:.4;pointer-events:none}
+#padSide{width:156px;flex:none;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
+#padGo{margin-top:auto}
+#padSide .go{height:88px;font-size:24px;padding:0}
+#padSelBox.lock #padGo{background:#3a6fae;color:#fff}
+#padSkins{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;margin-bottom:30px}
+#padSkins button{flex:none;min-height:44px;font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);border-radius:12px;cursor:pointer}
+#padSkins button[aria-pressed="true"]{background:var(--ink);color:#1b1511;border-color:var(--ink)}
+#rotLock{position:fixed;inset:0;z-index:50;background:rgba(10,7,6,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+#rotLock[hidden]{display:none}
+#rotLock div{display:grid;gap:10px}
+#rotLock b{font-size:26px;color:var(--gold)}
+#rotLock span{font-size:14px;color:var(--dim)}
+#rotHint{position:fixed;left:0;right:0;top:45%;text-align:center;font-weight:700;color:var(--ink);text-shadow:2px 2px 0 #000;pointer-events:none;padding-inline:16px}
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding-top:calc(env(safe-area-inset-top,0px) + 18px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;gap:12px}
+.title{text-align:center;pointer-events:none}
+.title h1{margin:0;display:flex;justify-content:center;align-items:baseline;gap:.18em;font-family:var(--ui);font-weight:900;font-size:clamp(34px,7vw,56px);letter-spacing:.06em;color:#fff;transform:skewX(-8deg);text-shadow:3px 3px 0 var(--p1),6px 6px 0 #000;text-wrap:balance;transition:font-size .25s}
+.title h1 span:last-child{color:var(--gold);text-shadow:3px 3px 0 #b8501f,6px 6px 0 #000}
+.title h1 img{display:block;width:auto;max-width:92vw;height:clamp(60px,12vh,110px);object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.55));transition:height .25s}
+.title p{margin:6px 0 0;font-family:var(--pixel);font-size:22px;color:var(--gold);letter-spacing:.5em;text-indent:.5em;text-shadow:2px 2px 0 #000}
+/* home screen: big logo over a random stage; the title shrinks away on the inner screens */
+#menu.home{justify-content:center;gap:clamp(12px,4vh,40px)}
+#menu.home .scr{width:min(540px,88%)}
+/* holding the phone upright there is no room beside the panel, so the panel drops to the bottom
+   and the two characters get the middle of the screen to themselves */
+@media (orientation:portrait){ #menu.home{justify-content:space-between} #menu.home .scr{width:min(540px,100%)} }
+#menu.home .title h1{font-size:clamp(40px,9vw,96px)}
+#menu.home .title h1 img{height:clamp(110px,32vh,320px)}
+#menu.home .title p{font-size:clamp(20px,3.4vw,34px)}
+#menu:not(.home) .title h1{font-size:clamp(18px,3.2vw,26px);text-shadow:2px 2px 0 var(--p1),4px 4px 0 #000}
+#menu:not(.home) .title h1 img{height:clamp(44px,9vh,72px)}
+#menu:not(.home) .title p{display:none}
+.joinLink{font-size:14px;color:var(--dim);border-style:dashed}
+.joinLink b{color:var(--gold);margin-left:4px}
+.joinNote{margin:-4px 0 0;font-size:12px;color:var(--dim);line-height:1.6}
+/* rules sheet: the settings scroll, the "next" button never leaves the screen */
+#scrRules{display:flex;flex-direction:column;min-height:0}
+.scrBody{display:grid;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
+.scrFoot{display:grid;gap:8px;flex:none}
+.scrMore{display:none;font-size:12px;color:var(--gold);text-align:center;letter-spacing:.08em}
+.scrBody.more ~ .scrFoot .scrMore{display:block}
+.help summary{font-size:13px;color:var(--gold);cursor:pointer;list-style:none;padding:2px 0}
+.help summary::-webkit-details-marker{display:none}
+.help summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.help[open] summary::before{content:"▾ "}
+@media (pointer:coarse){
+  .big{padding:16px 16px 14px}
+  .seg button{min-height:42px;padding:8px 18px}
+  .go{min-height:50px}
+  .ghost{min-height:44px}
+}
+#scrTitle .bigBtns,#scrParty .bigBtns{grid-template-columns:repeat(2,1fr)}
+@media (max-width:460px){ #scrTitle .bigBtns,#scrParty .bigBtns{grid-template-columns:1fr} }
+@media (max-height:520px){
+  #menu{gap:6px;overflow:hidden}
+  #menu.home{gap:10px}
+  #menu.home .title h1{font-size:clamp(30px,7vw,48px)}
+  #menu.home .title h1 img{height:clamp(70px,27vh,140px)}
+  #menu.home .title p{font-size:18px}
+  #menu:not(.home) .title{display:none}
+  .big{padding:10px 14px} .big b{font-size:21px} .big span{font-size:12px}
+  .scr{width:min(680px,100%)} .sheet{padding:10px 12px;gap:8px}
+  .scrH{font-size:17px} .ruleRow{gap:8px} .ruleRow > span{font-size:12px}
+}
+/* short + wide (phone held sideways): two columns so every setting fits without scrolling */
+@media (max-height:520px) and (min-width:520px){
+  .scrBody{grid-template-columns:1fr 1fr;align-content:start;column-gap:18px}
+  .scrBody .seg{flex-wrap:wrap}
+  .scrBody .help{grid-column:1/-1}
+}
+/* very short screens: squeeze the rows so nothing hides below the fold */
+@media (max-height:430px){
+  .scrBody{gap:8px}
+  .sheet{padding:8px 10px;gap:6px}
+  .seg{padding:2px}
+  .seg button{min-height:32px;padding:5px 11px;font-size:13px}
+  .ruleRow{gap:6px} .ruleRow > span{width:2.6em;font-size:11px}
+  .go{min-height:40px;padding:8px;font-size:16px}
+  .ghost{min-height:36px;padding:6px;font-size:13px}
+  .scrH{font-size:14px}
+  .scrBody .help{display:none}
+}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;width:min(660px,100%);display:grid;gap:12px;backdrop-filter:blur(8px)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.pick{flex:1 1 230px;min-width:0;display:grid;gap:6px}
+.pick h3{margin:0;font-size:12px;letter-spacing:.12em;color:var(--pc)}
+.opts{display:flex;gap:6px}
+.opt{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:8px 10px;text-align:left;background:rgba(255,255,255,.03);color:var(--ink);cursor:pointer;font:inherit}
+.opt[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--pc);background:rgba(255,255,255,.08)}
+.opt b{display:block;font-size:16px}
+.opt span{display:block;font-size:11px;color:var(--dim);line-height:1.4}
+.seg{display:flex;gap:2px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px;width:max-content;max-width:100%}
+.seg button{font:inherit;font-size:14px;color:var(--dim);background:transparent;border:0;border-radius:999px;padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#1b1511;font-weight:700}
+.go{background:var(--gold);color:#1b1410;font:inherit;font-weight:900;font-size:18px;border:0;border-radius:12px;padding:12px;cursor:pointer;letter-spacing:.08em}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.help{font-size:12px;color:var(--dim);line-height:1.7;display:grid;gap:2px}
+.help b{color:var(--ink);font-weight:700}
+kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255,255,255,.08);border-radius:4px;padding:0 4px}
+#over{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px);pointer-events:none}
+#over .sheet{text-align:center;width:min(320px,100%);pointer-events:auto;animation:slideUp .4s ease-out}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}}
+#winTitle{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 54px);pointer-events:none;display:grid;line-height:.9;transform:skewX(-8deg);animation:slam .5s cubic-bezier(.2,1.6,.4,1)}
+#winTitle b{font-size:clamp(48px,10vw,104px);font-weight:900;color:#fff;text-shadow:4px 4px 0 var(--wc),8px 8px 0 #000}
+#winTitle span{font-family:var(--pixel);font-size:clamp(36px,7vw,72px);color:var(--wc);text-shadow:3px 3px 0 #000;letter-spacing:.06em}
+@keyframes slam{from{opacity:0;transform:skewX(-8deg) translateX(-120%)}}
+#over h2{margin:0;font-size:32px;font-weight:900;color:var(--gold);text-shadow:2px 2px 0 #000}
+#over p{margin:0;color:var(--dim);font-family:var(--pixel);font-size:22px}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);font:inherit;border-radius:12px;padding:10px;cursor:pointer}
+#touch{position:fixed;inset:0;pointer-events:none}
+#stickZone{position:absolute;left:0;top:0;bottom:0;width:48%;pointer-events:auto;touch-action:none}
+.stick{position:absolute;width:124px;height:124px;margin:-62px 0 0 -62px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(20,15,12,.32);pointer-events:none}
+.knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(246,238,223,.6);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.acts{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:236px;height:224px;pointer-events:none}
+.tb{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.3);color:#fff;font:inherit;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;touch-action:none;pointer-events:auto;text-shadow:1px 1px 0 #000;transition:transform .05s}
+.tb.on{transform:scale(.9);filter:brightness(1.35)}
+.tb.atk{right:0;bottom:0;width:90px;height:90px;background:rgba(255,122,61,.66);font-size:19px}
+.tb.jump{right:100px;bottom:-2px;width:72px;height:72px;background:rgba(246,238,223,.3)}
+.tb.sp{right:4px;bottom:100px;width:72px;height:72px;background:rgba(79,163,255,.6)}
+.tb.shield{right:90px;bottom:84px;width:58px;height:58px;background:rgba(20,15,12,.55);font-size:14px}
+.tb.fin{right:150px;bottom:150px;width:66px;height:66px;background:rgba(242,193,78,.16);color:rgba(255,255,255,.45);font-size:15px}
+.tb.fin.ready{background:rgba(242,193,78,.9);color:#1b1410;text-shadow:none;animation:pulse .6s infinite alternate}
+@keyframes pulse{to{box-shadow:0 0 0 8px rgba(242,193,78,.35)}}
+
+/* ---------- map select (same look as character select: thumbnail cards, random card shows ?) ---------- */
+#mapSel{position:fixed;inset:0;pointer-events:none;z-index:4}
+#mapSel button{pointer-events:auto}
+#mapSel.rnd{background:radial-gradient(circle at 50% 38%,#3a2a20,#120e0c 70%)}
+.msQ{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 8%);bottom:36%;display:none;align-items:center;justify-content:center;font-family:var(--pixel);font-size:min(46vh,46vw);line-height:1;color:var(--gold);text-shadow:4px 4px 0 #000,8px 8px 0 rgba(0,0,0,.35)}
+#mapSel.rnd .msQ{display:flex}
+.msTop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:0;right:0;display:flex;justify-content:center}
+.msTop > b{font-family:var(--pixel);font-weight:400;font-size:26px;letter-spacing:.2em;color:var(--ink);text-shadow:2px 2px 0 #000;background:rgba(20,15,12,.55);padding:2px 16px;border-radius:999px}
+.msBottom{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:flex;flex-direction:column;align-items:center;gap:8px;background:linear-gradient(rgba(10,7,6,0),rgba(10,7,6,.7) 38%);padding-top:28px}
+.msName{display:grid;justify-items:center;gap:0;text-shadow:3px 3px 0 #000}
+.msName b{font-size:clamp(28px,5vw,46px);font-weight:900;line-height:1.1;color:#fff}
+.msName span{font-size:13px;color:var(--dim)}
+.msStrip{display:flex;gap:12px;overflow-x:auto;max-width:100%;box-sizing:border-box;padding:12px max(16px,calc(50% - 580px)) 6px;scroll-snap-type:x proximity;pointer-events:auto;scrollbar-width:none}
+.msStrip::-webkit-scrollbar{display:none}
+.mcard{flex:0 0 auto;width:150px;display:grid;gap:4px;justify-items:center;padding:0;border:0;background:none;font:inherit;color:var(--ink);cursor:pointer;scroll-snap-align:center}
+.mcard canvas{width:150px;height:84px;display:block;border-radius:10px;border:3px solid rgba(255,255,255,.35);box-shadow:0 4px 0 rgba(0,0,0,.4);background:#000;transition:transform .12s}
+.mcard.hot canvas{transform:scale(1.1);border-color:var(--gold)}
+.mcard span{font-size:13px;font-weight:700;text-shadow:1px 1px 0 #000}
+.mcard.hot span{color:var(--gold)}
+.mcard.rndc canvas{background:#3a2a20}
+@media (max-height:560px){ .mcard{width:112px} .mcard canvas{width:112px;height:63px} .msName b{font-size:24px} .msBottom{gap:4px;padding-top:16px} .msTop > b{font-size:20px} }
+#vibBtn{position:fixed;z-index:60;top:calc(env(safe-area-inset-top,0px) + 10px);right:calc(env(safe-area-inset-right,0px) + 54px);height:36px;padding:0 10px;border-radius:999px;background:rgba(20,15,12,.6);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+body.pad #vibBtn{display:none}
+[data-vibration]:disabled{opacity:.55;cursor:default}
+#sndHint{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%);z-index:20;background:rgba(20,15,12,.85);border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:6px 16px;font-size:14px;font-weight:700;pointer-events:none;animation:sndp 1.6s ease-in-out infinite}
+@keyframes sndp{50%{opacity:.55}}
+</style>
+</head>
+<body>
+
+
+<canvas id="c" aria-label="對戰畫面"></canvas>
+<div id="pops"></div>
+<div id="hud" hidden></div>
+<button id="vibBtn" type="button" data-vibration aria-pressed="true">震動：開</button>
+<button id="quit" hidden>Ⅱ 換角色</button>
+
+<div id="menu" class="home">
+  <div class="title"><h1><img src="logo.webp?v=1" alt="世志大亂鬥" draggable="false"></h1><p>BRAWL</p></div>
+  <div class="sheet scr" id="scrTitle">
+    <div class="bigBtns">
+      <button class="big" id="goSolo"><b>一個人玩</b><span>對電腦，或兩個人用同一個鍵盤</span></button>
+      <button class="big" id="goParty"><b>跟朋友玩</b><span>手機當手把，或各自在家連線</span></button>
+    </div>
+    <button class="ghost joinLink" id="asPad">已經有房號了？<b>加入房間</b></button>
+  </div>
+  <div class="sheet scr" id="scrParty" hidden>
+    <h2 class="scrH">跟朋友玩</h2>
+    <div class="bigBtns">
+      <button class="big" id="goHost"><b>在同一個地方</b><span>這台當大螢幕，朋友拿手機當手把一起打</span></button>
+      <button class="big rmt" id="goRHost"><b>各自在家</b><span>你當 P1，畫面即時傳到每個朋友的手機</span></button>
+    </div>
+    <button class="ghost joinLink" id="asPad2">已經有房號了？<b>加入房間</b></button>
+    <button class="ghost" data-back="scrTitle">返回</button>
+  </div>
+  <div class="sheet scr" id="scrRules" hidden>
+    <h2 class="scrH" id="rulesH">規則</h2>
+    <div class="scrBody">
+    <div class="ruleRow"><span>人數</span>
+      <div class="seg" role="group" aria-label="人數">
+        <button data-count="2" aria-pressed="true">2 人</button>
+        <button data-count="3" aria-pressed="false">3 人</button>
+        <button data-count="4" aria-pressed="false">4 人</button>
+      </div>
+    </div>
+    <div class="ruleRow" id="modeRow"><span>對手</span>
+      <div class="seg" role="group" aria-label="對手">
+        <button data-mode="cpu" aria-pressed="true">電腦</button>
+        <button data-mode="2p" aria-pressed="false">雙人同鍵盤</button>
+      </div>
+    </div>
+    <div class="ruleRow"><span>命數</span>
+      <div class="seg" role="group" aria-label="命數">
+        <button data-stocks="1" aria-pressed="false">1</button>
+        <button data-stocks="2" aria-pressed="false">2</button>
+        <button data-stocks="3" aria-pressed="true">3</button>
+        <button data-stocks="5" aria-pressed="false">5</button>
+      </div>
+    </div>
+    <details class="help" id="help">
+      <summary>怎麼操作？</summary>
+      <div id="touchHelp" hidden><b>手機</b>　左半邊螢幕任意處按住拖曳＝搖桿；右邊「跳」「攻擊」「必殺」「防禦」，大招集滿會亮起來。搖桿推方向再按攻擊或必殺會出不同招（推上＋攻擊＝往上打）。</div>
+      <div id="kbHelp"><b>P1</b>　<kbd>A</kbd><kbd>D</kbd> 移動　<kbd>W</kbd> 跳　<kbd>S</kbd> 下　<kbd>J</kbd> 攻擊　<kbd>K</kbd> 必殺　<kbd>L</kbd> 防禦　<kbd>U</kbd> 大招</div>
+      <div id="help2" hidden><b>P2</b>　方向鍵移動／跳　<kbd>,</kbd> 攻擊　<kbd>.</kbd> 必殺　<kbd>/</kbd> 防禦　<kbd>Enter</kbd> 大招（數字鍵盤 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>0</kbd> 也可以）</div>
+      <div><b>自救</b>　跳完兩段後再按一次跳會往上衝；靠近台邊會自動抓住，按跳或往台上推就爬上來。</div>
+    </details>
+    </div>
+    <div class="scrFoot">
+      <span class="scrMore">▾ 往下滑還有設定</span>
+      <button class="go" id="start">下一步：選角色</button>
+      <button class="ghost" id="rulesBack">返回</button>
+    </div>
+  </div>
+</div>
+
+<div id="sel" hidden>
+  <div class="selTop">
+    <b>選擇角色</b>
+    <div class="party" id="partyBox" hidden>
+      <div class="partyInfo">
+        <div class="code"><span>房號</span><b id="partyCode">····</b></div>
+        <p id="partyMsg">手機打開這個連結 → 連線 → 加入，輸入房號。</p>
+        <div id="padList"></div>
+        <button class="ghost permBtn" hidden>允許連線</button>
+      </div>
+      <canvas id="partyQR" hidden aria-label="用手機掃描就能加入房間"></canvas>
+    </div>
+  </div>
+  <div class="plate" id="plate0" style="--pc:var(--p1)"><span class="tag">P1</span><b class="nm">秉寶</b><span class="en">WAFFLE</span><i class="st">選擇中</i></div>
+  <div class="plate right" id="plate1" style="--pc:var(--p2)"><span class="tag">CPU</span><b class="nm">偷米</b><span class="en">TOMMY</span><i class="st">選擇中</i></div>
+  <div class="plate top" id="plate2" style="--pc:var(--p3)" hidden><span class="tag">CPU</span><b class="nm">白狗</b><span class="en">KARL</span><i class="st">選擇中</i></div>
+  <div class="plate right top" id="plate3" style="--pc:var(--p4)" hidden><span class="tag">CPU</span><b class="nm">雲嵐</b><span class="en">SEAFOOD</span><i class="st">選擇中</i></div>
+  <div class="selBottom">
+    <div class="portraits" id="portraits"></div>
+    <div class="portraits skins" id="skins" hidden></div>
+    <div class="selBtns"><button class="ghost" id="selBack">返回</button><button class="go" id="selOk">決定</button></div>
+    <div class="selHint" id="selHint"></div>
+  </div>
+</div>
+
+<div id="mapSel" hidden>
+  <div class="msTop"><b>選擇地圖</b></div>
+  <div class="msQ" aria-hidden="true">?</div>
+  <div class="msBottom">
+    <div class="msName"><b id="msName">公園</b><span id="msSub"></span></div>
+    <div class="msStrip" id="msStrip" role="listbox" aria-label="地圖"></div>
+    <div class="selBtns"><button class="ghost" id="msBack">返回選角色</button><button class="go" id="msOk">決定</button></div>
+    <div class="selHint" id="msHint"></div>
+  </div>
+</div>
+<div id="sndHint" hidden>🔇 點一下畫面，開啟聲音</div>
+
+<div id="winTitle" hidden><b id="winName">秉寶</b><span>WINS!</span></div>
+<div id="over" hidden>
+  <div class="sheet">
+    <h2 id="winTxt">秉寶 獲勝！</h2>
+    <p id="winSub">GAME!</p>
+    <button class="go" id="again">再來一局</button>
+    <button class="ghost" id="toMapSel">換地圖</button>
+    <button class="ghost" id="toSelect">換角色</button>
+    <button class="ghost" id="toMenu">回主畫面</button>
+  </div>
+</div>
+
+<div id="pause" hidden>
+  <div class="sheet">
+    <h2>暫停</h2>
+    <button class="go" id="resume">繼續</button>
+    <button class="ghost" id="pauseMap">換地圖</button>
+    <button class="ghost" id="pauseSelect">換角色</button>
+    <button class="ghost" id="pauseMenu">回主畫面</button>
+  </div>
+</div>
+<div id="joinUI" hidden>
+  <div class="sheet">
+    <h2 id="joinH">輸入房號</h2>
+    <div class="waitPic" id="waitPic" aria-hidden="true"></div>
+    <p class="joinNote">大螢幕上顯示的 4 位數字；不管是哪一種多人模式都是輸入這組</p>
+    <input id="codeIn" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="手把代碼">
+    <button class="go" id="joinBtn">連線</button>
+    <p id="joinMsg"></p>
+    <button class="ghost permBtn" hidden>允許連線</button>
+    <button class="ghost" id="joinBack">返回</button>
+  </div>
+</div>
+<div id="padUI" hidden>
+  <div id="padStage">
+    <video id="rvVid" playsinline autoplay muted hidden></video>
+    <div id="rvHud" hidden></div>
+    <div id="rvBan" hidden></div>
+    <div class="pTop">
+      <div class="padWho"><b id="padSlot">連線中…</b><span id="padState">等待大螢幕</span></div>
+      <button class="go" id="padStart" hidden>再來一局</button>
+      <button class="ghost" id="padMap" hidden>換地圖</button>
+      <button class="ghost" id="padSel" hidden>換角色</button>
+      <button class="ghost" id="padVib" type="button" data-vibration aria-pressed="true">震動：開</button>
+      <button class="ghost" id="padLeave">離開</button>
+    </div>
+    <div id="padSelBox" hidden>
+      <div id="padGrid" role="group" aria-label="選角"></div>
+      <div id="padSide">
+        <div id="padSkins" role="group" aria-label="造型" hidden></div>
+        <button class="go" id="padGo">準備好了</button>
+      </div>
+    </div>
+    <div id="padMapBox" hidden>
+      <div class="msStrip" id="padMapStrip"></div>
+      <div class="selBtns"><button class="ghost" id="padMapBack">返回選角色</button><button class="go" id="padMapOk">決定</button></div>
+    </div>
+    <div id="pZone"></div>
+    <div class="pBase" id="pBase"><div class="pKnob" id="pKnob"></div></div>
+    <button class="pb fin" data-p="fin" id="pFin" style="left:470px;top:150px">大招</button>
+    <button class="pb sp" data-p="sp" style="left:700px;top:150px">必殺</button>
+    <button class="pb shield" data-p="shield" style="left:580px;top:198px">防禦</button>
+    <button class="pb jump" data-p="jump" style="left:560px;top:305px">跳</button>
+    <button class="pb atk" data-p="atk" style="left:690px;top:280px">攻擊</button>
+  </div>
+</div>
+<div id="touch" hidden>
+  <div id="stickZone"><div class="stick" id="stick"><div class="knob" id="knob"></div></div></div>
+  <div class="acts">
+    <button class="tb fin" data-t="fin" id="finBtn">大招</button>
+    <button class="tb sp" data-t="sp">必殺</button>
+    <button class="tb shield" data-t="shield">防禦</button>
+    <button class="tb jump" data-t="jump">跳</button>
+    <button class="tb atk" data-t="atk">攻擊</button>
+  </div>
+</div>
+<div id="rotLock" hidden><div><b>📱↻ 請把手機轉成橫向</b><span>遠端開房時要橫著拿，朋友那邊的畫面才會是完整的</span></div></div>
+<div id="rotHint" hidden>把手機轉成橫向，玩起來更順</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023e';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
+<script>S('js/qrcode.js')</script>
+<script>S('js/core.js')</script>
+<script>S('js/music.js')</script>
+<!-- 角色：新增角色就在這裡加一行（順序＝選角畫面順序） -->
+<script>S('characters/waffle.js')</script>
+<script>S('characters/tommy.js')</script>
+<script>S('characters/karl.js')</script>
+<script>S('characters/seafood.js')</script>
+<script>S('characters/bear.js')</script>
+<script>S('characters/serene.js')</script>
+<script>S('characters/kiafes.js')</script>
+<script>S('characters/newton.js')</script>
+<script>S('characters/kattisbbb.js')</script>
+<script>S('js/scuba_face_ik.js')</script>
+<script>S('characters/jackson.js')</script>
+<script>S('characters/janice.js')</script>
+<script>S('characters/masterogway.js')</script>
+<script>S('characters/kelsey.js')</script>
+<script>S('characters/wxinyy.js')</script>
+<script>S('characters/jennie.js')</script>
+<script>S('characters/pudding.js')</script>
+<script>S('characters/xuan.js')</script>
+<script>S('characters/ichung.js')</script>
+<!-- 地圖：新增地圖就在這裡加一行 -->
+<script>S('maps/park.js')</script>
+<script>S('maps/ntu.js')</script>
+<script>S('maps/sea.js')</script>
+<script>S('maps/india.js')</script>
+<script>S('maps/mecls.js')</script>
+<script>S('maps/dayu.js')</script>
+<script>S('maps/maogong.js')</script>
+<script>S('maps/qimei.js')</script>
+<script>S('maps/space.js')</script>
+<script>S('maps/amusement.js')</script>
+<script>boot();</script>
+
+</body>
+</html>

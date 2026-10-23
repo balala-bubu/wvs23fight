@@ -1,4 +1,8 @@
-# 世志大亂鬥
+# 世志遊戲俱樂部
+
+首頁可選「世志大亂鬥」或「世志排球」。排球為獨立試玩模式，支援單人、雙人合作／對戰、四人分割與手機動作／觸控手把；完整流程與操作見 [排球模式規劃](docs/volleyball-mode.md)。兩個模式分開載入。
+
+## 世志大亂鬥
 
 PS2 風格的 3D 平台格鬥遊戲，2～4 人，可以用手機當手把。
 
@@ -14,17 +18,30 @@ PS2 風格的 3D 平台格鬥遊戲，2～4 人，可以用手機當手把。
 - 手機：左半邊拖曳＝搖桿，右邊按鈕
 
 ## 檔案結構
-- `index.html`：畫面和樣式，最下面列出要載入的角色和地圖
+- `brawl.html`：大亂鬥畫面和樣式，最下面列出要載入的角色和地圖
 - `js/core.js`：遊戲本體（物理、操作、選角、連線、結算）
 - `characters/`：一個角色一個檔案（外型、招式、大招、勝敗動畫都在裡面）
 - `maps/`：一張地圖一個檔案
 - `characters/_template.js`、`maps/_template.js`：新增時的範本
 - `tools/smoke_test.py`：自動測試，跑過每個角色的招式、大招和勝敗動畫
 
-新增角色：在 `characters/` 放一個新檔案，再到 `index.html` 最下面加一行 `<script src="characters/新代號.js"></script>`。地圖同理。
+新增角色：在 `characters/` 放一個新檔案，再到 `brawl.html` 最下面加一行 `<script src="characters/新代號.js"></script>`。地圖同理。
+
+
+## 開發與試玩
+
+在專案根目錄執行 `python3 -m http.server 8000`，瀏覽 `http://localhost:8000`。
+
+排球瀏覽器測試：`python3 tools/volleyball_test.py`（需要 Playwright 與 Chromium）。
+原大亂鬥測試：`python3 tools/smoke_test.py --only=tommy`。
+
+排球物理／感測器測試：`node tools/volleyball_rules_test.cjs`。
+手機協定測試：`python3 tools/volleyball_phone_test.py --mock-transport`（使用測試通道，不代表實機 WebRTC 或感測手感已驗證）。
 
 ## 震動
 - 右上角「震動：開／關」可隨時切換；手機手把也有相同開關，會記住這台裝置的選擇。
 - 支援 Vibration API 的裝置（例如 Android Chrome）會在按操作鍵、受擊與出局時震動；手機手把另有大招集滿提醒。
 - 關閉震動會立即停止回饋；切換分頁、暫停或離開時也會停止。震動與音樂開關互相獨立。
 - iPhone／iPad Safari 不支援網頁 Vibration API，會顯示「震動：不支援」；遊戲仍可正常操作。實際震動也受裝置與系統設定影響。
+
+排球選角、造型與多人連線的獨立文件：[大廳與造型規格](docs/volleyball-lobby-and-costumes.md)。

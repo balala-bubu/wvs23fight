@@ -45,7 +45,7 @@ async def main():
             elif f'127.0.0.1:{PORT}' in u: await r.continue_()
             else: await r.abort()
         await pg.route('**/*', route)
-        await pg.goto(f'http://127.0.0.1:{PORT}/index.html'); await pg.wait_for_timeout(1500)
+        await pg.goto(f'http://127.0.0.1:{PORT}/brawl.html'); await pg.wait_for_timeout(1500)
         ev = pg.evaluate; paths = []; K = KIND
         async def shot(n):
             pth = os.path.join(OUT, n + '.png'); await pg.screenshot(path=pth); paths.append(pth)

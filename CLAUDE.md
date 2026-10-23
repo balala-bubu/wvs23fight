@@ -4,7 +4,7 @@ Three.js r128 platform fighter, plain classic scripts (no build step), hosted on
 All files share one global scope: top-level `const`/`function` in `js/core.js` are visible to every character and map file.
 
 ## Layout
-- `index.html` — HTML + CSS, then script tags in this order: `js/core.js` → `characters/*.js` → `maps/*.js` → `boot()`.
+- `brawl.html` — HTML + CSS, then script tags in this order: `js/core.js` → `characters/*.js` → `maps/*.js` → `boot()`.
 - `js/core.js` (~100 KB) — renderer, physics, hits, menus, select screen, online play, results flow. **Do not read it whole.** Grep for what you need.
 - `characters/<kind>.js` — one self-contained file per character, ending in `registerChar(kind, {...})`.
 - `maps/<id>.js` — one file per stage, ending in `registerMap(id, {...})`.
@@ -14,12 +14,12 @@ All files share one global scope: top-level `const`/`function` in `js/core.js` a
 Title → rules (players / opponent / stocks) → character select → **map select** (`G.mode==='mapsel'`, `enterMapSel()`, thumbnails rendered once by `mapThumb()`, last card = 隨機 with a big ?) → match. Pause menu and the game-over sheet both have 換地圖 (→ `enterMapSel`) and 換角色. Phones-as-controllers: host broadcasts `st:'mapsel'`, `vib` (hit/KO counters → phone vibrates, toggle on the pad) and `rst` (back to character select un-readies the phones). Audio: `audioOn()` also plays a silent looping `<audio>` so iOS ignores the mute switch when mirroring to a TV; `#sndHint` shows while the browser keeps sound locked.
 
 ## Releasing
-Bump the default `?v=` number in the `S()` helper at the bottom of `index.html` on every release (browsers cache `js/*.js`; a new index.html with an old core.js shows a black screen).
+Bump the default `?v=` number in the `S()` helper at the bottom of `brawl.html` on every release (browsers cache `js/*.js`; a new brawl.html with an old core.js shows a black screen).
 
 ## Add a character (cheapest path)
 1. Read `characters/_template.js` (and at most one similar character file if you need a pattern, e.g. `bear.js` for a heavy, `seafood.js` for projectiles + a moving final).
 2. Write `characters/<kind>.js` (kind = lowercase letters only).
-3. Add `<script>S('characters/<kind>.js')</script>` to `index.html` after the other characters (`S()` appends the page's `?v=` so a new `?v=` number always loads fresh files; a plain `<script src>` also works but may be served from cache). Nothing else in core changes.
+3. Add `<script>S('characters/<kind>.js')</script>` to `brawl.html` after the other characters (`S()` appends the page's `?v=` so a new `?v=` number always loads fresh files; a plain `<script src>` also works but may be served from cache). Nothing else in core changes.
 4. Test: `python3 tools/smoke_test.py` (headless; runs every character's moves, finals, wins and losses on every map; prints page errors). For a small change (a costume, a tweak to one character) run just one match: `python3 tools/smoke_test.py --only=<char>` (about 20 s) and look for `errors: 0`; run the full test only for core changes or a brand-new character/map.
 5. Look at it: `python3 tools/char_shots.py <kind>` (close-ups of the model and both skins, final, win, lose → one contact sheet). Full recipe: `.claude/skills/wvs-add-character/SKILL.md`.
 
@@ -46,3 +46,7 @@ Bump the default `?v=` number in the `S()` helper at the bottom of `index.html` 
 - Finals that travel (wave, army, car, beam…) must hit **every** fighter on their path: loop `G.fighters`, skip the owner, track hits in a `Set` (see `_template.js`, `tommy.js`). Never check only `F.target`.
 - Temporary power-ups: set `f.buffT` (seconds) → +30% damage while > 0.
 - Things added to the scene in results go in `R.items`; things attached to a model go in `R.attach` — both are cleaned up automatically.
+
+## Mode entry points
+
+`index.html` is a lightweight mode selector. `brawl.html` preserves the original fighter entry. `volleyball.html` uses its own loader, rules, scene and a snapshot of model/pose helpers (`js/volleyball-models.js`). Keep these runtimes isolated; do not import brawl core/maps/music/networking into volleyball. Details: `docs/volleyball-mode.md`.

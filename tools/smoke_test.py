@@ -18,7 +18,7 @@ def chrome():
     for pat in ['/opt/pw-browsers/chromium-*/chrome-linux/chrome', os.path.expanduser('~/.cache/ms-playwright/chromium-*/chrome-linux/chrome')]:
         hits = sorted(glob.glob(pat))
         if hits: return hits[-1]
-    return None
+    return '/usr/bin/chromium' if os.path.exists('/usr/bin/chromium') else None
 async def main():
     from playwright.async_api import async_playwright
     async with async_playwright() as p:
@@ -30,14 +30,14 @@ async def main():
             u = r.request.url
             if 'three.min.js' in u: await r.fulfill(path=THREE, content_type='application/javascript')
             elif 'peerjs' in u: await r.fulfill(body='', content_type='application/javascript')
-            elif u.endswith('index.html') and EXTRA:
-                html = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+            elif u.endswith('brawl.html') and EXTRA:
+                html = open(os.path.join(ROOT, 'brawl.html'), encoding='utf-8').read()
                 html = html.replace('<script>boot();</script>', ''.join(f'<script src="{x}"></script>' for x in EXTRA) + '<script>boot();</script>')
                 await r.fulfill(body=html, content_type='text/html')
             elif f'127.0.0.1:{PORT}' in u: await r.continue_()
             else: await r.abort()
         await pg.route('**/*', route)
-        await pg.goto(f'http://127.0.0.1:{PORT}/index.html'); await pg.wait_for_timeout(1500)
+        await pg.goto(f'http://127.0.0.1:{PORT}/brawl.html'); await pg.wait_for_timeout(1500)
         kinds = await pg.evaluate('CHAR_ORDER'); maps = await pg.evaluate('MAP_ORDER')
         print('characters:', kinds, '\nmaps:', maps)
         for r, kind in enumerate(kinds):

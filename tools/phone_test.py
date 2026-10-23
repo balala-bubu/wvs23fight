@@ -41,7 +41,7 @@ atexit.register(lambda: web_proc.terminate())
 for _ in range(40):
     try: socket.create_connection(('127.0.0.1', PORT), 0.2).close(); break
     except OSError: time.sleep(0.25)
-BASE = 'http://127.0.0.1:%d/index.html' % PORT
+BASE = 'http://127.0.0.1:%d/brawl.html' % PORT
 
 # make the game's `new Peer(...)` talk to the local server, no STUN needed
 WRAP = (";(function(){var P=window.Peer;var W=function(id,opts){if(id&&typeof id==='object'){opts=id;id=undefined;}"
