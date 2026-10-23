@@ -20,7 +20,7 @@ const MUSIC_DEFAULT = null;
 const MUSIC_RESULT = 'victory.mp3';   // 結尾頁（生日派對除外）播一次就停，不循環
 
 const Music = (()=>{
-  const DIR = 'audio/', VOL = 0.35, RESULT_K = 0.5, PAUSE_K = 0.35, FADE = 0.25, FADE_END = 0.8, KEY = 'wvs_music_muted';
+  const DIR = 'audio/', VOL = 0.35, RESULT_K = 0.8, PAUSE_K = 0.35, FADE = 0.25, FADE_END = 0.8, KEY = 'wvs_music_muted';
   let muted = false;
   try{ muted = localStorage.getItem(KEY) === '1'; }catch(_){}
   let ctx = null, gain = null, src = null, cur = null;      // cur = file currently playing (or being faded out)
