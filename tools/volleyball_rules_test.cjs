@@ -120,3 +120,7 @@ console.log('PASS flat/screen-down up/down gestures, directional swing aim and m
 // Imperfect follow-up contacts lower a built chain by at most one level.
 for(const [initial,expected,grade]of [[1,0,'normal'],[2,1,'nice'],[3,2,'good']]){const g=new VolleyMatch({mode:'four'});g.combo=initial;g.sendFlight('spike',0,0,{x:0,y:6,z:1.75},{x:0,y:6,z:1.75},.1,12);g.contact(g.players[0],'weak',.4);assert.equal(g.combo,expected);assert.equal(g.flight.grade,grade);}
 console.log('PASS poor follow-up timing drops at most one grade');
+
+// Set follows manual approach and early jump; late ascent fixes the contact point.
+for(const team of [0,1]){const g=new VolleyMatch({mode:'four'}),p=g.players[team*2],side=g.side(team);Object.assign(p,{x:0,tx:0,z:side*2.1,tz:side*2.1});g.sendFlight('spike',team,p.id,{x:0,y:5,z:side*1.75},{x:0,y:6.7,z:side*1.75},1.28,12);g.input(p.id,'move',1);const bx=g.ball.x;g.updatePlayers(.05);assert.equal(g.ball.x,bx);assert(p.x*side>0);assert.equal(g.flight.end.x,p.x);g.input(p.id,'jump');for(let i=0;i<20;i++)g.updatePlayers(.01);const early=p.x;assert(early*side>.5);for(let i=0;i<10;i++)g.updatePlayers(.01);const locked=p.x,target=g.flight.end.x;for(let i=0;i<15;i++)g.updatePlayers(.01);assert.equal(p.x,locked);assert.equal(g.flight.end.x,target);assert(p.attackLocked);}
+console.log('PASS mirrored set tracking, early jump movement, continuous ball position and late ascent lock');

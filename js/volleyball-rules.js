@@ -40,7 +40,7 @@ class VolleyMatch {
     }
     if(action==='jump'){
       if(p.y>.08||p.jumpLock>0)return;
-      p.vy=10.5;p.jumpLock=.75;p.jumpKind=task==='block'?'block':'spike';p.pose=task==='block'?'block':'spikeWind';p.poseTime=.85;
+      p.jumpAge=0;p.vy=10.5;p.jumpLock=.75;p.jumpKind=task==='block'?'block':'spike';p.pose=task==='block'?'block':'spikeWind';p.poseTime=.85;
       if(task==='approach'){p.slideVX=Math.abs(p.move)>.35?p.move*this.side(p.team)*4:0;p.quick=!!this.flight&&this.flight.contactTime-this.flight.t<.28;if(!p.quick)this.emit('hint',{player:id,text:'等隊友托高球，再起跳'});}
       this.emit('jump',{player:id,task,slide:p.slideVX!==0});return;
     }
@@ -63,7 +63,7 @@ class VolleyMatch {
   sendFlight(kind,team,recipient,start,end,duration,g=12){
     this.flight={grade:this.strike?.grade||'normal',color:this.strike?.color||'#ffffff',id:++this.serial,kind,team,recipient,t:0,contactTime:duration,g,start:{...start},end:{...end},handledNet:false};
     this.ball={...start,vx:(end.x-start.x)/duration,vy:(end.y-start.y+.5*g*duration*duration)/duration,vz:(end.z-start.z)/duration};
-    this.active=recipient;this.stage=kind;
+    this.active=recipient;this.stage=kind;if(kind==='spike'){this.players[recipient].attackLocked=false;this.players[recipient].attackSteer=false;}
     const p=this.players[recipient];p.tx=end.x;p.tz=end.z+this.side(team)*.35;
     this.emit('flight',{kind,team,player:recipient,id:this.serial});
   }
@@ -177,12 +177,16 @@ class VolleyMatch {
   updatePlayers(dt){
     for(const p of this.players){
       p.diveTime=Math.max(0,p.diveTime-dt);p.swing=Math.max(0,p.swing-dt);p.jumpLock=Math.max(0,p.jumpLock-dt);p.poseTime=Math.max(0,p.poseTime-dt);
-      if(p.vy!==0||p.y>0){p.y+=p.vy*dt;p.vy-=19.5*dt;if(p.y<=0){p.y=0;p.vy=0;p.jumpKind=null;p.slideVX=0;}}
+      if(p.vy!==0||p.y>0){p.jumpAge=(p.jumpAge||0)+dt;p.y+=p.vy*dt;p.vy-=19.5*dt;if(p.y<=0){p.y=0;p.vy=0;p.jumpKind=null;p.slideVX=0;}}
       const task=this.task(p.id),side=this.side(p.team);
+      const attack=p.human&&task==='spike'&&this.flight?.recipient===p.id;
+      if(attack&&!p.attackLocked&&((p.jumpAge||0)>=.27&&p.y>0||this.flight.contactTime-this.flight.t<=.20)){p.attackLocked=true;if(p.attackSteer)p.tx=p.x;}
+      const steer=attack&&!p.attackLocked;
       if(p.human){
-        if(['spike','serve'].includes(task))p.aim=Math.max(-1,Math.min(1,p.aim+p.move*side*dt*1.75));
+        if(steer&&Math.abs(p.move)>.02){p.attackSteer=true;p.tx=Math.max(-5.7,Math.min(5.7,p.x+p.move*side*dt*5));}
+        if(!steer&&['spike','serve'].includes(task))p.aim=Math.max(-1,Math.min(1,p.aim+p.move*side*dt*1.75));
         else if(p.move){p.offset=Math.max(-5,Math.min(5,p.offset+p.move*side*dt*(['receive','block'].includes(task)?4.2:7)));}
-        if(this.flight&&this.flight.recipient===p.id){p.tx=Math.max(-6.7,Math.min(6.7,this.flight.end.x+(task==='receive'?p.offset*.32:0)));p.tz=this.flight.end.z+side*.35;}
+        if(this.flight&&this.flight.recipient===p.id&&!(attack&&p.attackSteer)){p.tx=Math.max(-6.7,Math.min(6.7,this.flight.end.x+(task==='receive'?p.offset*.32:0)));p.tz=this.flight.end.z+side*.35;}
         else if(task==='receive'){p.tx=Math.max(-6.7,Math.min(6.7,p.tx+p.move*side*dt*4.2));}
         else if(task==='block'){p.tx=Math.max(-6.6,Math.min(6.6,p.offset));p.tz=side*1.3;}
         else if(task==='approach'){p.tx=Math.max(-5.7,Math.min(5.7,p.tx+p.move*side*dt*5));p.tz=side*2.1;}
@@ -191,6 +195,9 @@ class VolleyMatch {
       const dx=p.tx-p.x,dz=p.tz-p.z,distance=Math.hypot(dx,dz),speed=(p.human?10.5:this.config.speed)*(p.diveTime>0?1.65:1);
       const step=Math.min(distance,speed*dt);p.moving=distance>.12;
       if(distance>.001){p.x+=p.slideVX&&p.y>0?Math.sign(p.slideVX)*Math.min(Math.abs(dx),Math.abs(p.slideVX)*dt):dx/distance*step;p.z+=dz/distance*step;}
+      if(attack&&p.attackSteer){
+        const f=this.flight;if(!p.attackLocked||!f.attackTargetLocked){f.end.x=p.x;f.attackTargetLocked=p.attackLocked;this.ball.vx=(f.end.x-this.ball.x)/Math.max(.05,f.contactTime-f.t);}
+      }
       p.x=Math.max(-VOLLEY_COURT.halfWidth-.2,Math.min(VOLLEY_COURT.halfWidth+.2,p.x));p.z=side*Math.max(.7,Math.min(VOLLEY_COURT.halfLength,Math.abs(p.z)));
     }
   }
