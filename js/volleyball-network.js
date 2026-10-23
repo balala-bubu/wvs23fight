@@ -6,8 +6,8 @@ class VolleyNetwork{
   static loaded=new Map();
   static script(path){if(!this.loaded.has(path))this.loaded.set(path,new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=path+'?v=20261023-volley2';s.onload=resolve;s.onerror=()=>reject(new Error('無法載入手機連線元件，請稍後重試。'));document.body.appendChild(s);}));return this.loaded.get(path);}
   static async peerLibrary(){if(!window.Peer)await this.script('js/vendor/peerjs-1.5.4.min.js');}
-  constructor({getState,getRoster=()=>[],onSelection=()=>{},input,onDisconnect}){
-    this.getState=getState;this.getRoster=getRoster;this.onSelection=onSelection;this.input=input;this.onDisconnect=onDisconnect;this.peer=null;this.room='';this.clients=new Map();this.lastBroadcast=0;this.seats=[0];this.names=[];this.remote=false;this.remoteStream=null;this.calls=new Map();
+  constructor({getState,getRoster=()=>[],onSelection=()=>{},onResult=()=>{},input,onDisconnect}){
+    this.getState=getState;this.getRoster=getRoster;this.onSelection=onSelection;this.onResult=onResult;this.input=input;this.onDisconnect=onDisconnect;this.peer=null;this.room='';this.clients=new Map();this.lastBroadcast=0;this.seats=[0];this.names=[];this.remote=false;this.calls=new Map();
     const $=id=>document.getElementById(id);$('roomClose').onclick=()=>{$('roomModal').hidden=true;};$('createRoom').onclick=()=>this.openHost();$('closeRoom').onclick=()=>this.close();$('copyRoom').onclick=async()=>{try{await navigator.clipboard.writeText(this.joinURL());$('roomStatus').textContent='已複製加入連結';}catch(_){$('roomStatus').textContent=this.joinURL();}};
     $('roomConnectionMode').onclick=e=>{const b=e.target.closest('[data-remote]');if(b)this.setRemote(b.dataset.remote==='true');};
     $('joinCode').onkeydown=e=>{if(e.key==='Enter')$('connectRoom').click();};$('connectRoom').onclick=()=>{const code=$('joinCode').value.trim();if(!/^\d{6}$/.test(code)){$('joinCode').setCustomValidity('請輸入 6 位數字房號');$('joinCode').reportValidity();return;}location.href=this.joinURL(code);};$('joinCode').oninput=()=>{$('joinCode').setCustomValidity('');};addEventListener('pagehide',()=>this.close());
@@ -15,12 +15,26 @@ class VolleyNetwork{
   setRemote(remote){
     if(this.peer&&this.remote!==remote)this.close();this.remote=remote;
     document.querySelectorAll('#roomConnectionMode button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.remote==='true')===remote)));
-    document.getElementById('roomModeDescription').textContent=remote?'你當 P1。朋友掃碼加入，在手機看主機畫面並操作角色。':'這台當大螢幕，朋友拿手機當手把。';this.renderSeats();
+    document.getElementById('roomModeDescription').textContent=remote?'你當 P1。朋友掃碼加入，各自在手機看自己的畫面、用觸控操作自己的角色。':'這台當大螢幕，朋友拿手機當手把。';this.renderSeats();
+  }
+  /* Each remote phone gets its own video: the host renders only that player's camera into a
+   * private canvas (see renderRemoteViews in volleyball.js) instead of sharing the whole split screen. */
+  static streamSize(aspect){const long=880;const w=aspect>=1?long:Math.round(long*aspect),h=aspect>=1?Math.round(long/aspect):long;return [w&~1,h&~1];}
+  static clampAspect(value){const a=Number(value);return Number.isFinite(a)?Math.max(.45,Math.min(2.4,a)):16/9;}
+  resizeStream(client){
+    if(!client.stream)return;const [w,h]=VolleyNetwork.streamSize(client.aspect);
+    if(client.stream.canvas.width!==w||client.stream.canvas.height!==h){client.stream.canvas.width=w;client.stream.canvas.height=h;}
   }
   streamTo(client){
     if(!this.remote||this.calls.has(client.connection.peer))return;
-    try{this.remoteStream ||=document.getElementById('court').captureStream(30);const call=this.peer.call(client.connection.peer,this.remoteStream);if(call){this.calls.set(client.connection.peer,call);call.on('close',()=>this.calls.delete(client.connection.peer));}}catch(_){document.getElementById('roomStatus').textContent='此瀏覽器無法傳送畫面，請改用 Chrome，或選在同一個地方。';}
+    try{
+      if(!client.stream){const canvas=document.createElement('canvas');client.stream={canvas,ctx:canvas.getContext('2d',{alpha:false}),media:null};this.resizeStream(client);client.stream.ctx.fillStyle='#111';client.stream.ctx.fillRect(0,0,canvas.width,canvas.height);client.stream.media=canvas.captureStream(30);}
+      const call=this.peer.call(client.connection.peer,client.stream.media);if(call){this.calls.set(client.connection.peer,call);call.on('close',()=>this.calls.delete(client.connection.peer));}
+    }catch(_){document.getElementById('roomStatus').textContent='此瀏覽器無法傳送畫面，請改用 Chrome，或選在同一個地方。';}
   }
+  /* The private canvas for a connected remote player, or null when that seat is a plain controller. */
+  remoteTarget(id){if(!this.remote)return null;for(const c of this.clients.values())if(c.id===id&&c.connection.open&&c.stream)return c.stream;return null;}
+  hasVideo(id){if(!this.remote)return false;for(const c of this.clients.values())if(c.id===id&&c.connection.open)return true;return false;}
   get connectedCount(){return this.clients.size;}
   isRemote(id){return [...this.clients.values()].some(c=>c.id===id&&c.connection.open);}
   joinURL(code=this.room){const url=new URL('volleyball.html',location.href);url.search='pad='+code;return url.href;}
@@ -40,23 +54,24 @@ class VolleyNetwork{
   accept(conn){
     let client=null;
     conn.on('open',()=>{const used=new Set([...this.clients.values()].map(c=>c.id)),id=this.seats.find((id,i)=>!(this.remote&&i===0)&&!used.has(id));if(id===undefined){conn.send({type:'full',message:'目前模式的真人席位已滿。請在大螢幕改成雙人或四人模式。'});setTimeout(()=>conn.close(),1000);return;}
-      client={connection:conn,id,ready:false,lastSeq:-1,lastInput:0,inputs:0,lastSeen:performance.now()};this.clients.set(conn.peer,client);this.assign(client);this.streamTo(client);this.renderSeats();});
+      client={connection:conn,id,aspect:16/9,stream:null,ready:false,lastSeq:-1,lastInput:0,inputs:0,lastSeen:performance.now()};this.clients.set(conn.peer,client);this.assign(client);this.streamTo(client);this.renderSeats();});
     conn.on('data',data=>{if(!client||!data||typeof data!=='object')return;client.lastSeen=performance.now();
       if(data.type==='selection'){const now=performance.now();if(now-(client.lastSelection||0)<80)return;client.lastSelection=now;this.onSelection(client.id,data);return;}
-      if(data.type==='readyForVideo'){this.streamTo(client);return;}
+      if(data.type==='readyForVideo'||data.type==='view'){client.aspect=VolleyNetwork.clampAspect(data.aspect);this.resizeStream(client);if(data.type==='readyForVideo')this.streamTo(client);return;}
+      if(data.type==='result'&&this.remote&&['again','change'].includes(data.action)){this.onResult(data.action);return;}
       if(data.type==='ping'){conn.send({type:'pong',at:data.at});return;}
       if(data.type==='ready'){client.ready=!!data.value;this.renderSeats();return;}
       if(data.type!=='input'||!Number.isSafeInteger(data.seq)||data.seq<=client.lastSeq)return;
       const now=performance.now();if(now-client.lastInput>1000){client.inputs=0;client.lastInput=now;}if(++client.inputs>45)return;client.lastSeq=data.seq;
       if(!['hit','jump','move','aim','action'].includes(data.action))return;const value=['move','aim'].includes(data.action)?Math.max(-1,Math.min(1,Number(data.value)||0)):0;this.input(client.id,data.action,value);
     });
-    const lost=()=>{if(!client||!this.clients.has(conn.peer))return;this.input(client.id,'move',0);this.clients.delete(conn.peer);this.calls.get(conn.peer)?.close();this.calls.delete(conn.peer);this.renderSeats();document.getElementById('roomStatus').textContent='P'+(this.seats.indexOf(client.id)+1)+' 已離線，遊戲已暫停。';this.onDisconnect(client.id);};conn.on('close',lost);conn.on('error',lost);
+    const lost=()=>{if(!client||!this.clients.has(conn.peer))return;this.input(client.id,'move',0);this.clients.delete(conn.peer);this.calls.get(conn.peer)?.close();this.calls.delete(conn.peer);client.stream?.media?.getTracks().forEach(t=>t.stop());this.renderSeats();document.getElementById('roomStatus').textContent='P'+(this.seats.indexOf(client.id)+1)+' 已離線，遊戲已暫停。';this.onDisconnect(client.id);};conn.on('close',lost);conn.on('error',lost);
   }
   broadcast(){const now=performance.now();if(!this.clients.size||now-this.lastBroadcast<80)return;this.lastBroadcast=now;const s=this.getState();
-    for(const c of this.clients.values())if(c.connection.open){if(now-c.lastSeen>12000){c.connection.close();continue;}const p=s.players?.[c.id],task=p?.task||'wait';c.connection.send({type:'state',task,screen:s.screen,status:s.status||'setup',paused:!!s.paused,score:s.score||[0,0],remaining:s.flight?.recipient===c.id?s.flight.contactTime-s.flight.t:null,airborne:(p?.y||0)>.5,stage:s.stage,combo:s.combo||0,lobby:s.screen==='setup'?s.lobby:null});}
+    for(const c of this.clients.values())if(c.connection.open){if(now-c.lastSeen>12000){c.connection.close();continue;}const p=s.players?.[c.id],task=p?.task||'wait';c.connection.send({type:'state',task,screen:s.screen,status:s.status||'setup',paused:!!s.paused,score:s.score||[0,0],remaining:s.flight?.recipient===c.id?s.flight.contactTime-s.flight.t:null,airborne:(p?.y||0)>.5,stage:s.stage,combo:s.combo||0,pointer:s.pointers?.[c.id]||null,lobby:s.screen==='setup'?s.lobby:null});}
   }
   feedback(id,text,vibration,color){const c=[...this.clients.values()].find(c=>c.id===id);if(c?.connection.open)c.connection.send({type:'feedback',text,vibration,color});}
-  close(){for(const c of this.clients.values())c.connection.close();this.clients.clear();for(const call of this.calls.values())call.close();this.calls.clear();this.remoteStream?.getTracks().forEach(t=>t.stop());this.remoteStream=null;this.peer?.destroy();this.peer=null;this.room='';const $=id=>document.getElementById(id);$('lobbyRoomCode').textContent='尚未開房';$('lobbyRoomStatus').textContent='房間已關閉，可重新建立';$('lobbyRoomQR').replaceChildren();$('lobbyRoomRetry').hidden=false;if($('roomInfo')){$('roomInfo').hidden=true;$('createRoom').hidden=false;$('createRoom').disabled=false;$('createRoom').textContent='建立手機手把房間';this.renderSeats();}}
+  close(){for(const c of this.clients.values()){c.stream?.media?.getTracks().forEach(t=>t.stop());c.stream=null;c.connection.close();}this.clients.clear();for(const call of this.calls.values())call.close();this.calls.clear();this.peer?.destroy();this.peer=null;this.room='';const $=id=>document.getElementById(id);$('lobbyRoomCode').textContent='尚未開房';$('lobbyRoomStatus').textContent='房間已關閉，可重新建立';$('lobbyRoomQR').replaceChildren();$('lobbyRoomRetry').hidden=false;if($('roomInfo')){$('roomInfo').hidden=true;$('createRoom').hidden=false;$('createRoom').disabled=false;$('createRoom').textContent='建立手機手把房間';this.renderSeats();}}
   static async phone(room){
     const $=id=>document.getElementById(id);document.body.classList.add('phoneMode');$('nav').hidden=true;$('court').hidden=true;$('phone').hidden=false;$('loading').hidden=true;
     let peer,connection,seat=null,seq=0,padMode='touch',state={task:'wait'},move=0,lastMove=0,ready=false,wake=null,drill=null;
@@ -114,6 +129,12 @@ class VolleyNetwork{
       if(selecting){$('padActionLabel').textContent='決定';$('padAction').disabled=!!state.lobby.slots?.[seat?.id]?.ready;$('padActionHint').textContent='搖桿左右選擇，按下決定';}
       $('padAction').setAttribute('aria-label',selecting?'決定':text);$('phoneReady').hidden=state.screen==='play'&&drill===null;
     }
+    /* Remote room: while a match runs the phone shows only this player's own camera, full screen,
+     * with the same thumb stick + one action button as solo touch play. */
+    function showOwnView(data){
+      const live=data.screen==='play'||data.screen==='result';document.body.classList.toggle('remoteFull',live);document.body.classList.toggle('remoteResult',data.screen==='result');$('remoteResultBtns').hidden=data.screen!=='result';
+      const ptr=$('remotePointer');if(live&&data.pointer&&data.screen==='play'){ptr.hidden=false;ptr.style.left=(data.pointer.x*100)+'%';ptr.style.top=(data.pointer.y*100)+'%';}else ptr.hidden=true;
+    }
     let catalog=[],lobbyKey='';
     function pick(action,extra={}){if(connection?.open)connection.send({type:'selection',action,...extra});}
     function renderPhoneLobby(lobby){
@@ -128,8 +149,12 @@ class VolleyNetwork{
       if(!slot.stage){const random=document.createElement('button');random.id='phoneRandomCharacter';random.textContent='？ 隨機';random.onclick=()=>pick('random');box.append(random);}
       for(const option of options){const b=document.createElement('button');b.setAttribute('aria-pressed',String(slot.stage?option.skin===slot.skin:option.kind===slot.kind));const img=document.createElement('img');img.src=option.face;img.alt='';const label=document.createElement('span');label.textContent=option.name;b.append(img,label);b.onclick=()=>pick(slot.stage?'skin':'character',slot.stage?{skin:option.skin}:{kind:option.kind});box.append(b);}
     }
+    for(const [id,action] of [['remoteAgain','again'],['remoteChange','change']])$(id).onclick=()=>{if(connection?.open)connection.send({type:'result',action});};
     $('phoneSelectBack').onclick=()=>pick('back');$('phoneSelectConfirm').onclick=()=>pick('confirm');
-    function openPad(mode){padMode=mode;$('phoneSetup').hidden=true;$('phonePlay').hidden=false;$('sensorFeedback').textContent=mode==='motion'?'動作感測已啟用':'觸控模式';updateAction();}
+    const viewAspect=()=>Math.round(innerWidth/Math.max(1,innerHeight)*100)/100;let viewTimer=null;
+    const reportView=()=>{clearTimeout(viewTimer);viewTimer=setTimeout(()=>{if(connection?.open&&seat?.remote)connection.send({type:'view',aspect:viewAspect()});},250);};
+    addEventListener('resize',reportView);addEventListener('orientationchange',reportView);
+    function openPad(mode){padMode=mode;$('phoneSetup').hidden=true;$('phonePlay').hidden=false;$('sensorFeedback').textContent=mode==='motion'?'動作感測已啟用':seat?.remote?'':'觸控模式';updateAction();}
     function startDrill(){drill=0;$('phoneReady').hidden=false;updateAction();$('phoneTaskLabel').textContent='練習：接球';$('phoneGesture').textContent='手機放平，由下往上揮';$('sensorFeedback').textContent='練習不會控制大螢幕';}
     function gesture(direction,details={}){
       if(drill==='done')return;if(drill!==null){const steps=[['up','接球'],['up','托球'],['up','起跳／攔網'],['down','扣球']];if(direction===steps[drill][0]){$('sensorFeedback').textContent=steps[drill][1]+' 辨識成功！';drill++;if(drill===4){drill='done';$('phoneTaskLabel').textContent='練習完成！';$('phoneGesture').textContent='按準備，等待大螢幕開賽';}else{$('phoneTaskLabel').textContent='練習：'+steps[drill][1];$('phoneGesture').textContent=['手機放平，向上揮接球','手機放平，向上揮舉球','手機放平，向上揮起跳','向左／中／右下揮扣球'][drill];}}return;}
@@ -145,14 +170,14 @@ class VolleyNetwork{
     const pressAction=()=>{if(state.screen==='setup'&&state.lobby?.step==='lineup'){pick('confirm');return;}if(!$('padAction').disabled&&drill===null)send('action');};$('padAction').onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();pressAction();};$('padAction').onclick=e=>{if(e.detail===0)pressAction();};
     document.querySelectorAll('[data-padmove]').forEach(b=>{b.onpointerdown=e=>{if(beginMove(e,b))outputMove(Number(b.dataset.padmove),true);};b.onpointerup=stopMove;b.onpointercancel=stopMove;b.onlostpointercapture=stopMove;});
     $('phoneReady').onclick=async()=>{if(!connection?.open)return;drill=null;updateAction();ready=!ready;connection.send({type:'ready',value:ready});$('phoneReady').textContent=ready?'已準備，等待大螢幕開賽':'我準備好了';try{wake=await navigator.wakeLock?.request('screen');}catch(_){}};
-    function lost(){$('remoteCourt').srcObject=null;motion.disable();stopMove();$('phoneLink').textContent='已斷線';$('sensorFeedback').textContent='與大螢幕失去連線，請重新加入。';$('phoneWho').textContent='連線已中斷。請重新整理，或回到加入房間。';$('phoneSetup').hidden=false;$('phonePlay').hidden=true;}
+    function lost(){document.body.classList.remove('remoteFull','remoteResult');$('remoteResultBtns').hidden=true;$('remoteCourt').srcObject=null;motion.disable();stopMove();$('phoneLink').textContent='已斷線';$('sensorFeedback').textContent='與大螢幕失去連線，請重新加入。';$('phoneWho').textContent='連線已中斷。請重新整理，或回到加入房間。';$('phoneSetup').hidden=false;$('phonePlay').hidden=true;}
     try{
       await VolleyNetwork.peerLibrary();peer=new Peer({debug:0});peer.on('call',call=>{call.answer();call.on('stream',stream=>{$('remoteCourt').srcObject=stream;$('phoneRemoteView').hidden=false;document.body.classList.add('remotePhone');$('remoteCourt').play().catch(()=>$('remoteResume').hidden=false);});});$('remoteResume').onclick=()=>{$('remoteCourt').play().then(()=>$('remoteResume').hidden=true).catch(()=>{});};peer.on('open',()=>{connection=peer.connect('wvs-volley-v2-'+room,{reliable:true});connection.on('open',()=>{$('phoneLink').textContent='已連線';});
         const connectTimeout=setTimeout(()=>{if(!connection.open){$('phoneWho').textContent='找到房間但尚未建立手把連線。請使用 Safari／Chrome，必要時切換 Wi-Fi 或手機熱點後重試。';$('phoneLink').textContent='連線逾時';}},15000);connection.on('open',()=>clearTimeout(connectTimeout));connection.on('close',()=>clearTimeout(connectTimeout));
-        connection.on('data',data=>{if(data.type==='assign'){seat=data;if(data.remote){$('phoneRemoteView').hidden=false;document.body.classList.add('remotePhone');connection.send({type:'readyForVideo'});}$('phoneWho').textContent='房間 '+room+' · P'+data.number+' '+data.name;$('phonePlayerId').textContent='P'+data.number;$('phoneName').textContent=data.name;}
+        connection.on('data',data=>{if(data.type==='assign'){seat=data;if(data.remote){$('phoneRemoteView').hidden=false;document.body.classList.add('remotePhone');connection.send({type:'readyForVideo',aspect:viewAspect()});if($('phonePlay').hidden)openPad('touch');}$('phoneWho').textContent='房間 '+room+' · P'+data.number+' '+data.name;$('phonePlayerId').textContent='P'+data.number;$('phoneName').textContent=data.name;}
           else if(data.type==='roster'){catalog=data.characters||[];lobbyKey='';}
           else if(data.type==='full'){$('phoneWho').textContent=data.message;}
-          else if(data.type==='state'){state=data;const task=data.task,labels={toss:'拋球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'扣球',block:'攔網',cover:'掩護隊友',wait:'等待開賽'};
+          else if(data.type==='state'){state=data;if(seat?.remote)showOwnView(data);const task=data.task,labels={toss:'拋球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'扣球',block:'攔網',cover:'掩護隊友',wait:'等待開賽'};
             renderPhoneLobby(data.lobby);updateAction();$('remoteScore').textContent=data.screen==='setup'?'主機正在選角':('藍隊 '+data.score[0]+' : '+data.score[1]+' 紅隊');if(drill!==null)return;$('phoneTaskLabel').textContent=data.paused?'暫停中':data.screen==='setup'?'等待開賽':labels[task]||'準備';
             const gestures={toss:'手機放平，上揮拋球起跳，再下揮發球',serve:data.airborne?'向左／中／右下揮發球':'手機放平，上揮起跳，再下揮發球',receive:'手機放平，向上揮接球',set:'手機放平，向上揮舉球',approach:'先看隊友托球，托高後上舉起跳',spike:data.airborne?'向左／中／右下揮，控制扣球方向！':'手機放平，上揮起跳，再下揮扣球',block:'調整站位，向上舉起攔網',cover:'看大螢幕，準備下一球',wait:'在手機選好手把，按準備'};$('phoneGesture').textContent=padMode==='motion'?(gestures[task]||'看大螢幕'):'左手搖桿移動，右手按鈕跟著提示操作';
           }else if(data.type==='feedback'){$('sensorFeedback').textContent=data.text;$('sensorFeedback').style.color=data.color||'';try{if(data.vibration)navigator.vibrate?.(data.vibration);}catch(_){}}

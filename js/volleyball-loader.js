@@ -1,6 +1,6 @@
 'use strict';
 (async()=>{
-  const version='?v=20261023-volley17';
+  const version='?v=20261023-volley18';
   const script=path=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=path+version;s.onload=resolve;s.onerror=()=>reject(new Error('無法載入 '+path));document.body.appendChild(s);});
   try{
     await script('js/volleyball-interaction.js');

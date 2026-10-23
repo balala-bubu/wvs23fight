@@ -91,3 +91,46 @@ html,body,#setup,#phone,#result,button,a,select,input,img,[role=button]{touch-ac
 @media(orientation:landscape) and (max-height:550px){.resultBanner{top:46px;min-height:92px;width:48%;padding:7px 18px 12px}.resultBanner h2{font-size:32px;margin:3px 0 6px}.resultBanner #resultScore b{font-size:26px}.resultBanner>small{font-size:7px}.resultFooter{bottom:9px;padding:6px 10px;width:min(590px,92%)}.resultFooter>p{font-size:9px;margin:0 0 5px}.resultFooter button{padding:7px 12px;font-size:11px;min-width:110px}.resultPlayer.winner b{font-size:16px}.resultPlayer{padding:3px 9px}}
 
 #phoneLobby .phoneControlDeck{position:relative;inset:auto;margin-top:16px}#phoneLobby .phoneControlDeck .thumbControl{min-height:180px}#phoneLobby #padStick{width:180px;height:180px}
+
+/* Remote room phones: own camera full screen + the same thumb stick / action button layout as solo touch play. */
+.remotePhone #phoneDrill,.remotePhone #phoneSettings,.remotePhone .padHint{display:none}
+body.remotePhone:not(.remoteFull) #phoneRemoteView{display:none}
+body.remoteFull{overflow:hidden;overscroll-behavior:none}
+body.remoteFull #phone{background:#000;min-height:100dvh}
+body.remoteFull #phone main{max-width:none;padding:0}
+body.remoteFull #phoneRemoteView{position:fixed;inset:0;width:auto;max-width:none;margin:0;border:0;border-radius:0;z-index:0;background:#000}
+body.remoteFull #remoteCourt{width:100%;height:100%;max-height:none;object-fit:cover}
+body.remoteFull #remoteScore{top:calc(30px + env(safe-area-inset-top));font-size:13px}
+body.remoteFull #remotePointer{position:absolute;transform:translate(-50%,-50%);font-size:30px;color:#ffe27a;text-shadow:0 2px 6px #000;pointer-events:none}
+#remotePointer{display:none}body.remoteFull #remotePointer:not([hidden]){display:block}
+body.remoteFull #phonePlay{position:static;padding:0;min-height:0;display:block}
+body.remoteFull .phoneHeader{position:fixed;top:0;left:0;right:0;z-index:6;background:#0009;border:0;padding:calc(4px + env(safe-area-inset-top)) 12px 4px;font-size:10px}
+body.remoteFull .phoneHeader b{font-size:11px}
+body.remoteFull .phonePlayer,body.remoteFull #phoneGesture,body.remoteFull #sensorMeter i{display:none}
+body.remoteFull #phonePlay .phoneTask{position:fixed;left:max(12px,env(safe-area-inset-left));top:calc(54px + env(safe-area-inset-top));z-index:4;margin:0;padding:6px 12px;border-radius:12px;background:#15191dcc;border:0;color:#fff;pointer-events:none}
+body.remoteFull .phoneTask small{font-size:9px;color:#fff6df}
+body.remoteFull .phoneTask b{font-size:20px;color:#fff}
+body.remoteFull #sensorMeter{position:fixed;left:50%;top:calc(66px + env(safe-area-inset-top));transform:translateX(-50%);z-index:4;height:auto;pointer-events:none}
+body.remoteFull #sensorFeedback{font-size:24px;font-weight:950;text-shadow:0 2px 6px #000;color:#fff}
+body.remoteFull #phonePlay .phoneControlDeck{flex-direction:row;flex-wrap:nowrap;position:fixed;left:max(18px,env(safe-area-inset-left));right:max(18px,env(safe-area-inset-right));bottom:max(20px,env(safe-area-inset-bottom));z-index:5;display:flex;justify-content:space-between;align-items:flex-end;gap:22px;max-width:none;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+body.remoteFull #phonePlay .phoneControlDeck #padStick{width:150px;height:150px;opacity:.9}
+body.remoteFull #phonePlay #padAction{width:clamp(116px,34vw,150px);height:clamp(116px,34vw,150px);opacity:.95}
+body.remoteFull #phonePlay .thumbControl,body.remoteFull #phonePlay .phoneActionWrap{margin:0}
+body.remoteFull .thumbControl small,body.remoteFull .phoneActionWrap>small{color:#fff6df;text-shadow:0 2px 4px #000;background:#15191dcc;padding:4px 9px;border-radius:20px}
+body.remoteFull #phonePlay #phoneReady{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(210px + env(safe-area-inset-bottom));z-index:6;margin:0}
+@media(orientation:landscape) and (max-height:480px){body.remoteFull #phonePlay .phoneControlDeck #padStick{width:128px;height:128px}body.remoteFull #phonePlay #padAction{width:112px;height:112px}body.remoteFull #phonePlay #phoneReady{bottom:calc(150px + env(safe-area-inset-bottom))}}
+body.remoteFull #phonePlay .thumbControl,body.remoteFull #phonePlay .phoneActionWrap{flex:0 0 auto;width:auto}
+body.remoteFull #phonePlay #padActionLabel{font-size:19px;line-height:1.15;text-align:center}
+#remoteResultBtns{display:none}
+body.remoteResult #remoteResultBtns:not([hidden]){display:flex;position:fixed;left:50%;transform:translateX(-50%);bottom:max(24px,env(safe-area-inset-bottom));z-index:7;gap:14px}
+#remoteResultBtns button{min-width:130px;min-height:52px;padding:0 18px;border-radius:26px;border:2px solid #ffe4a6;background:#15191dee;color:#fff;font-size:17px;font-weight:900}
+#remoteResultBtns .primary{background:linear-gradient(145deg,#f5b85a,#e08a2b);color:#2b1a08}
+body.remoteResult #phonePlay .phoneControlDeck,body.remoteResult #phoneReady,body.remoteResult .phoneTask,body.remoteResult #sensorMeter{display:none}
+/* Same corner layout in portrait and landscape: stick bottom-left, action button bottom-right. */
+body.remoteFull #phonePlay .phoneControlDeck{display:contents}
+body.remoteFull #phonePlay .thumbControl{position:fixed;left:max(18px,env(safe-area-inset-left));right:auto;bottom:max(20px,env(safe-area-inset-bottom));z-index:5;margin:0;min-height:0;order:0}
+body.remoteFull #phonePlay .phoneActionWrap{position:fixed;right:max(18px,env(safe-area-inset-right));left:auto;bottom:max(20px,env(safe-area-inset-bottom));z-index:5;margin:0;order:0}
+body.remoteFull #phonePlay .thumbControl{width:150px;max-width:none;justify-items:center}
+@media(orientation:landscape) and (max-height:480px){body.remoteFull #phonePlay .thumbControl{width:128px}}
+body.remoteFull #phonePlay .thumbControl{left:max(18px,env(safe-area-inset-left))!important;transform:none!important}
+body.remoteFull #phonePlay .phoneActionWrap{right:max(18px,env(safe-area-inset-right))!important;left:auto!important;transform:none!important}

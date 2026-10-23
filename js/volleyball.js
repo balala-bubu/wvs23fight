@@ -95,15 +95,15 @@ const Volleyball=(()=>{
       look:new THREE.Vector3(p.x*.30+ball.position.x*.10+side*.35,3.4+clamp((ball.position.y-5)*.12,0,.7),p.z*.30-side*5)};
   }
   function createViews(){
-    $('views').replaceChildren();views=[];const ids=match.humans;
-    ids.forEach((id,index)=>{const root=document.createElement('div');root.className='view'+(ids.length>1?' split':'');root.style.setProperty('--accent',colors[id]);root.innerHTML='<div class="nextAction"><small>NEXT / 下一步</small><strong></strong><span></span></div><div class="viewHint"></div><div class="combo"></div><div class="viewIdentity"><img class="portrait" alt=""><span class="playerNumber"></span><div><b></b><small></small></div></div><div class="actionPrompt"></div><div class="ballPointer" hidden>▼</div>';
+    $('views').replaceChildren();views=[];const ids=match.humans,localCount=ids.filter(id=>!network?.hasVideo(id)).length;
+    ids.forEach((id,index)=>{const root=document.createElement('div');root.className='view'+(localCount>1?' split':'');root.style.setProperty('--accent',colors[id]);root.innerHTML='<div class="nextAction"><small>NEXT / 下一步</small><strong></strong><span></span></div><div class="viewHint"></div><div class="combo"></div><div class="viewIdentity"><img class="portrait" alt=""><span class="playerNumber"></span><div><b></b><small></small></div></div><div class="actionPrompt"></div><div class="ballPointer" hidden>▼</div>';
       const face=CHARS[players[id].kind].face?.image;if(face?.toDataURL)root.querySelector('.portrait').src=face.toDataURL();root.querySelector('.playerNumber').textContent='P'+(index+1);root.querySelector('.viewIdentity b').textContent=names()[id];root.querySelector('.viewIdentity small').textContent=id<2?'BLUE TEAM':'CORAL TEAM';
       const keys=[['A / D','J','K'],['← / →','Enter','Shift'],['F / H','R','T'],['Num 4 / 6','Num 1','Num 2']][index];root.querySelector('.actionPrompt').innerHTML='<kbd>'+keys[0]+'</kbd> 移動 <kbd>'+keys[1]+'</kbd> 擊球 <kbd>'+keys[2]+'</kbd> 起跳';
       const cam=new THREE.PerspectiveCamera(52,1,.3,160),p=match.players[id];
-      const view={id,index,root,camera:cam,look:new THREE.Vector3(),hintTime:0};views.push(view);$('views').appendChild(root);
+      const remote=!!network?.hasVideo(id),view={id,index,root,camera:cam,look:new THREE.Vector3(),hintTime:0,remote,rect:{x:0,y:0,w:360,h:640}};views.push(view);if(!remote)$('views').appendChild(root);
     });layoutViews();views.forEach(v=>{const rig=cameraRig(match.players[v.id],v.camera);v.camera.position.copy(rig.position);v.look.copy(rig.look);v.camera.lookAt(v.look);});
   }
-  function layoutViews(){const w=innerWidth,h=innerHeight,n=views.length;views.forEach((v,i)=>{const columns=n>1?2:1,rows=n>2?2:1;v.rect={x:(i%columns)*w/columns,y:Math.floor(i/columns)*h/rows,w:w/columns,h:h/rows};Object.assign(v.root.style,{left:v.rect.x+'px',top:v.rect.y+'px',width:v.rect.w+'px',height:v.rect.h+'px'});v.camera.aspect=v.rect.w/v.rect.h;v.camera.fov=v.camera.aspect<.75?64:v.camera.aspect<1.2?58:52;v.camera.updateProjectionMatrix();});}
+  function layoutViews(){const w=innerWidth,h=innerHeight,local=views.filter(v=>!v.remote),n=local.length;local.forEach((v,i)=>{const columns=n>1?2:1,rows=n>2?2:1;v.rect={x:(i%columns)*w/columns,y:Math.floor(i/columns)*h/rows,w:w/columns,h:h/rows};Object.assign(v.root.style,{left:v.rect.x+'px',top:v.rect.y+'px',width:v.rect.w+'px',height:v.rect.h+'px'});v.camera.aspect=v.rect.w/v.rect.h;v.camera.fov=v.camera.aspect<.75?64:v.camera.aspect<1.2?58:52;v.camera.updateProjectionMatrix();});}
   function hint(player,text,duration=1.0,color='#ffffff'){for(const v of views)if(v.id===player){v.root.querySelector('.viewHint').textContent=text;v.root.querySelector('.viewHint').style.color=color;v.root.querySelector('.viewHint').classList.add('visible');v.hintTime=duration;}}
   function onEvent(e){
     if(e.type==='contact'){const text=({weak:'勉強救起…',normal:'OK',nice:'NICE!',good:'GOOD!',super:'SUPER!'})[e.grade];effects.hit(new THREE.Vector3(match.ball.x,match.ball.y,match.ball.z),e.color,e.grade);impactLife=.12;impact.position.set(match.ball.x,match.ball.y,match.ball.z);impact.material.color.set(e.color);sound('hit',e.grade,e.kind);showStrikeLabel(text,e.color);network?.feedback(e.player,text,e.grade==='super'?[20,30,40]:20,e.color);}
@@ -132,7 +132,7 @@ const Volleyball=(()=>{
   function showSetup(){document.body.classList.remove('results');VolleyAudio.setState('setup');effects.clear();setupStep('entry');replay.reset();$('replayLayer').hidden=true;screen='setup';ball.visible=ballShadow.visible=true;match=null;resetLocalStick();labelLife=0;strikeLabel.visible=false;held.clear();document.body.classList.remove('playing');['views','scoreboard','pause','help','pauseModal','result','pointBanner','touchControls','finishPractice'].forEach(id=>$(id).hidden=true);$('setup').hidden=false;modelLineup();reticle.visible=target.visible=trail.visible=trailRibbon.visible=false;network?.updateSeats(humanIDs(),names());}
   function start(isPractice=false,help=true){document.body.classList.remove('results');VolleyAudio.setState('play');effects.clear();
     replay.reset();ball.visible=ballShadow.visible=true;$('replayLayer').hidden=true;sound('serve');practice=isPractice;screen='play';resetLocalStick();document.querySelector('#nav .home').hidden=true;$('lobbyHome').hidden=true;modelLineup();held.clear();match=new VolleyMatch({mode:playMode,difficulty:$('difficulty').value,practice:isPractice,onEvent});createViews();$('setup').hidden=true;$('result').hidden=true;$('views').hidden=false;$('scoreboard').hidden=false;$('pause').hidden=false;$('pause').textContent='暫停';$('finishPractice').hidden=!practice;$('practiceNote').hidden=!practice;$('matchLabel').textContent=practice?'PRACTICE / 不計分':'5 POINT MATCH';$('team0').textContent=playMode==='coop'?'你們':'藍隊';$('team1').textContent='紅隊';
-    document.body.classList.add('playing');$('touchControls').hidden=!matchMedia('(pointer:coarse)').matches||match.humans.length>1||network?.isRemote(match.humans[0]);network?.updateSeats(match.humans,names());
+    document.body.classList.add('playing');$('touchControls').hidden=!matchMedia('(pointer:coarse)').matches||views.filter(v=>!v.remote).length>1||network?.isRemote(match.humans[0]);network?.updateSeats(match.humans,names());
     if(help){match.paused=true;$('help').hidden=false;}$('helpGo').focus();
   }
   function pause(value){if(!match||!['play','point'].includes(match.status))return;match.paused=value;VolleyAudio.setState(value?'pause':'play');resetLocalStick();held.clear();match.players.forEach(p=>p.move=0);$('pauseModal').hidden=!value;$('pause').textContent=value?'繼續':'暫停';}
@@ -189,7 +189,7 @@ const Volleyball=(()=>{
         v.gradeTime=Math.max(0,(v.gradeTime||0)-dt);v.root.querySelector('.combo').textContent=v.gradeTime>0?v.gradeText||'':'';
         if(v.hintTime>0){v.hintTime-=dt;if(v.hintTime<=0)v.root.querySelector('.viewHint').classList.remove('visible');}
         const projected=ball.position.clone().project(v.camera),pointer=v.root.querySelector('.ballPointer');pointer.hidden=projected.x>-1&&projected.x<1&&projected.y>-1&&projected.y<1;
-        pointer.style.left=clamp((projected.x*.5+.5)*v.rect.w,12,v.rect.w-30)+'px';pointer.style.top=clamp((-projected.y*.5+.5)*v.rect.h,90,v.rect.h-80)+'px';
+        pointer.style.left=clamp((projected.x*.5+.5)*v.rect.w,12,v.rect.w-30)+'px';pointer.style.top=clamp((-projected.y*.5+.5)*v.rect.h,90,v.rect.h-80)+'px';if(v.remote)v.pointer=pointer.hidden?null:{x:clamp(projected.x*.5+.5,.05,.95),y:clamp(-projected.y*.5+.5,.15,.7)};
       });
     }
     effects.update(match?.paused?0:dt,ball.position,screen==='result'?resultCamera:replay.playing?replayCamera:views[0]?.camera||setupCamera,screen==='play'&&match?.status==='play',match?.flight?.color,match?.flight?.grade);updateLocalAction();network?.broadcast();
@@ -205,14 +205,38 @@ const Volleyball=(()=>{
     for(let i=0;i<12;i++){const p=new THREE.Vector3().fromBufferAttribute(points,i),near=new THREE.Vector3().fromBufferAttribute(points,Math.min(i+1,11)),tangent=near.sub(p);if(tangent.lengthSq()<.0001)tangent.set(0,0,1);const side=tangent.cross(camera.position.clone().sub(p)).normalize().multiplyScalar(width*(1-i/12));for(let j=0;j<2;j++){const v=p.clone().addScaledVector(side,j?1:-1),fade=1-i/12;pos.setXYZ(i*2+j,v.x,v.y,v.z);col.setXYZ(i*2+j,tint.r*fade,tint.g*fade,tint.b*fade);}}
     pos.needsUpdate=col.needsUpdate=true;
   }
-  function render(){const w=innerWidth,h=innerHeight;if(!match){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=true;renderer.render(scene,setupCamera);return;}
-    if(screen==='result'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=true;renderer.render(scene,resultCamera);return;}
-    if(replay.playing){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=true;renderer.render(scene,replayCamera);return;}
-    renderer.setScissorTest(true);views.forEach((v,i)=>{const r=v.rect;renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);renderer.shadowMap.autoUpdate=i===0;const occluders=players.filter((m,id)=>id!==v.id&&match.players[id].team===match.players[v.id].team&&Math.hypot(m.holder.position.x-v.camera.position.x,m.holder.position.z-v.camera.position.z)<8);occluders.forEach(m=>m.holder.visible=false);renderer.render(scene,v.camera);occluders.forEach(m=>m.holder.visible=true);});renderer.setScissorTest(false);
+  let shadowDone=false;
+  function drawPlayerView(v){
+    const occluders=players.filter((m,id)=>id!==v.id&&match.players[id].team===match.players[v.id].team&&Math.hypot(m.holder.position.x-v.camera.position.x,m.holder.position.z-v.camera.position.z)<8);
+    occluders.forEach(m=>m.holder.visible=false);renderer.render(scene,v.camera);occluders.forEach(m=>m.holder.visible=true);
+  }
+  /* Remote room: every connected phone gets a private picture of its own player's camera (or the shared
+   * replay/result camera). Rendered first into the shared WebGL canvas, copied to that phone's stream
+   * canvas, then overdrawn by the host's own view(s) in the same frame so the host never shows it. */
+  function renderRemoteViews(){
+    if(!network?.remote)return;const dom=renderer.domElement,pr=renderer.getPixelRatio(),w=innerWidth,h=innerHeight;let any=false;
+    for(const v of views){
+      if(!v.remote)continue;const t=network.remoteTarget(v.id);if(!t)continue;
+      const aspect=t.canvas.width/t.canvas.height;let rw=w,rh=w/aspect;if(rh>h){rh=h;rw=h*aspect;}rw=Math.max(2,Math.floor(rw));rh=Math.max(2,Math.floor(rh));
+      v.rect={x:0,y:0,w:rw,h:rh};
+      const shared=screen==='result'?resultCamera:replay.playing?replayCamera:null,cam=shared||v.camera,saved=[cam.aspect,cam.fov];
+      cam.aspect=aspect;cam.fov=!shared?(aspect<.75?64:aspect<1.2?58:52):shared===resultCamera?(aspect<1?64:48):(aspect<1?66:48);cam.updateProjectionMatrix();
+      renderer.setScissorTest(true);renderer.setViewport(0,0,rw,rh);renderer.setScissor(0,0,rw,rh);renderer.shadowMap.autoUpdate=!shadowDone;shadowDone=true;
+      if(shared)renderer.render(scene,shared);else drawPlayerView(v);
+      const sh=Math.round(rh*pr);t.ctx.drawImage(dom,0,dom.height-sh,Math.round(rw*pr),sh,0,0,t.canvas.width,t.canvas.height);
+      cam.aspect=saved[0];cam.fov=saved[1];cam.updateProjectionMatrix();any=true;
+    }
+    if(any)renderer.setScissorTest(false);
+  }
+  function render(){const w=innerWidth,h=innerHeight;shadowDone=false;if(!match){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=true;renderer.render(scene,setupCamera);return;}
+    renderRemoteViews();
+    if(screen==='result'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=!shadowDone;shadowDone=true;renderer.render(scene,resultCamera);return;}
+    if(replay.playing){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.shadowMap.autoUpdate=!shadowDone;shadowDone=true;renderer.render(scene,replayCamera);return;}
+    renderer.setScissorTest(true);views.filter(v=>!v.remote).forEach(v=>{const r=v.rect;renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);renderer.shadowMap.autoUpdate=!shadowDone;shadowDone=true;drawPlayerView(v);});renderer.setScissorTest(false);
   }
   function resize(){resultCamera.aspect=innerWidth/innerHeight;resultCamera.fov=innerWidth/innerHeight<1?64:48;resultCamera.updateProjectionMatrix();replayCamera.aspect=innerWidth/innerHeight;replayCamera.fov=replayCamera.aspect<1?66:48;replayCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);setupCamera.aspect=innerWidth/innerHeight;setupCamera.fov=innerWidth/innerHeight<.9?62:45;setupCamera.updateProjectionMatrix();layoutViews();if(!match&&players.length&&$('setup').dataset.step==='lineup')setupStep('lineup');}
   function loop(t){requestAnimationFrame(loop);const dt=Math.min(last?(t-last)/1000:1/60,.15);last=t;if(document.hidden)return;updateScene(dt);render();slowFrames++;frameWindow+=dt;if(slowFrames>=90){if(frameWindow/slowFrames>.032&&pixelRatio>1){pixelRatio=1;renderer.setPixelRatio(1);resize();}slowFrames=frameWindow=0;}}
-  function configureNetwork(){network=new VolleyNetwork({getState:()=>match?{...match.snapshot(),names:names(),screen}: {humans:humanIDs(),names:names(),screen:'setup',lobby:lobbyState()},getRoster:roster,onSelection:selectFromPhone,input:playerInput,onDisconnect:()=>{if(match&&screen==='play')pause(true);}});}
+  function configureNetwork(){network=new VolleyNetwork({getState:()=>match?{...match.snapshot(),names:names(),screen,pointers:Object.fromEntries(views.filter(v=>v.remote).map(v=>[v.id,v.pointer||null]))}: {humans:humanIDs(),names:names(),screen:'setup',lobby:lobbyState()},getRoster:roster,onSelection:selectFromPhone,onResult:action=>{if(screen==='result'&&!$('result').hidden)$(action==='again'?'again':'change').click();},input:playerInput,onDisconnect:()=>{if(match&&screen==='play')pause(true);}});}
   function boot(){
     initScene();['hero','partner','rival','rivalPartner'].forEach((id,i)=>{for(const kind of CHAR_ORDER){const o=document.createElement('option');o.value=kind;o.textContent=CHARS[kind].stats.name;$(id).appendChild(o);}$(id).value=['waffle','tommy','karl','seafood'][i];$(id).onchange=()=>{if(screen==='setup'){modelLineup();network?.updateSeats(humanIDs(),names());}};});
     initSelection();configureNetwork();VolleyAudio.mount();
