@@ -16,6 +16,9 @@
 body{margin:0;font:14px/1.4 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
+
+#arenaLoading{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:radial-gradient(ellipse at 70% 20%,#783425 0,transparent 55%),#171321;color:#fff3df;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box}
+#arenaLoading .arenaCard{width:min(420px,100%)}#arenaLoading small{letter-spacing:.25em;color:#ffb65b}#arenaLoading h1{font-size:clamp(30px,6vw,48px);margin:12px 0}#arenaLoading p{color:#e1c7b9;min-height:1.5em}#arenaLoading progress{width:100%;height:8px;accent-color:#ff974d}#arenaLoading button{background:#ffb65b;color:#251925;border:0;border-radius:10px;padding:12px 24px;font-weight:900}#arenaLoading a{color:#ffcf99;margin-left:18px}#arenaLoading .arenaPulse{display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff974d;margin-right:10px;animation:arenaPulse 1s ease-in-out infinite alternate}@keyframes arenaPulse{to{opacity:.25;transform:scale(.7)}}@media(prefers-reduced-motion:reduce){#arenaLoading .arenaPulse{animation:none}}
 </style>
 <title>世志大亂鬥</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -362,6 +365,11 @@ body.pad #vibBtn{display:none}
 </style>
 </head>
 <body>
+<section id="arenaLoading" aria-label="準備競技場"><div class="arenaCard"><small>WVS FIGHT</small><h1>準備競技場</h1><p id="arenaLoadingStatus" role="status"><i class="arenaPulse" aria-hidden="true"></i>正在載入遊戲元件…</p><progress id="arenaLoadingProgress" max="34" value="0" aria-label="遊戲元件載入進度"></progress><p id="arenaLoadingHint">角色與場地就緒後，將自動進入遊戲。</p><div id="arenaLoadingRecovery" hidden><button onclick="location.reload()">重新載入</button><a href="index.html">返回首頁</a></div></div></section>
+<script>
+window.BrawlLoading=(()=>{let count=0,failed=false;const status=document.getElementById('arenaLoadingStatus'),bar=document.getElementById('arenaLoadingProgress');function error(){failed=true;status.textContent='載入未完成，請重新整理再試一次';document.getElementById('arenaLoadingRecovery').hidden=false;}const timer=setTimeout(()=>{document.getElementById('arenaLoadingHint').textContent='載入比平常久，仍在等待資源；也可以重新載入。';document.getElementById('arenaLoadingRecovery').hidden=false;},15000);addEventListener('error',error);return{advance(){bar.value=++count;if(!failed)status.textContent=count<5?'正在準備遊戲元件…':count<24?'正在準備角色…':'正在準備競技場…';},finish(){clearTimeout(timer);if(!failed){removeEventListener('error',error);document.getElementById('arenaLoading').remove();}},error};})();
+</script>
+
 
 
 <canvas id="c" aria-label="對戰畫面"></canvas>
@@ -544,10 +552,10 @@ body.pad #vibBtn{display:none}
 <div id="rotLock" hidden><div><b>📱↻ 請把手機轉成橫向</b><span>遠端開房時要橫著拿，朋友那邊的畫面才會是完整的</span></div></div>
 <div id="rotHint" hidden>把手機轉成橫向，玩起來更順</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
 <script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
-var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023g';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'"><\/script>'); }</script>
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023g';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"><\/script>'); }</script>
 <script>S('js/qrcode.js')</script>
 <script>S('js/core.js')</script>
 <script>S('js/music.js')</script>
@@ -582,7 +590,7 @@ var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023g
 <script>S('maps/qimei.js')</script>
 <script>S('maps/space.js')</script>
 <script>S('maps/amusement.js')</script>
-<script>boot();</script>
+<script>requestAnimationFrame(()=>requestAnimationFrame(()=>{try{boot();BrawlLoading.finish();}catch(error){BrawlLoading.error();console.error(error);}}));</script>
 
 </body>
 </html>
