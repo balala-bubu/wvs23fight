@@ -321,20 +321,16 @@ if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 /* =================== vibration (Android Chrome etc.; iOS Safari has no Vibration API) =================== */
 let vibOn = true;
 try { vibOn = localStorage.getItem('wvs.vib') !== '0'; } catch(_){}
-// iOS Safari has no navigator.vibrate. iOS 17.4+ does give a small haptic tick when a <input type=checkbox switch> is toggled
-// from a tap, so button presses fall back to that (one tick, only inside a user gesture; hit / KO events can't use it).
-let tapLabel = null;
-function tapHaptic(){
-  try{
-    if (!tapLabel){
-      tapLabel = document.createElement('label'); tapLabel.setAttribute('aria-hidden','true');
-      tapLabel.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
-      const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch',''); i.tabIndex = -1; tapLabel.appendChild(i); document.body.appendChild(tapLabel);
-    }
-    tapLabel.click();
-  }catch(_){}
+// Only the Vibration API can deliver gameplay feedback. Synthetic switch clicks
+// do not reliably trigger iOS haptics, so unsupported browsers get an honest UI.
+const vibSupported = typeof navigator.vibrate === 'function';
+function stopBuzz(){ if (vibSupported) try{ navigator.vibrate(0); }catch(_){} }
+function buzz(p){
+  if (!vibOn || !vibSupported || document.hidden) return;
+  try{ navigator.vibrate(p); }catch(_){}   // feedback must never interrupt gameplay
 }
-function buzz(p){ if (!vibOn) return; try{ if (navigator.vibrate) navigator.vibrate(p); else tapHaptic(); }catch(_){} }
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden) stopBuzz(); });
+addEventListener('pagehide', stopBuzz);
 
 /* =================== audio =================== */
 let AC = null, master = null;
@@ -1452,9 +1448,10 @@ let padCpick = null, padCskin = 0, padActSeen = -1, padMi = 0, padMiSeen = -1, p
 let padRst = 0, padVibLast = null, padReadyPrev = false;
 let padPick = null, padReady = false, padSkin = 0;
 function padPress(k){
+  if (['atk','sp','jump','fin','shield'].includes(k)) buzz(12);
   if (G.mode !== 'pad') return;
   const map = {atk:'a', sp:'b', jump:'j', fin:'f'};
-  if (map[k]){ padC[map[k]]++; buzz(12); }
+  if (map[k]) padC[map[k]]++;
 }
 const padSlotEl = document.getElementById('padSlot'), padStateEl = document.getElementById('padState');
 const partyBox = document.getElementById('partyBox'), partyCodeEl = document.getElementById('partyCode'), partyMsg = document.getElementById('partyMsg'), padListEl = document.getElementById('padList');
@@ -1680,6 +1677,7 @@ addEventListener('pagehide', ()=>{ if (party && party.role==='pad'){ try { party
 document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && party && party.role==='pad' && party.room && party.room.kick) try { party.room.kick(); } catch(_){} });
 addEventListener('pageshow', e=>{ if (e.persisted && party && party.role==='pad') location.reload(); });   // restored from the back/forward cache: the old link is closed
 function leavePad(){
+  stopBuzz();
   if (party){ try{ party.room.leave(); }catch(_){} party = null; }
   try { rvVid.pause(); rvVid.srcObject = null; } catch(_){}
   rvVid.hidden = true; rvHud.hidden = true; rvBan.hidden = true;
@@ -1951,9 +1949,31 @@ function buildPadMapCards(){
 }
 document.getElementById('padMapOk').onclick = ()=>{ padC.mgo++; buzz(15); };
 document.getElementById('padMapBack').onclick = ()=>{ padC.mbk++; padReady = false; buzz(15); };
-const padVibBtn = document.getElementById('padVib');
-const syncVibBtn = ()=>{ padVibBtn.textContent = '震動：' + (vibOn ? '開' : '關'); };
-padVibBtn.onclick = ()=>{ vibOn = !vibOn; try{ localStorage.setItem('wvs.vib', vibOn ? '1' : '0'); }catch(_){} syncVibBtn(); buzz(40); };
+const vibButtons = [...document.querySelectorAll('[data-vibration]')];
+function syncVibBtn(){
+  vibButtons.forEach(b=>{
+    b.textContent = vibSupported ? '震動：' + (vibOn ? '開' : '關') : '震動：不支援';
+    b.disabled = !vibSupported;
+    b.setAttribute('aria-pressed', String(vibSupported && vibOn));
+    b.title = vibSupported ? '開啟或關閉震動（自動儲存）' : '此瀏覽器不支援網頁震動；可使用支援震動的 Android Chrome';
+  });
+}
+function toggleVibration(b){
+  vibOn = !vibOn;
+  try{ localStorage.setItem('wvs.vib', vibOn ? '1' : '0'); }catch(_){}
+  syncVibBtn();
+  if (vibOn) buzz(40); else stopBuzz();
+  b.blur();
+}
+vibButtons.forEach(b=>{
+  // The game's rapid-tap zoom guard cancels touchend clicks. Handle the pointer
+  // directly so the setting still works right after an attack or jump.
+  b.addEventListener('pointerdown', e=>{
+    if (b.disabled || e.button !== 0) return;
+    e.preventDefault(); toggleVibration(b);
+  });
+  b.onclick = e=>{ if (e.detail === 0) toggleVibration(b); }; // keyboard / assistive activation
+});
 syncVibBtn();
 document.getElementById('padGo').onclick = ()=>{ if (padCpuMode){ padC.cgo++; buzz(15); return; } padC.st++; padReady = !padReady; if (party) party.lastUI = ''; buzz(15); };
 // 再來一局 is a one-shot request (the st counter), not a "ready" toggle: leaving padReady on here made the phone
@@ -2411,6 +2431,7 @@ function startGame(){
   G.startT = 1.5; G.goShown = false; banner('預備…'); if (typeof Music!=='undefined') Music.sync();
 }
 function toMenu(){
+  stopBuzz();
   clearArena(); mapSelEl.hidden = true; leaveParty(); partyBox.hidden = true;   // 回主畫面 closes the room; coming back opens a new room number (rematch / change character / change map keep it) RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   scrNow = ''; if (typeof Music!=='undefined') Music.sync(); // force the (cached) home showcase back after a match
@@ -2426,6 +2447,7 @@ function showOver(){
 // pause
 function setPause(on){
   if (G.mode!=='play') return;
+  if (on) stopBuzz();
   G.paused = on; pauseEl.hidden = !on; quitEl.hidden = on;
   if (isTouch && G.fighters[0] && G.fighters[0].ctrl==='p1') touchEl.hidden = on;
   for (const k in TS) TS[k] = false;
