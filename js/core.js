@@ -1952,7 +1952,8 @@ document.getElementById('padMapBack').onclick = ()=>{ padC.mbk++; padReady = fal
 const vibButtons = [...document.querySelectorAll('[data-vibration]')];
 function syncVibBtn(){
   vibButtons.forEach(b=>{
-    b.textContent = vibSupported ? '震動：' + (vibOn ? '開' : '關') : '震動：不支援';
+    b.hidden = !vibSupported;   // unsupported devices (iPhone/iPad Safari, desktop): hide the switch entirely
+    b.textContent = '震動：' + (vibOn ? '開' : '關');
     b.disabled = !vibSupported;
     b.setAttribute('aria-pressed', String(vibSupported && vibOn));
     b.title = vibSupported ? '開啟或關閉震動（自動儲存）' : '此瀏覽器不支援網頁震動；可使用支援震動的 Android Chrome';
