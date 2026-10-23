@@ -359,6 +359,8 @@ kbd{font-family:var(--pixel);font-size:15px;color:var(--ink);background:rgba(255
 body.pad #vibBtn{display:none}
 [data-vibration]:disabled{opacity:.55;cursor:default}
 [data-vibration][hidden]{display:none!important}
+#modeHome{position:absolute;z-index:5;top:calc(env(safe-area-inset-top,0px) + 10px);left:calc(env(safe-area-inset-left,0px) + 10px);font-size:12px;font-weight:800;padding:8px 12px;border-radius:50px;background:#140f0cd9;border:1px solid var(--line);color:var(--ink);box-shadow:0 3px 0 #0004;text-decoration:none}
+#menu:not(.home) #modeHome{display:none}
 #sndHint{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateX(-50%);z-index:20;background:rgba(20,15,12,.85);border:1px solid var(--gold);color:var(--gold);border-radius:999px;padding:6px 16px;font-size:14px;font-weight:700;pointer-events:none;animation:sndp 1.6s ease-in-out infinite}
 @keyframes sndp{50%{opacity:.55}}
 </style>
@@ -378,6 +380,7 @@ window.BrawlLoading=(()=>{let count=0,failed=false;const status=document.getElem
 <button id="quit" hidden>Ⅱ 換角色</button>
 
 <div id="menu" class="home">
+<a id="modeHome" href="index.html">← 模式首頁</a>
   <div class="title"><h1><img src="logo.webp?v=1" alt="世志大亂鬥" draggable="false"></h1><p>BRAWL</p></div>
   <div class="sheet scr" id="scrTitle">
     <div class="bigBtns">
@@ -554,7 +557,7 @@ window.BrawlLoading=(()=>{let count=0,failed=false;const status=document.getElem
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
 <script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
-var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023j';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"><\/script>'); }</script>
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023k';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"><\/script>'); }</script>
 <script>S('js/qrcode.js')</script>
 <script>S('js/core.js')</script>
 <script>S('js/music.js')</script>
