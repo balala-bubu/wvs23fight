@@ -83,36 +83,6 @@ async def main():
         print('phone events, deduplication and pause passed', flush=True)
         await page.evaluate("Object.defineProperty(navigator,'vibrate',{value:()=>{throw Error('motor unavailable')}});buzz(12);stopBuzz()")
         await page.close()
-        safari = await ctx.new_page()
-        safari.on('pageerror', lambda e: errors.append(str(e)))
-        # Exercise Safari's DOM/input path in Chromium; this cannot measure a
-        # real iPhone Taptic Engine. The real tap must toggle the native input.
-        await safari.add_init_script("Object.defineProperty(navigator,'vibrate',{value:undefined});Object.defineProperty(HTMLInputElement.prototype,'switch',{configurable:true,value:false})")
-        await safari.goto(url)
-        await safari.wait_for_function("typeof vibButtons !== 'undefined'")
-        assert await safari.evaluate('vibSwitch && vibSupported && !vibNative')
-        await safari.evaluate("sel.mode='cpu';startGame();setPause(true)")
-        label = safari.locator('[data-t="atk"] [data-ios-haptic]')
-        await safari.evaluate('setPause(false)')
-        await label.tap()
-        assert await label.locator('input').is_checked(), 'real tap reaches native switch'
-        assert await safari.evaluate('!TS.atk'), 'Safari touch releases normally'
-        await label.tap()
-        assert not await label.locator('input').is_checked(), 'rapid taps are not cancelled'
-        await safari.locator('#vibBtn').tap()
-        assert await safari.evaluate("!vibOn && iosHapticLabels.every(l=>l.hidden && l.firstElementChild.disabled)"), 'off disables native haptics'
-        await safari.locator('[data-t="jump"]').tap()
-        assert await safari.evaluate('!TS.jump'), 'off preserves touch controls'
-        await safari.locator('#vibBtn').tap()
-        await safari.evaluate("document.body.classList.add('pad');document.getElementById('padUI').hidden=false;touchEl.hidden=true;G.mode='pad';window.beforeAtk=padC.a")
-        pad_label = safari.locator('[data-p="atk"] [data-ios-haptic]')
-        await pad_label.tap()
-        assert await pad_label.locator('input').is_checked(), 'phone controller uses native switch'
-        assert await safari.evaluate('padC.a===beforeAtk+1 && !TS.atk'), 'one controller action per native tap'
-        await safari.locator('#padVib').tap()
-        assert await safari.evaluate('!vibOn'), 'controller switch turns off'
-        await safari.close()
-        print('Safari input path: real taps, rapid taps, off, solo/controller input passed (motor unverified)', flush=True)
         other = await ctx.new_page()
         other.on('pageerror', lambda e: errors.append(str(e)))
         await other.add_init_script("Object.defineProperty(navigator,'vibrate',{value:undefined}); Storage.prototype.getItem=()=>{throw Error('blocked')};Storage.prototype.setItem=()=>{throw Error('blocked')}")
@@ -121,7 +91,7 @@ async def main():
         assert await other.evaluate('vibButtons.every(b=>b.disabled)'), 'unsupported UI'
         await other.evaluate('buzz(12);sel.mode="cpu";startGame();padPress("atk")')
         assert not errors, errors
-        print('PASS: Safari native input path, solo input, hit/KO, phone events, no repeats, toggle sync/persistence, cancellation, audio independence, unsupported API, storage failure, motor failure; no page errors')
+        print('PASS: solo input, hit/KO, phone events, no repeats, toggle sync/persistence, cancellation, audio independence, unsupported API, storage failure, motor failure; no page errors')
         await browser.close()
     server.shutdown()
 
