@@ -169,8 +169,13 @@ class VolleyMatch {
         if(f.t>=f.contactTime-.012)this.tryContact(p,true);
       }else if(task==='block'&&f&&(f.kind==='set'||f.kind==='spike')){
         const attacker=this.players[f.kind==='set'?this.teammate(f.recipient):f.recipient];
-        p.tx=Math.max(-5.5,Math.min(5.5,attacker.x+(p.team===0?-.85:.85)));p.tz=side*1.3;
-        if(f.kind==='spike'&&f.contactTime-f.t<.58&&p.y===0&&p.jumpLock<=0){p.vy=10.5;p.jumpLock=.9;p.jumpKind='block';p.pose='block';p.poseTime=1;}
+        // Vary reads per attack; delayed, bounded tracking lets quick changes beat the block.
+        const read=((f.id*37+p.id*17)%11)/10;
+        const reaction=this.config.reaction+.08+read*.16;
+        const target=Math.max(-5.5,Math.min(5.5,attacker.x+(p.team===0?-.85:.85)));
+        if(f.t>reaction&&p.y<.8)p.tx+=Math.max(-1,Math.min(1,target-p.tx))*dt*(this.difficulty==='hard'?7:this.difficulty==='easy'?4.2:5.5);
+        p.tz=side*1.3;
+        if(f.kind==='spike'&&f.contactTime-f.t<.38+read*.18&&p.y===0&&p.jumpLock<=0){p.vy=10.5;p.jumpLock=.9;p.jumpKind='block';p.pose='block';p.poseTime=1;}
       }
     }
   }
