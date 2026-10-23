@@ -27,4 +27,6 @@ PS2 風格的 3D 平台格鬥遊戲，2～4 人，可以用手機當手把。
 - 右上角「震動：開／關」可隨時切換；手機手把也有相同開關，會記住這台裝置的選擇。
 - 支援 Vibration API 的裝置（例如 Android Chrome）會在按操作鍵、受擊與出局時震動；手機手把另有大招集滿提醒。
 - 關閉震動會立即停止回饋；切換分頁、暫停或離開時也會停止。震動與音樂開關互相獨立。
-- iPhone／iPad Safari 不支援網頁 Vibration API，會顯示「震動：不支援」；遊戲仍可正常操作。實際震動也受裝置與系統設定影響。
+- iPhone Safari 使用原生 `<input type="checkbox" switch>` 的按鍵觸覺回饋（Safari 18 起有此系統觸感）。直接點擊遊戲按鍵會透過透明標籤切換原生開關；手機直接玩與手機手把皆適用，關閉震動後會停用這層標籤。
+- Safari 沒有 Vibration API，無法用這條原生開關路徑提供受擊／出局等自動事件的震動或自訂長短模式；Android 的既有事件回饋仍保留。實際震感需要 iPhone 實機及系統觸覺回饋設定確認。
+- 原生開關觸感參考：[WebKit Safari 18 說明](https://webkit.org/blog/15865/webkit-features-in-safari-18-0/)。

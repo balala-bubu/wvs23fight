@@ -16,7 +16,7 @@ document.addEventListener('touchmove', e=>{ if (e.touches && e.touches.length > 
 let lastTouchEnd = 0;
 document.addEventListener('touchend', e=>{
   const now = Date.now();
-  if (now - lastTouchEnd < 320 && (G.mode==='play' || G.mode==='pad' || G.mode==='select' || G.mode==='mapsel')) e.preventDefault();
+  if (!nativeHapticTarget(e) && now - lastTouchEnd < 320 && (G.mode==='play' || G.mode==='pad' || G.mode==='select' || G.mode==='mapsel')) e.preventDefault();
   lastTouchEnd = now;
 }, {passive:false});
 document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
@@ -318,17 +318,49 @@ addEventListener('resize', resize); resize();
 addEventListener('orientationchange', ()=>{ setTimeout(resize, 120); setTimeout(resize, 500); });
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 
-/* =================== vibration (Android Chrome etc.; iOS Safari has no Vibration API) =================== */
+/* =================== vibration / Safari switch haptics =================== */
 let vibOn = true;
 try { vibOn = localStorage.getItem('wvs.vib') !== '0'; } catch(_){}
-// Only the Vibration API can deliver gameplay feedback. Synthetic switch clicks
-// do not reliably trigger iOS haptics, so unsupported browsers get an honest UI.
-const vibSupported = typeof navigator.vibrate === 'function';
-function stopBuzz(){ if (vibSupported) try{ navigator.vibrate(0); }catch(_){} }
+const vibNative = typeof navigator.vibrate === 'function';
+// Safari exposes its native switch even though it has no Vibration API.
+const vibSwitch = !vibNative && 'switch' in document.createElement('input') && navigator.maxTouchPoints > 0;
+const vibSupported = vibNative || vibSwitch;
+function stopBuzz(){ if (vibNative) try{ navigator.vibrate(0); }catch(_){} }
 function buzz(p){
-  if (!vibOn || !vibSupported || document.hidden) return;
+  if (!vibOn || !vibNative || document.hidden) return;
   try{ navigator.vibrate(p); }catch(_){}   // feedback must never interrupt gameplay
 }
+function nativeHapticTarget(e){ return !!(e.target && e.target.closest && e.target.closest('[data-ios-haptic]')); }
+function captureActionPointer(b, e){
+  if (!nativeHapticTarget(e)) e.preventDefault();
+  // Keep the label as the click target: Safari needs a real tap forwarded to
+  // its native switch, rather than a programmatic label.click().
+  const target = nativeHapticTarget(e) ? e.target : b;
+  try{ target.setPointerCapture(e.pointerId); }catch(_){}
+}
+const iosHapticLabels = [];
+function installSwitchHaptics(){
+  if (!vibSwitch) return;
+  document.querySelectorAll('#touch .tb, #padStage .pb').forEach(b=>{
+    const label = document.createElement('label');
+    label.dataset.iosHaptic = ''; label.setAttribute('aria-hidden','true');
+    label.style.cssText = 'position:absolute;inset:0;border-radius:inherit;touch-action:none;cursor:inherit';
+    const input = document.createElement('input');
+    input.type = 'checkbox'; input.setAttribute('switch',''); input.tabIndex = -1;
+    input.style.cssText = 'position:absolute;width:1px;height:1px;margin:0;visibility:hidden';
+    // Only the real label tap should reach the action. Its forwarded native
+    // switch click must not activate a button a second time.
+    input.addEventListener('click', e=>e.stopPropagation());
+    label.appendChild(input); b.appendChild(label); iosHapticLabels.push(label);
+  });
+}
+function syncSwitchHaptics(){
+  iosHapticLabels.forEach(label=>{
+    label.hidden = !vibOn;
+    label.firstElementChild.disabled = !vibOn;
+  });
+}
+installSwitchHaptics(); syncSwitchHaptics();
 document.addEventListener('visibilitychange', ()=>{ if (document.hidden) stopBuzz(); });
 addEventListener('pagehide', stopBuzz);
 
@@ -1195,9 +1227,9 @@ function readHuman(slot){
 }
 document.querySelectorAll('#touch .tb').forEach(b=>{
   const k = b.dataset.t;
-  const on = (e)=>{ e.preventDefault(); TS[k] = true; b.classList.add('on'); audioOn(); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); };
+  const on = (e)=>{ captureActionPointer(b, e); TS[k] = true; b.classList.add('on'); audioOn(); padPress(k); };
   let bid = null;
-  const off = (e)=>{ if (e.currentTarget===b) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
+  const off = (e)=>{ if (e.currentTarget===b && !nativeHapticTarget(e)) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
   b.addEventListener('pointerdown', e=>{ bid = e.pointerId; on(e); }); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
   addEventListener('pointerup', off, true); addEventListener('pointercancel', off, true);   // finger lifted somewhere else / capture failed
   b.addEventListener('contextmenu', e=>e.preventDefault());
@@ -1262,8 +1294,8 @@ pZone.addEventListener('pointerup', pEnd); pZone.addEventListener('pointercancel
 addEventListener('pointerup', pEnd, true); addEventListener('pointercancel', pEnd, true);
 document.querySelectorAll('#padStage .pb').forEach(b=>{
   const k = b.dataset.p; let bid = null;
-  b.addEventListener('pointerdown', e=>{ e.preventDefault(); bid = e.pointerId; TS[k] = true; b.classList.add('on'); try{ b.setPointerCapture(e.pointerId); }catch(_){} padPress(k); });
-  const off = (e)=>{ if (e.currentTarget===b) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
+  b.addEventListener('pointerdown', e=>{ captureActionPointer(b, e); bid = e.pointerId; TS[k] = true; b.classList.add('on'); padPress(k); });
+  const off = (e)=>{ if (e.currentTarget===b && !nativeHapticTarget(e)) e.preventDefault(); if (bid!==null && e.pointerId!==undefined && e.pointerId!==bid) return; bid = null; TS[k] = false; b.classList.remove('on'); };
   b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
   addEventListener('pointerup', off, true); addEventListener('pointercancel', off, true);
   b.addEventListener('contextmenu', e=>e.preventDefault());
@@ -1951,11 +1983,12 @@ document.getElementById('padMapOk').onclick = ()=>{ padC.mgo++; buzz(15); };
 document.getElementById('padMapBack').onclick = ()=>{ padC.mbk++; padReady = false; buzz(15); };
 const vibButtons = [...document.querySelectorAll('[data-vibration]')];
 function syncVibBtn(){
+  syncSwitchHaptics();
   vibButtons.forEach(b=>{
     b.textContent = vibSupported ? '震動：' + (vibOn ? '開' : '關') : '震動：不支援';
     b.disabled = !vibSupported;
     b.setAttribute('aria-pressed', String(vibSupported && vibOn));
-    b.title = vibSupported ? '開啟或關閉震動（自動儲存）' : '此瀏覽器不支援網頁震動；可使用支援震動的 Android Chrome';
+    b.title = vibSwitch ? 'iPhone 按鍵觸覺回饋：開啟或關閉（自動儲存）' : vibNative ? '開啟或關閉震動（自動儲存）' : '此瀏覽器不支援震動或原生開關觸覺回饋';
   });
 }
 function toggleVibration(b){
