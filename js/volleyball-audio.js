@@ -2,7 +2,7 @@
 'use strict';
 const VolleyAudio=(()=>{
   const TRACK='audio/volleyball-theme.mp3',CHEER='audio/volleyball-victory.mp3',KEY='wvs_music_muted';
-  const music=new Audio(),cheer=new Audio();music.preload=cheer.preload='none';music.loop=true;music.volume=.22;cheer.volume=.55;let muted=false,sfxMuted=false,unlocked=false,playing=false,button=null,duckTimer=null,stopTimer=null,state='setup',fallback=false;
+  const music=new Audio(),cheer=new Audio();music.preload=cheer.preload='none';music.loop=true;music.volume=.10;cheer.volume=.55;let muted=false,sfxMuted=false,unlocked=false,playing=false,button=null,duckTimer=null,stopTimer=null,state='setup',fallback=false;
   try{muted=localStorage.getItem(KEY)==='1';}catch(_){}
   function paint(){if(!button)return;button.textContent=muted?'音樂 關':playing?'音樂 開':'音樂 ▷';button.setAttribute('aria-pressed',String(!muted));button.setAttribute('aria-label',muted?'開啟背景音樂':'關閉背景音樂');}
   function start(){if(muted||document.hidden||!unlocked)return;if(!music.src)music.src=TRACK;music.volume=state==='result'?.14:state==='pause'?.08:.22;music.play().then(()=>{playing=true;paint();}).catch(()=>{playing=false;paint();});}
