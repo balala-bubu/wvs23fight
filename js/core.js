@@ -2411,7 +2411,7 @@ function startGame(){
   G.startT = 1.5; G.goShown = false; banner('預備…'); if (typeof Music!=='undefined') Music.sync();
 }
 function toMenu(){
-  clearArena(); mapSelEl.hidden = true; if (!(sel.mode==='party' && party && party.role==='host')) leaveParty(); partyBox.hidden = true; RS.visible = false; applyMap(sel.map); rebuildAll();
+  clearArena(); mapSelEl.hidden = true; leaveParty(); partyBox.hidden = true;   // 回主畫面 closes the room; coming back opens a new room number (rematch / change character / change map keep it) RS.visible = false; applyMap(sel.map); rebuildAll();
   G.mode = 'menu'; overEl.hidden = true; pauseEl.hidden = true; hud.hidden = true; quitEl.hidden = true; touchEl.hidden = true; rotHint.hidden = true; winTitle.hidden = true;
   scrNow = ''; if (typeof Music!=='undefined') Music.sync(); // force the (cached) home showcase back after a match
   showScr('scrTitle');
