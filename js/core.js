@@ -2006,11 +2006,16 @@ function portraitCanvas(kind, skin = 0){
   try { g.drawImage(C.face.image, 6, 12, 52, 52); } catch(_){}
   g.fillStyle = '#151110';
   if (C.portrait) C.portrait(g);
-  if (skin > 0){   // little party hat
-    g.save(); g.translate(34,15); g.rotate(0.2);
-    g.fillStyle = '#ff5fa2'; g.beginPath(); g.moveTo(-11,0); g.lineTo(11,0); g.lineTo(0,-15); g.closePath(); g.fill();
-    g.fillStyle = '#ffe066'; g.fillRect(-7,-5,14,2); g.fillRect(-4,-10,8,2); g.fillRect(-12,-1,24,3);
-    g.fillStyle = '#ffffff'; g.fillRect(-2,-18,4,4); g.restore();
+  if (skin > 0){
+    const S = C.skins && C.skins[skin-1];
+    if (S && S.portrait){ try { S.portrait(g); } catch(_){} }   // 造型自己畫的頭像（衣服、帽子、鬍子…）
+    else {                                                        // 沒有的話：戴一頂生日帽，顏色用該角色自己的 hat:[帽身,條紋,球]
+      const hc = (S && S.hat) || [], hat = hc[0] || '#ff5fa2', stripe = hc[1] || '#ffe066', ball = hc[2] || '#ffffff';
+      g.save(); g.translate(34,15); g.rotate(0.2);
+      g.fillStyle = hat; g.beginPath(); g.moveTo(-11,0); g.lineTo(11,0); g.lineTo(0,-15); g.closePath(); g.fill();
+      g.fillStyle = stripe; g.fillRect(-7,-5,14,2); g.fillRect(-4,-10,8,2); g.fillRect(-12,-1,24,3);
+      g.fillStyle = ball; g.fillRect(-2,-18,4,4); g.restore();
+    }
   }
   return c;
 }

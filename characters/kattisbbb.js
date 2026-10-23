@@ -496,7 +496,7 @@ registerChar('kattisbbb', {
         g.fillStyle = '#6e6c48'; g.fillRect(28,54,8,10);
         g.fillStyle = '#d8d3bb'; g.fillRect(31,56,2,2); g.fillRect(31,61,2,2);
       } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#ffb3d1','#ffffff',0xffd166); h.position.set(0.05,0.7,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#ffb3d1','#ffffff','#ffd166'], apply(c){ const h = birthdayHat('#ffb3d1','#ffffff',0xffd166); h.position.set(0.05,0.7,-0.02); c.head.add(h); } },
   ],
   // shield: hold up a golden 3D "19"
   shield(){ return ktShield(); },

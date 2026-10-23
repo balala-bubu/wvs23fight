@@ -479,6 +479,15 @@ function masterogwayLoseUpdate(R, dt, k){
 }
 
 /* ---------------- register ---------------- */
+// 選造型頭像：牛仔襯衫（淺色橫紋、襯衫領、釦子）
+function mogDenimPortrait(g){
+  g.fillStyle = '#30557f'; g.fillRect(0,54,64,10);
+  g.fillStyle = 'rgba(255,255,255,.4)'; for (let y=56;y<64;y+=4) g.fillRect(0,y,64,1);
+  g.fillStyle = '#4a75a8'; g.beginPath(); g.moveTo(16,52); g.lineTo(31,52); g.lineTo(31,64); g.lineTo(24,58); g.closePath(); g.fill();   // 左領
+  g.beginPath(); g.moveTo(48,52); g.lineTo(33,52); g.lineTo(33,64); g.lineTo(40,58); g.closePath(); g.fill();                          // 右領
+  g.fillStyle = '#1f3a5a'; g.fillRect(31,54,2,10);                                                                                    // 門襟
+  g.fillStyle = '#d9d2c0'; g.fillRect(30,57,1,1); g.fillRect(33,57,1,1); g.fillRect(30,61,1,1); g.fillRect(33,61,1,1);                 // 釦子
+}
 registerChar('masterogway', {
   stats: { name:'樂', en:'Master Ogway', tag:'天龍人・土木系・樂化傳染', weight:1.4, run:14, air:10, jumpV:26, djV:23, jumps:2 },
   moves: {
@@ -547,7 +556,7 @@ registerChar('masterogway', {
   },
   build: buildMasterogway, face: mogFaces.normal, portraitBg: '#9fb8cf',
   portrait(g){ g.fillRect(6,2,52,12); g.fillRect(4,10,9,18); g.fillRect(51,10,9,18); g.fillRect(14,12,36,3); },
-  skins: [{ name:'牛仔襯衫', apply(c){
+  skins: [{ name:'牛仔襯衫', portrait: mogDenimPortrait, apply(c){
     const dM = L({map:mogDenimTex}), dF = L({map:mogDenimFront});
     c.chest.children.forEach(o=>{ if (o.material && o.material.length===6) o.material = [dM,dM,dM,dM,dF,dM]; else if (o.material && o.material.map===mogHoodTex) o.material = dM; });
     [c.R, c.Lf].forEach(A=>{ [A.sh, A.el].forEach(p=>p.children.forEach(o=>{ if (o.material && o.material.map===mogSleeveTex) o.material = dM; })); });

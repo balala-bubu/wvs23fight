@@ -560,7 +560,7 @@ registerChar('xuan', {
   skins: [
     { name:'高中工作人員', apply(c){ c.setOutfit('hs'); },
       portrait(g){ g.fillStyle = '#f6f5f2'; g.fillRect(10,52,44,12); g.fillStyle = '#cf2a2f'; g.fillRect(24,55,16,5); g.fillStyle = '#9fb6d6'; g.fillRect(29,50,6,8); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#b08cff','#ffe066',0xfff0c0); h.position.set(0.04,0.76,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#b08cff','#ffe066','#fff0c0'], apply(c){ const h = birthdayHat('#b08cff','#ffe066',0xfff0c0); h.position.set(0.04,0.76,-0.02); c.head.add(h); } },
   ],
   // 防禦：八卦光盤擋在身前
   shield(){

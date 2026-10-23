@@ -614,7 +614,7 @@ function karlCostume(c){
     [-1,0,1].forEach(i=>add(k, rbox(0.22,0.24,0.3,.5,DK), i*0.27, -1.55, 0.88));
   });
 }
-// 選造型畫面的頭像：core.js 對所有造型都畫生日帽，這裡讓造型可以自己提供 portrait(g) 來取代
+// 選造型畫面的頭像：造型可以自己提供 portrait(g)（core.js 的 portraitCanvas 會呼叫）
 function karlCostumePortrait(g){
   g.fillStyle = '#f0b232';
   g.fillRect(0,59,64,5);                                                   // 玩偶服身體
@@ -628,22 +628,11 @@ function karlCostumePortrait(g){
     g.fillStyle = '#ffffff'; g.fillRect(x+1,8,1.5,1.5);
   });
 }
-(function(){
-  if (typeof portraitCanvas !== 'function' || portraitCanvas.skinHook) return;
-  const base = portraitCanvas;
-  const wrapped = function(kind, skin = 0){
-    const S = skin > 0 && CHARS[kind] && CHARS[kind].skins && CHARS[kind].skins[skin-1];
-    if (!S || !S.portrait) return base(kind, skin);                         // 其他造型照舊畫生日帽
-    const cv = base(kind, 0); S.portrait(cv.getContext('2d')); return cv;
-  };
-  wrapped.skinHook = true;
-  portraitCanvas = wrapped;
-})();
 registerChar('karl', {
   stats: { name:'白狗', en:'Karl', tag:'樂天大笑・物理・跑步・活著真好', weight:1.0, run:15.5, air:11.5, jumpV:30, djV:26, jumps:2 },
   skins: [
     { name:'黃色玩偶服', apply: karlCostume, portrait: karlCostumePortrait },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#4fa3ff','#ffe066',0xff5fa2); h.position.set(0.05,0.82,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#4fa3ff','#ffe066','#ff5fa2'], apply(c){ const h = birthdayHat('#4fa3ff','#ffe066',0xff5fa2); h.position.set(0.05,0.82,-0.02); c.head.add(h); } },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,

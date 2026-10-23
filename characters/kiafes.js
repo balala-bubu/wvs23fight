@@ -412,7 +412,7 @@ registerChar('kiafes', {
         g.fillStyle = '#1a1a1e'; g.save(); g.translate(22,54); g.rotate(.42); g.fillRect(0,0,5,14); g.restore();
         g.save(); g.translate(44,54); g.rotate(-.42); g.fillRect(-5,0,5,14); g.restore();
       } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#9ac553','#f2849a',0xffffff); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#9ac553','#f2849a','#ffffff'], apply(c){ const h = birthdayHat('#9ac553','#f2849a',0xffffff); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
   ],
   // shield: holds up a whiteboard
   shield(){

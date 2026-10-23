@@ -434,7 +434,7 @@ registerChar('wxinyy', {
           a.sh.children[1].material = turtle; a.el.children[0].material = turtle; a.el.children.forEach(o=>{ if (o.isMesh && o.material === c.xyMat.knitM) o.material = turtle; }); });
       },
       portrait(g){ g.fillStyle = '#1b1b1e'; g.fillRect(14,58,36,6); g.fillStyle = '#e9e6df'; g.fillRect(26,56,12,4); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#8fd0f5','#ffffff',0xffc8f0); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#8fd0f5','#ffffff','#ffc8f0'], apply(c){ const h = birthdayHat('#8fd0f5','#ffffff',0xffc8f0); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
   ],
   // shield: wrapped in a bubble — it wobbles, thins out and pops if held too long
   shield(){ return xyBubble3D(3.3); },

@@ -474,7 +474,7 @@ function tbsTeePortrait(g){                                               // sel
 function tbsSunPortrait(g){ tbsTeePortrait(g); g.save(); g.translate(6,12); g.scale(.8125,.8125); tbsSunPaint(g); g.restore(); }
 registerChar('bear', {
   stats: { name:'提姆熊', en:'Tim Bear', tag:'暴言・奶奶的金孫・蜂蜜・醫學系', weight:1.4, run:11, air:9, jumpV:26, djV:22, jumps:2 },
-  skins: [{ name:'生日帽', apply(c){
+  skins: [{ name:'生日帽', hat:['#36b37e','#ffd166','#ff5fa2'], apply(c){
     const h = birthdayHat('#36b37e','#ffd166',0xff5fa2); h.position.set(0.05,0.64,0); c.head.add(h);
     let hood = false, bear = false; const fix = ()=>{ h.position.y = hood ? (bear ? 0.98 : 0.86) : 0.64; };   // sit on top of the bear hood
     const sh = c.setHood, sb = c.setBear;

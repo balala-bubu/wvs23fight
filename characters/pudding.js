@@ -431,7 +431,7 @@ registerChar('pudding', {
   skins: [
     { name:'小可愛背心', apply(c){ c.setOutfit('tank'); },
       portrait(g){ g.fillStyle = '#efe6d6'; g.fillRect(16,56,32,8); g.fillStyle='#d9cdb8'; g.fillRect(16,56,32,2); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#f6d98c','#9d5a1c',0xfff0c0); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#f6d98c','#9d5a1c','#fff0c0'], apply(c){ const h = birthdayHat('#f6d98c','#9d5a1c',0xfff0c0); h.position.set(0.05,0.72,-0.02); c.head.add(h); } },
   ],
   // 防禦：整個人被一顆半透明的布丁罩住，一直抖；撐太久布丁會融掉
   shield(){

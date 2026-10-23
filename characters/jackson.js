@@ -499,7 +499,7 @@ registerChar('jackson', {
         g.fillStyle = '#c79a38'; g.fillRect(6,21,52,2);
       } },
     { name:'豪情一中人', apply(c){ hqShirt(c); }, portrait: hqShirtPortrait },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#7ec8ff','#ffe066',0xff6a8a); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#7ec8ff','#ffe066','#ff6a8a'], apply(c){ const h = birthdayHat('#7ec8ff','#ffe066',0xff6a8a); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
   ],
   moves: {
     jab1:JAB1, jab2:JAB2,

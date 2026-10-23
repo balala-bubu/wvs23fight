@@ -346,7 +346,7 @@ function waffleLoseUpdate(R, dt, k){
 registerChar('waffle', {
   stats: { name:'秉寶', en:'Waffle', tag:'魔性笑聲・棒壘球・鋼琴・鬆餅', weight:1.15, run:12.5, air:10, jumpV:29, djV:25, jumps:2 },
   skins: [
-    { name:'生日帽', apply(c){ const h = birthdayHat('#ff5fa2','#ffe066'); h.position.set(0.05,0.6,0); c.head.add(h); } },
+    { name:'生日帽', hat:['#ff5fa2','#ffe066'], apply(c){ const h = birthdayHat('#ff5fa2','#ffe066'); h.position.set(0.05,0.6,0); c.head.add(h); } },
     { name:'豪情一中人', apply(c){ if (typeof hqShirt==='function') hqShirt(c); }, portrait(g){ if (typeof hqShirtPortrait==='function') hqShirtPortrait(g); } },
     { name:'長方形鬆餅裝', apply(c){ wfSlab(c); }, portrait(g){ wfSlabPortrait(g); } },
     { name:'刮鬍泡夯哥', apply(c){ wfFoamCostume(c); }, portrait(g){ wfFoamPortrait(g); } },

@@ -405,6 +405,15 @@ function jnLoseUpdate(R, dt, k){
   }
 }
 
+// 選造型頭像：白色華夫格針織亨利領，門襟、釦子、兩條綠色滾邊
+function jnWhitePortrait(g){
+  g.fillStyle = '#f3f0e9'; g.fillRect(0,55,64,9);
+  g.fillStyle = 'rgba(190,185,172,.55)'; for (let x=3;x<64;x+=4) g.fillRect(x,56,1,8);
+  g.fillStyle = '#e9e5db'; g.fillRect(27,55,10,9);                          // 門襟
+  g.fillStyle = '#cfc8ba'; g.fillRect(31,58,2,2); g.fillRect(31,62,2,2);    // 釦子
+  g.fillStyle = '#2f9e52'; g.fillRect(24,55,2,9); g.fillRect(38,55,2,9);    // 綠色滾邊
+  g.fillStyle = '#cdbfa8'; g.fillRect(22,54,20,2);                          // 領口陰影
+}
 registerChar('janice', {
   stats: { name:'女王', en:'Queen Janice', tag:'冷靜毒舌・麻將霸氣・國企實習', weight:0.85, run:14, air:11, jumpV:33, djV:28, jumps:2 },
   moves: {
@@ -490,8 +499,8 @@ registerChar('janice', {
     }
   },
   skins: [
-    { name:'白針織上衣', apply(c){ c.baseTop = 'white'; c.setTop('white'); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#6b2a6e','#e3c04a',0xffffff); h.position.set(0.05,0.8,-0.02); c.head.add(h); } },
+    { name:'白針織上衣', apply(c){ c.baseTop = 'white'; c.setTop('white'); }, portrait: jnWhitePortrait },
+    { name:'生日帽', hat:['#6b2a6e','#e3c04a','#ffffff'], apply(c){ const h = birthdayHat('#6b2a6e','#e3c04a',0xffffff); h.position.set(0.05,0.8,-0.02); c.head.add(h); } },
   ],
   introPose: 'peace', readyPose: (t)=> Math.sin(t*9) > 0 ? POSE.thumbs : POSE.ponder, selectSfx: ()=>SFX.whistle(),
   winSub: '"Kneel, or at least stop talking."',

@@ -37,7 +37,7 @@ const Volleyball=(()=>{
   function costumePortrait(kind,skin=0){
     const key=kind+':'+skin;if(portraitCache.has(key))return portraitCache.get(key);
     const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),C=CHARS[kind];g.imageSmoothingEnabled=false;g.fillStyle=C.portraitBg||'#6f9fe8';g.fillRect(0,0,64,64);g.drawImage(C.face.image,6,12,52,52);g.fillStyle='#151110';C.portrait?.(g);
-    const look=skin>0?C.skins?.[skin-1]:null;if(look?.portrait)look.portrait(g);else if(look?.name==='生日帽'){g.save();g.translate(34,15);g.rotate(.2);g.fillStyle='#ff5fa2';g.beginPath();g.moveTo(-11,0);g.lineTo(11,0);g.lineTo(0,-15);g.closePath();g.fill();g.fillStyle='#ffe066';g.fillRect(-7,-5,14,2);g.fillRect(-4,-10,8,2);g.fillRect(-12,-1,24,3);g.restore();}
+    const look=skin>0?C.skins?.[skin-1]:null;if(look?.portrait)look.portrait(g);else if(look?.name==='生日帽'){g.save();g.translate(34,15);g.rotate(.2);const hc=look.hat||[];g.fillStyle=hc[0]||'#ff5fa2';g.beginPath();g.moveTo(-11,0);g.lineTo(11,0);g.lineTo(0,-15);g.closePath();g.fill();g.fillStyle=hc[1]||'#ffe066';g.fillRect(-7,-5,14,2);g.fillRect(-4,-10,8,2);g.fillRect(-12,-1,24,3);g.fillStyle=hc[2]||'#ffffff';g.fillRect(-2,-18,4,4);g.restore();}
     const url=c.toDataURL();portraitCache.set(key,url);return url;
   }
   let rosterCache=null;

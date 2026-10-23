@@ -610,7 +610,7 @@ registerChar('jennie', {
   skins: [
     { name:'MALIBU 帽T', apply(c){ c.setOutfit('hoodie'); },
       portrait(g){ g.fillStyle = '#7d1f2c'; g.fillRect(8,58,48,6); g.fillStyle = '#ece6da'; g.fillRect(26,58,12,6); g.fillStyle = '#e2423a'; g.fillRect(22,58,2,6); g.fillRect(40,58,2,6); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#ff6fa8','#ffe066',0x6fc8ff); h.position.set(0.05,0.74,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#ff6fa8','#ffe066','#6fc8ff'], apply(c){ const h = birthdayHat('#ff6fa8','#ffe066',0x6fc8ff); h.position.set(0.05,0.74,-0.02); c.head.add(h); } },
   ],
   // 防禦：吉他擋在胸前，粉紅泡泡＋繞圈的音符
   shield(){

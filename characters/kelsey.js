@@ -546,6 +546,20 @@ function kelLoseUpdate(R, dt, k){
   });
 }
 
+// 選造型頭像：白長袖（領口陰影）／黑羽絨外套（立領＋拉鍊）
+function kelWhitePortrait(g){
+  g.fillStyle = '#f4f1ea'; g.fillRect(0,55,64,9);
+  g.fillStyle = 'rgba(185,180,168,.45)'; for (let y=58;y<64;y+=5) g.fillRect(0,y,64,1);
+  g.fillStyle = '#e1ddd2'; g.beginPath(); g.ellipse(32,55,12,4,0,0,Math.PI); g.fill();   // 圓領
+}
+function kelPufferPortrait(g){
+  g.fillStyle = '#1c1f24'; g.fillRect(0,54,64,10);
+  g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0,58,64,1);
+  g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(0,60,64,2);                                  // 羽絨車縫線
+  g.fillStyle = '#2e3238'; g.fillRect(17,50,30,6);                                          // 立領
+  g.fillStyle = '#3a3f46'; g.fillRect(17,50,30,1);
+  g.fillStyle = '#9aa0a8'; g.fillRect(31,52,2,12); g.fillStyle = '#1c1f24'; for (let y=53;y<64;y+=3) g.fillRect(31,y,2,1);   // 拉鍊
+}
 registerChar('kelsey', {
   stats: { name:'Ten', en:'Ten', tag:'很會笑・BeReal・教案魔人・哲學系', weight:0.85, run:16, air:12, jumpV:33, djV:29, jumps:2 },
   moves: {
@@ -597,9 +611,9 @@ registerChar('kelsey', {
   skins: [
     { name:'咖啡色上衣', apply(c){ c.baseTop = 'brown'; c.setTop('brown'); c.setPants(kelDarkPants); },
       portrait(g){ g.fillRect(4,4,56,18); } },
-    { name:'白長袖＋米褲', apply(c){ c.baseTop = 'white'; c.setTop('white'); c.setPants(kelCreamPants); } },
-    { name:'黑羽絨外套', apply(c){ c.baseTop = 'puffer'; c.setTop('puffer'); c.setPants(kelDarkPants); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#8d9068','#ffe066',0xff8fc4); h.position.set(0.05,0.76,-0.02); c.head.add(h); } },
+    { name:'白長袖＋米褲', apply(c){ c.baseTop = 'white'; c.setTop('white'); c.setPants(kelCreamPants); }, portrait: kelWhitePortrait },
+    { name:'黑羽絨外套', apply(c){ c.baseTop = 'puffer'; c.setTop('puffer'); c.setPants(kelDarkPants); }, portrait: kelPufferPortrait },
+    { name:'生日帽', hat:['#8d9068','#ffe066','#ff8fc4'], apply(c){ const h = birthdayHat('#8d9068','#ffe066',0xff8fc4); h.position.set(0.05,0.76,-0.02); c.head.add(h); } },
   ],
   build: buildKelsey, face: kelFaces.normal, portraitBg: '#9fb87f',
   portrait(g){

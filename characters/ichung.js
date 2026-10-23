@@ -614,7 +614,7 @@ registerChar('ichung', {
       portrait(g){ g.fillStyle = '#cbb28c'; g.fillRect(2,16,60,7); g.fillRect(14,6,36,11); } },
     { name:'灰藍 Polo', apply(c){ c.setOutfit('polo'); },
       portrait(g){ g.fillStyle = IC_POLO; g.fillRect(14,54,36,10); } },
-    { name:'生日帽', apply(c){ const h = birthdayHat('#1f6fc4','#ffe066',0xffffff); h.position.set(0.04,0.7,-0.02); c.head.add(h); } },
+    { name:'生日帽', hat:['#1f6fc4','#ffe066','#ffffff'], apply(c){ const h = birthdayHat('#1f6fc4','#ffe066',0xffffff); h.position.set(0.04,0.7,-0.02); c.head.add(h); } },
   ],
   // 防禦：套上機器人裝甲（機械系的本行）
   shield(){

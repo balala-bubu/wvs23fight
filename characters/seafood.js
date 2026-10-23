@@ -408,10 +408,24 @@ function sfPoseidon(c){
   // 三叉戟加一顆珍珠
   if (c.props && c.props.trident) c.props.trident.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.13,6,5),sfPosPearlM),0,-2.95,0.1));
 }
+// 選造型頭像：金冠（珍珠尖）＋銀白鬍子＋海藍神袍金項鍊
+function sfPoseidonPortrait(g){
+  g.fillStyle = '#1f6f9c'; g.fillRect(0,59,64,5);                                           // 神袍肩膀
+  g.fillStyle = '#e9b630'; g.fillRect(14,58,36,2);                                          // 金項鍊
+  g.fillStyle = '#e6eef2';                                                                  // 鬍子：下巴＋兩側鬢角
+  g.fillRect(16,54,32,10); g.fillRect(20,51,24,4); g.fillRect(6,46,8,18); g.fillRect(50,46,8,18);
+  g.fillStyle = '#c4d0d8'; g.fillRect(16,63,32,1); g.fillRect(24,58,2,4); g.fillRect(38,58,2,4);
+  const sp = [[8,5],[19,3],[32,0],[45,3],[56,5]];                                          // 冠尖 x, 尖端 y
+  g.fillStyle = '#e9b630'; g.fillRect(5,11,54,5);                                           // 冠環
+  sp.forEach(([x,t])=>{ g.beginPath(); g.moveTo(x-5,11); g.lineTo(x+5,11); g.lineTo(x,t+2); g.closePath(); g.fill(); });
+  g.fillStyle = '#fff6e6'; sp.forEach(([x,t])=>g.fillRect(x-1,t,3,3));                      // 珍珠
+  g.fillStyle = '#b8861c'; g.fillRect(5,15,54,1);                                           // 冠環下緣陰影
+  g.fillStyle = '#ff7f6e'; g.fillRect(31,12,2,2);                                           // 冠上珊瑚寶石
+}
 registerChar('seafood', {
   stats: { name:'雲嵐', en:'Seafood Master', tag:'海鮮狂熱・日文系・目標N1', weight:0.85, run:16, air:12.5, jumpV:33, djV:29, jumps:2 },
-  skins: [{ name:'生日帽', apply(c){ const h = birthdayHat('#5fb6ff','#ffffff',0xe0483c); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
-    { name:'海神波賽頓', apply(c){ sfPoseidon(c); } }],
+  skins: [{ name:'生日帽', hat:['#5fb6ff','#ffffff','#e0483c'], apply(c){ const h = birthdayHat('#5fb6ff','#ffffff',0xe0483c); h.position.set(0.05,0.66,-0.02); c.head.add(h); } },
+    { name:'海神波賽頓', apply(c){ sfPoseidon(c); }, portrait: sfPoseidonPortrait }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.08,.1,.26], pose:['jabR','punch2'], box:[2.0,3.8,1.4], dmg:5, kb:8, sc:.7, ang:38, text:'おいしい！', dash:5, sfx:'chomp'},

@@ -408,6 +408,20 @@ function nwPomeloSuit(c){
   c.head.add(cap);
 }
 
+// 選造型頭像：歪歪的柚子頂（蓋住毛帽／頭髮）＋柚子身體白色果皮邊
+function nwPomeloPortrait(g){
+  g.save(); g.translate(33,14); g.rotate(-0.12);
+  g.fillStyle = '#ecd278'; g.beginPath(); g.ellipse(0,2,27,17,0,Math.PI,0); g.fill();       // 圓頂
+  g.fillRect(-27,2,54,4);
+  g.fillStyle = '#f6e49a'; g.fillRect(-18,-9,12,2); g.fillRect(4,-12,10,2);                 // 高光
+  g.fillStyle = 'rgba(168,120,60,.6)'; [[-14,-3],[8,-6],[18,0],[-4,-10]].forEach(([x,y])=>g.fillRect(x,y,3,2));   // 斑點
+  g.fillStyle = '#f6f0d2'; g.fillRect(-28,5,56,4);                                          // 白色果皮切面
+  g.fillStyle = '#7a5a2c'; g.fillRect(-2,-19,4,5);                                          // 蒂頭
+  g.restore();
+  g.fillStyle = '#ecd278'; g.fillRect(0,57,64,7);                                           // 柚子身體
+  g.fillStyle = '#f6f0d2'; g.fillRect(0,55,64,3);                                           // 領口果皮邊
+  g.fillStyle = 'rgba(168,120,60,.55)'; g.fillRect(10,61,3,2); g.fillRect(48,60,3,2);
+}
 // ---------------- register ----------------
 registerChar('newton', {
   stats: { name:'成自然', en:'Newton', tag:'健身・電機・半導體・存股', weight:1.15, run:13, air:10.5, jumpV:29, djV:25, jumps:2 },
@@ -431,8 +445,8 @@ registerChar('newton', {
       g.fillStyle = '#9b9ea6'; g.fillRect(24,54,16,5);                               // 帽 T 的領子
       g.fillStyle = '#bd1b20'; g.fillRect(30,58,4,6);
     } },
-  { name:'生日帽', apply(c){ const h = birthdayHat('#ff8f6b','#ffe066',0x7fd0ff); h.position.set(0.05,0.68,-0.02); c.head.add(h); } },
-  { name:'柚子裝', apply: nwPomeloSuit }],
+  { name:'生日帽', hat:['#ff8f6b','#ffe066','#7fd0ff'], apply(c){ const h = birthdayHat('#ff8f6b','#ffe066',0x7fd0ff); h.position.set(0.05,0.68,-0.02); c.head.add(h); } },
+  { name:'柚子裝', apply: nwPomeloSuit, portrait: nwPomeloPortrait }],
   moves: {
     jab1:JAB1, jab2:JAB2,
     jab3:{t:[.1,.1,.28], pose:['jabR','punch2'], box:[2.0,3.8,1.5], dmg:7, kb:9, sc:.75, ang:38, text:'肌肉！'},
