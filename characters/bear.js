@@ -160,18 +160,90 @@ function buildBrownBear(){
   body.onBeforeRender = ()=>{ const t = performance.now()/1000*9 + b.ph; legs.forEach((l,i)=>{ l.rotation.z = b.walk ? Math.sin(t + (i%2 ? Math.PI : 0) + (i>1 ? .6 : 0))*0.5 : 0; }); };
   return b;
 }
+/* ---------- 熊化大招的小幫手：印度小孩（3 種樣子），喊 Master Tim 並右手斜上舉攻擊 ---------- */
+const BKD_LOOKS = [
+  {skin:0xa8693a, top:0xf28c28, pants:0xf4efe2, hat:'topi',   hatC:0xf4efe2, bindi:false},
+  {skin:0xb87a4b, top:0x2f6fd0, pants:0xe8d9a8, hat:'turban', hatC:0xf2c230, bindi:false},
+  {skin:0x93582e, top:0x2e9a5a, pants:0x2a2a33, hat:'hair',   hatC:0x16110e, bindi:true}
+];
+const bkdFaceTex = BKD_LOOKS.map(k=>tex(16,16,(g)=>{
+  g.fillStyle = '#' + k.skin.toString(16).padStart(6,'0'); g.fillRect(0,0,16,16);
+  g.fillStyle = '#1d1310'; g.fillRect(3,6,3,1); g.fillRect(10,6,3,1); g.fillRect(4,7,2,2); g.fillRect(10,7,2,2);
+  g.fillStyle = '#f4efe2'; g.fillRect(4,7,1,1); g.fillRect(10,7,1,1);
+  g.fillStyle = '#6b2420'; g.fillRect(6,11,4,2); g.fillStyle = '#f4efe2'; g.fillRect(7,11,2,1);
+  g.fillStyle = 'rgba(200,90,70,.35)'; g.fillRect(2,10,2,2); g.fillRect(12,10,2,2);
+  if (k.bindi){ g.fillStyle = '#d0201c'; g.fillRect(7,3,2,2); }
+}));
+function bearKid(i){
+  const k = BKD_LOOKS[i % 3], skin = L({color:k.skin}), top = L({color:k.top}), pants = L({color:k.pants}), hatM = L({color:k.hatC});
+  const g = new THREE.Group(), kid = {g, legs:[], armR:null};
+  [-1,1].forEach(s=>{ const lg = pivot(g, s*0.17, 0.6, 0); lg.add(at(rbox(0.26,0.6,0.28,.4,pants),0,-0.3,0)); lg.add(at(rbox(0.28,0.12,0.36,.4,L({color:0x3a2a20})),0,-0.62,0.05)); kid.legs.push(lg); });
+  g.add(at(rbox(0.72,0.78,0.48,.4,top),0,0.98,0));
+  if (i % 3 === 0 || i % 3 === 2) g.add(at(rbox(0.74,0.34,0.5,.4,top),0,0.5,0));   // kurta hem
+  [-1,1].forEach(s=>{
+    const a = pivot(g, s*0.46, 1.25, 0); a.add(at(rbox(0.18,0.55,0.2,.4,skin),0,-0.27,0));
+    a.rotation.z = s*0.15; g.add(a); if (s === -1) kid.armR = a;      // 模型的右手在 -x 側
+  });
+  g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.64,0.62,0.58), [skin,skin,skin,skin,L({map:bkdFaceTex[i % 3]}),skin]),0,1.72,0));
+  if (k.hat === 'topi'){ g.add(at(rbox(0.7,0.26,0.62,.4,hatM),0,2.1,0)); g.add(at(rbox(0.74,0.12,0.4,.3,hatM),0,2.0,0.1)); }
+  else if (k.hat === 'turban'){ g.add(at(rbox(0.74,0.34,0.7,.6,hatM),0,2.06,0)); g.add(at(rbox(0.56,0.3,0.6,.6,hatM),0.04,2.3,0)); g.add(at(rbox(0.5,0.1,0.1,.3,L({color:0xd04a1c})),0,2.0,0.34)); }
+  else { g.add(at(rbox(0.7,0.26,0.64,.5,hatM),0,2.08,-0.02)); g.add(at(rbox(0.64,0.4,0.2,.4,hatM),0,1.82,-0.28)); }
+  return kid;
+}
+function bkdSpawn(F){
+  const f = F.owner, look = Math.floor(Math.random()*3), kid = bearKid(look);
+  const holder = new THREE.Group(); holder.add(kid.g); kid.g.scale.setScalar(1.75); scene.add(holder);
+  F.kidM = {kid, holder, look, x:Math.max(MAIN.x1+1, Math.min(MAIN.x2-1, f.x - f.face*2.5)), y:0, st:'follow', t:0, cd:1.0, face:f.face, hit:false, vy:0};
+  holder.position.set(F.kidM.x, 0, 0);
+  burst(F.kidM.x, 1.2, 0xffd36a, 12, 8); burst(F.kidM.x, 1.2, 0xffffff, 6, 5); SFX.soft();
+  pop('Master Tim 我來幫你！', F.kidM.x, 5, 'big');
+}
+function bkdRemove(F){ if (F.kidM){ scene.remove(F.kidM.holder); F.kidM = null; } }
+function bkdUpdate(F, dt){
+  const K = F.kidM, f = F.owner; if (!K) return;
+  K.t += dt; K.cd -= dt;
+  let tgt = null, best = 1e9;
+  for (const v of G.fighters){ if (v===f || !v.hittable()) continue; const d = Math.abs(v.x - K.x); if (d < best){ best = d; tgt = v; } }
+  let moving = false;
+  if (K.st === 'follow'){
+    const goal = (tgt && K.cd <= 0 && best < 16) ? tgt.x - Math.sign(tgt.x - K.x)*1.8 : f.x - f.face*2.5;
+    const dx = goal - K.x;
+    if (Math.abs(dx) > .25){ K.x += Math.sign(dx)*Math.min(Math.abs(dx), (tgt && K.cd <= 0 ? 15 : 12)*dt); K.face = Math.sign(dx); moving = true; }
+    if (tgt && K.cd <= 0 && best < 3.4 && tgt.y < 6){ K.st = 'atk'; K.t = 0; K.hit = false; K.face = Math.sign(tgt.x - K.x) || K.face; pop('Master Tim!', K.x, 4.6, 'big'); }
+  } else if (K.st === 'atk'){
+    const w = Math.min(1, K.t/.3);
+    K.kid.armR.rotation.z = -0.15 - 2.3*w;                       // 右手往斜上方舉
+    K.y = K.t > .3 && K.t < .6 ? Math.sin((K.t-.3)/.3*Math.PI)*1.2 : 0;
+    if (K.t > .32 && !K.hit){
+      K.hit = true; SFX.soft(); burst(K.x + K.face*1.2, 2, 0xffd36a, 6, 6);
+      for (const v of G.fighters){
+        if (v===f || !v.hittable()) continue;
+        if (Math.abs(v.x - (K.x + K.face*1.1)) < 2.6 && v.y < 6) applyHit(f, v, {dmg:3, kb:5, sc:.15, ang:48}, K.face, v.x, v.y + 2);
+      }
+    }
+    if (K.t > .8){ K.st = 'follow'; K.cd = 1.3; K.y = 0; K.kid.armR.rotation.z = 0.15; }
+  }
+  K.x = Math.max(MAIN.x1+1, Math.min(MAIN.x2-1, K.x));
+  K.holder.position.set(K.x, K.y, 0);
+  K.holder.rotation.y = K.face > 0 ? Math.PI/2 : -Math.PI/2;
+  const sw = moving ? Math.sin(K.t*18)*0.7 : 0;
+  K.kid.legs[0].rotation.x = sw; K.kid.legs[1].rotation.x = -sw;
+  if (K.st === 'follow') K.kid.armR.rotation.z += (0.15 - K.kid.armR.rotation.z)*Math.min(1, dt*12);
+}
 function bearFinal(f, opp){
     f.finalT = .9; banner('熊化！'); SFX.roar(); G.shake = reduce ? .2 : .9;
     pop('吼——！', f.x, f.y+7.5, 'big'); burst(f.x, f.y+3, 0x7a4a26, 26, 14);
     f.m.setBear(true); f.buffT = 10;
     f.D = Object.assign({}, CH.bear, {run:12.8, air:10.5, weight:1.9, jumpV:28});
     if (opp && opp.hittable() && Math.abs(opp.x - f.x) < 7 && Math.abs(opp.y - f.y) < 6){ opp.pct += 8; launch(opp, 14, 50, Math.sign(opp.x - f.x) || f.face); pop('被吼飛！', opp.x, opp.y+8); }
-    G.finals.push({type:'bearMode', owner:f, t:0, update:bearModeUpdate});
+    const BF = {type:'bearMode', owner:f, t:0, update:bearModeUpdate, dispose:bkdRemove};
+    G.finals.push(BF); bkdSpawn(BF);
 }
 function bearModeUpdate(F, dt){
       const f = F.owner; f.buffT = 10 - F.t;
       if (f.state!=='dead' && Math.random() < dt*6) burst(f.x + (Math.random()-.5)*2, f.y + 1 + Math.random()*5, 0x7a4a26, 1, 2);
-      if (F.t >= 10){ f.buffT = 0; f.m.setBear(false); f.D = CH.bear; pop('變回人了', f.x, f.y+7.5); return true; }
+      bkdUpdate(F, dt);
+      if (F.t >= 10){ bkdRemove(F); pop('Bye Master Tim~', f.x - f.face*2.5, 4); f.buffT = 0; f.m.setBear(false); f.D = CH.bear; pop('變回人了', f.x, f.y+7.5); return true; }
       return false;
 }
 function grabUpdate(F){
