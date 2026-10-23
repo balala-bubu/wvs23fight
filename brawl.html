@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#120e0c">
+<link rel="stylesheet" href="css/loading.css?v=20261023h">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="世志大亂鬥">
@@ -17,8 +18,6 @@ body{margin:0;font:14px/1.4 system-ui,-apple-system,sans-serif}
 img{max-width:100%}
 [hidden]{display:none!important}
 
-#arenaLoading{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:radial-gradient(ellipse at 70% 20%,#783425 0,transparent 55%),#171321;color:#fff3df;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box}
-#arenaLoading .arenaCard{width:min(420px,100%)}#arenaLoading small{letter-spacing:.25em;color:#ffb65b}#arenaLoading h1{font-size:clamp(30px,6vw,48px);margin:12px 0}#arenaLoading p{color:#e1c7b9;min-height:1.5em}#arenaLoading progress{width:100%;height:8px;accent-color:#ff974d}#arenaLoading button{background:#ffb65b;color:#251925;border:0;border-radius:10px;padding:12px 24px;font-weight:900}#arenaLoading a{color:#ffcf99;margin-left:18px}#arenaLoading .arenaPulse{display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff974d;margin-right:10px;animation:arenaPulse 1s ease-in-out infinite alternate}@keyframes arenaPulse{to{opacity:.25;transform:scale(.7)}}@media(prefers-reduced-motion:reduce){#arenaLoading .arenaPulse{animation:none}}
 </style>
 <title>世志大亂鬥</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -365,7 +364,7 @@ body.pad #vibBtn{display:none}
 </style>
 </head>
 <body>
-<section id="arenaLoading" aria-label="準備競技場"><div class="arenaCard"><small>WVS FIGHT</small><h1>準備競技場</h1><p id="arenaLoadingStatus" role="status"><i class="arenaPulse" aria-hidden="true"></i>正在載入遊戲元件…</p><progress id="arenaLoadingProgress" max="34" value="0" aria-label="遊戲元件載入進度"></progress><p id="arenaLoadingHint">角色與場地就緒後，將自動進入遊戲。</p><div id="arenaLoadingRecovery" hidden><button onclick="location.reload()">重新載入</button><a href="index.html">返回首頁</a></div></div></section>
+<section id="arenaLoading" class="wvsLoad wvsLoad--fight" aria-label="準備競技場"><div class="wvsLoad__card"><small>WVS FIGHT</small><h1>準備競技場</h1><svg class="wvsLoad__scene" viewBox="0 0 360 120" aria-hidden="true" focusable="false"><line class="wd-ground" x1="0" y1="108" x2="360" y2="108" stroke="var(--l-accent)" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/><g class="wd-chase" style="animation-delay:-0.00s"><svg x="0.0" y="71.6" width="50.7" height="37.7" viewBox="0 0 156 116" aria-hidden="true"><image class="sp-dog" style="animation-delay:-0.1s" href="assets/loading-dogs.webp" width="1248" height="116"/></svg></g><g class="wd-chase" style="animation-delay:-0.25s"><svg x="62.0" y="71.6" width="50.7" height="37.7" viewBox="0 0 156 116" aria-hidden="true"><image class="sp-dog" style="animation-delay:-0.35s" href="assets/loading-dogs.webp" width="1248" height="116"/></svg></g><g class="wd-chase" style="animation-delay:-0.50s"><svg x="124.0" y="71.6" width="50.7" height="37.7" viewBox="0 0 156 116" aria-hidden="true"><image class="sp-dog" style="animation-delay:-0.2s" href="assets/loading-dogs.webp" width="1248" height="116"/></svg></g><g class="wd-chase" style="animation-delay:-0.75s"><svg x="186.0" y="71.6" width="50.7" height="37.7" viewBox="0 0 156 116" aria-hidden="true"><image class="sp-dog" style="animation-delay:-0.5s" href="assets/loading-dogs.webp" width="1248" height="116"/></svg></g><svg x="270.0" y="34.5" width="69.3" height="75.6" viewBox="0 0 198 216" aria-hidden="true"><image class="sp-run" style="" href="assets/loading-karl-run.webp" width="1584" height="216"/></svg></svg><p id="arenaLoadingStatus" role="status">正在載入遊戲元件…</p><progress id="arenaLoadingProgress" max="34" value="0" aria-label="遊戲元件載入進度"></progress><p id="arenaLoadingHint">角色與場地就緒後，將自動進入遊戲。</p><div id="arenaLoadingRecovery" class="wvsLoad__recovery" hidden><button onclick="location.reload()">重新載入</button><a href="index.html">返回首頁</a></div></div></section>
 <script>
 window.BrawlLoading=(()=>{let count=0,failed=false;const status=document.getElementById('arenaLoadingStatus'),bar=document.getElementById('arenaLoadingProgress');function error(){failed=true;status.textContent='載入未完成，請重新整理再試一次';document.getElementById('arenaLoadingRecovery').hidden=false;}const timer=setTimeout(()=>{document.getElementById('arenaLoadingHint').textContent='載入比平常久，仍在等待資源；也可以重新載入。';document.getElementById('arenaLoadingRecovery').hidden=false;},15000);addEventListener('error',error);return{advance(){bar.value=++count;if(!failed)status.textContent=count<5?'正在準備遊戲元件…':count<24?'正在準備角色…':'正在準備競技場…';},finish(){clearTimeout(timer);if(!failed){removeEventListener('error',error);document.getElementById('arenaLoading').remove();}},error};})();
 </script>
@@ -555,7 +554,7 @@ window.BrawlLoading=(()=>{let count=0,failed=false;const status=document.getElem
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"></script>
 <script>/* cache-busting: opening the page as index.html?v=123 makes every game file below load as file.js?v=123 */
-var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023g';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"><\/script>'); }</script>
+var V=(location.search.match(/[?&]v=([^&]*)/)||[])[1]; V=V?'?v='+V:'?v=20261023h';   /* default version: bump it on every release so browsers never mix a new index.html with an old js file */ function S(f){ document.write('<script src="'+f+V+'" onload="BrawlLoading.advance()" onerror="BrawlLoading.error()"><\/script>'); }</script>
 <script>S('js/qrcode.js')</script>
 <script>S('js/core.js')</script>
 <script>S('js/music.js')</script>

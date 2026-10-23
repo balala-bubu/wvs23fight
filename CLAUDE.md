@@ -50,3 +50,6 @@ Bump the default `?v=` number in the `S()` helper at the bottom of `brawl.html` 
 ## Mode entry points
 
 `index.html` is a lightweight mode selector. `brawl.html` preserves the original fighter entry. `volleyball.html` uses its own loader, rules, scene and a snapshot of model/pose helpers (`js/volleyball-models.js`). Keep these runtimes isolated; do not import brawl core/maps/music/networking into volleyball. Details: `docs/volleyball-mode.md`.
+
+## Loading screens
+`brawl.html` (#arenaLoading, fight colours) and `volleyball.html` (#loading, volley colours) share `css/loading.css` (layout, progress bar, themes `.wvsLoad--fight` / `.wvsLoad--volley`). The scenes are sprite sheets pre-rendered from the real game models (Karl running + his white dogs, Karl spiking): `assets/loading-karl-run.webp`, `loading-dogs.webp`, `loading-karl-spike.webp` (~60 KB total, no GIF). If Karl's model changes, re-render them with `makeModel('karl')` + `runPose` / `POSE.*` / `buildDog()` on a transparent orthographic camera. Bump the `?v=` on the `loading.css` link together with the release version.

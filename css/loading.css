@@ -1,0 +1,52 @@
+/* Shared loading screen for 世志大亂鬥 (brawl.html) and 世志排球 (volleyball.html).
+   Same layout, per-game colours (.wvsLoad--fight / .wvsLoad--volley) and per-game scene.
+   Pure SVG + CSS animation (~3 KB, no GIF). */
+.wvsLoad{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:radial-gradient(ellipse at 70% 20%,var(--l-bg1) 0,transparent 60%),var(--l-bg2);color:var(--l-ink);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;text-align:center}
+.wvsLoad[hidden]{display:none!important}
+.wvsLoad--fight{--l-bg1:#783425;--l-bg2:#171321;--l-accent:#ff974d;--l-ink:#fff3df;--l-mute:#e1c7b9;--l-btn:#ffb65b;--l-btnink:#251925;--l-link:#ffcf99}
+.wvsLoad--volley{--l-bg1:#71442b;--l-bg2:#120e0c;--l-accent:#f2c14e;--l-ink:#f6eedf;--l-mute:#d8c7ae;--l-btn:#f2c14e;--l-btnink:#241a10;--l-link:#f2d98a}
+.wvsLoad .wvsLoad__card{width:min(420px,100%)}
+.wvsLoad small{display:block;letter-spacing:.25em;color:var(--l-accent);font-size:12px;font-weight:700}
+.wvsLoad h1{font-size:clamp(28px,6vw,44px);margin:10px 0 6px;line-height:1.15;color:var(--l-ink)}
+.wvsLoad .wvsLoad__scene{display:block;width:100%;height:auto;margin:6px 0 12px;overflow:visible}
+.wvsLoad p{margin:8px 0;min-height:1.5em;color:var(--l-mute);font-size:14px}
+.wvsLoad progress{display:block;width:100%;height:8px;border:0;border-radius:99px;overflow:hidden;background:#ffffff22;accent-color:var(--l-accent);-webkit-appearance:none;appearance:none}
+.wvsLoad progress::-webkit-progress-bar{background:#ffffff22}
+.wvsLoad progress::-webkit-progress-value{background:var(--l-accent);border-radius:99px;transition:width .25s}
+.wvsLoad progress::-moz-progress-bar{background:var(--l-accent);border-radius:99px}
+.wvsLoad .wvsLoad__recovery{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:14px}
+.wvsLoad .wvsLoad__recovery[hidden]{display:none}
+.wvsLoad button{background:var(--l-btn);color:var(--l-btnink);border:0;border-radius:10px;padding:12px 24px;font:inherit;font-weight:900;cursor:pointer}
+.wvsLoad a{color:var(--l-link)}
+
+/* ---- scenes: pre-rendered frames of the real game models (Karl + his white dogs) played as sprite sheets ---- */
+/* static poses = what people with reduced-motion see (and the fallback) */
+.wvsLoad .vb-karl{transform:translateX(-792px)}
+.wvsLoad .vb-jump{transform:translateY(-26px)}
+.wvsLoad .vb-ball{transform:translate(78px,27px)}
+.wvsLoad .vb-burst{transform:translate(80px,28px)}
+.wvsLoad .vb-puff{opacity:0}
+
+@media (prefers-reduced-motion:no-preference){
+  /* fight: Karl runs, his white dogs chase him */
+  .wvsLoad .sp-run{animation:spRun .8s steps(8) infinite}
+  .wvsLoad .sp-dog{animation:spDog .64s steps(8) infinite}
+  .wvsLoad .wd-chase{animation:wdChase 1.4s ease-in-out infinite alternate}
+  .wvsLoad .wd-ground{stroke-dasharray:14 12;animation:wdGround .5s linear infinite}
+  @keyframes spRun{to{transform:translateX(-1584px)}}
+  @keyframes spDog{to{transform:translateX(-1248px)}}
+  @keyframes wdChase{to{transform:translateX(9px)}}
+  @keyframes wdGround{to{stroke-dashoffset:26}}
+
+  /* volleyball: Karl crouches, jumps and spikes the ball over the net (one 2.2 s loop) */
+  .wvsLoad .vb-karl{animation:vbKarl 2.2s step-end infinite}
+  .wvsLoad .vb-jump{animation:vbJump 2.2s infinite}
+  .wvsLoad .vb-ball{animation:vbBall 2.2s infinite}
+  .wvsLoad .vb-burst{animation:vbBurst 2.2s infinite}
+  .wvsLoad .vb-puff{animation:vbPuff 2.2s infinite}
+  @keyframes vbKarl{0%{transform:translateX(0)}10%{transform:translateX(-198px)}20%{transform:translateX(-396px)}30%{transform:translateX(-594px)}42%{transform:translateX(-792px)}54%{transform:translateX(-990px)}72%,100%{transform:translateX(0)}}
+  @keyframes vbJump{0%,18%{transform:translateY(0);animation-timing-function:ease-out}44%{transform:translateY(-26px);animation-timing-function:ease-in}72%,100%{transform:translateY(0)}}
+  @keyframes vbBall{0%{transform:translate(-14px,34px);opacity:0}4%{opacity:1}20%{transform:translate(30px,4px)}40%{transform:translate(73px,21px)}43%{transform:translate(78px,27px)}52%{transform:translate(200px,44px)}64%{transform:translate(296px,99px)}70%{transform:translate(318px,84px)}76%{transform:translate(334px,99px);opacity:1}84%,100%{transform:translate(344px,99px);opacity:0}}
+  @keyframes vbBurst{0%,42%{opacity:0;transform:translate(80px,28px) scale(.3)}44%{opacity:1;transform:translate(80px,28px) scale(1)}56%,100%{opacity:0;transform:translate(80px,28px) scale(1.5)}}
+  @keyframes vbPuff{0%,62%{opacity:0;transform:translate(296px,107px) scale(.3)}64%{opacity:.85}78%,100%{opacity:0;transform:translate(296px,107px) scale(2.2)}}
+}
