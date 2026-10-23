@@ -34,7 +34,7 @@ class VolleyMatch {
     if(action==='move'){p.move=Math.max(-1,Math.min(1,value));return;}
     const task=this.task(id);
     if(action==='action'){
-      if(task==='approach'||task==='block'||(task==='spike'&&p.y<.45))this.input(id,'jump');
+      if(task==='approach'||task==='block'||(['spike','serve'].includes(task)&&p.y<.45))this.input(id,'jump');
       else if(['toss','serve','receive','set','spike'].includes(task))this.input(id,'hit');
       return;
     }
@@ -45,7 +45,7 @@ class VolleyMatch {
       this.emit('jump',{player:id,task,slide:p.slideVX!==0});return;
     }
     if(action!=='hit'||p.swing>0)return;
-    if(task==='toss'){this.toss();return;}
+    if(task==='toss'){this.toss();this.input(id,'jump');return;}
     if(task==='spike'&&p.y<.25){this.emit('hint',{player:id,text:'先起跳，再扣球！'});return;}
     p.swing=task==='spike'?.32:.20;p.pose=task==='receive'?'shieldW':task==='set'?'setUp':task==='serve'?'serveHit':'spikeHit';p.poseTime=.35;
     if(this.flight&&this.flight.recipient===id){

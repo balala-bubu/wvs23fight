@@ -64,13 +64,16 @@ class VolleyNetwork{
     let manualPointer=null,manualControl=null,moveTimer=null,tiltArmed=true;
     const stick=$('padStick');
     // Safari may zoom on repeated taps or multi-touch unless native gestures are cancelled.
-    const deck=document.querySelector('.phoneControlDeck');
+    const deck=document.querySelector('.phoneControlDeck'),deckHome=deck.parentNode,deckAnchor=deck.nextSibling;let lobbyMoveAt=0;
     for(const type of ['gesturestart','gesturechange','gestureend'])deck.addEventListener(type,e=>e.preventDefault(),{passive:false});
     deck.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});deck.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});deck.addEventListener('dblclick',e=>e.preventDefault());
 
     function outputMove(value,force=false){
       move=Math.round(Math.max(-1,Math.min(1,value))*100)/100;clearTimeout(moveTimer);moveTimer=null;
       const now=performance.now();
+      if(state.screen==='setup'&&state.lobby?.step==='lineup'){
+        if(Math.abs(move)>.4&&now-lobbyMoveAt>240){lobbyMoveAt=now;const slot=state.lobby.slots?.[seat?.id],char=catalog.find(c=>c.kind===slot?.kind);if(slot&&!slot.ready&&char){if(slot.stage)pick('skin',{skin:(slot.skin+(move>0?1:-1)+char.skins.length)%char.skins.length});else{const i=catalog.indexOf(char);pick('character',{kind:catalog[(i+(move>0?1:-1)+catalog.length)%catalog.length].kind});}}}return;
+      }
       if(force||move===0||now-lastMove>=50){send('move',move);lastMove=now;}
       else moveTimer=setTimeout(()=>{send('move',move);lastMove=performance.now();moveTimer=null;},50-(now-lastMove));
     }
@@ -101,19 +104,21 @@ class VolleyNetwork{
     const actionIcons={receive:'◉',set:'↥',toss:'↑',serve:'↘',approach:'↟',spike:'↘',block:'⊓',wait:'·',cover:'·'};
     function updateAction(){
       const task=state.task,airborne=state.airborne,busy=state.paused||state.screen==='setup'||state.status!=='play'||drill!==null;
-      const jumping=task==='approach'||(task==='spike'&&!airborne);
+      const selecting=state.screen==='setup'&&state.lobby?.step==='lineup';
+      const jumping=task==='approach'||(['spike','serve'].includes(task)&&!airborne);
       const text=drill!==null?(drill==='done'?'先按準備':'手勢練習'):busy?(state.paused?'已暫停':'等待開賽'):task==='block'?(airborne?'攔網中':'起跳攔網'):jumping?(airborne?'等待扣球':'起跳'):({receive:'接球',set:'托球',toss:'拋球',serve:'發球',spike:'扣球',cover:'等待隊友',wait:'準備就位'}[task]||'準備');
       $('padActionLabel').textContent=text;$('padActionIcon').textContent=jumping?'↟':actionIcons[task]||'·';
       $('padAction').disabled=!!busy||['cover','wait'].includes(task)||((task==='approach'||task==='block')&&airborne);
       $('padAction').dataset.kind=jumping?'jump':task;
       $('padActionHint').textContent=busy?'看大螢幕，等候開始':task==='spike'&&airborne?'球到手邊，再按一次':jumping?'按下起跳，空中再按扣球':task==='block'?'對手扣球時按下':task==='receive'?'球到手臂時按下':task==='set'?'球到頭頂時按下':task==='toss'?'按下把球拋起':task==='serve'?'球到高點時按下':'讓隊友完成動作';
-      $('padAction').setAttribute('aria-label',text);$('phoneReady').hidden=state.screen==='play'&&drill===null;
+      if(selecting){$('padActionLabel').textContent='決定';$('padAction').disabled=!!state.lobby.slots?.[seat?.id]?.ready;$('padActionHint').textContent='搖桿左右選擇，按下決定';}
+      $('padAction').setAttribute('aria-label',selecting?'決定':text);$('phoneReady').hidden=state.screen==='play'&&drill===null;
     }
     let catalog=[],lobbyKey='';
     function pick(action,extra={}){if(connection?.open)connection.send({type:'selection',action,...extra});}
     function renderPhoneLobby(lobby){
       const slot=lobby?.slots?.[seat?.id],visible=state.screen==='setup'&&lobby?.step==='lineup'&&!!slot;
-      $('phoneLobby').hidden=!visible;if(!visible){if(state.screen==='play')$('phoneSetup').hidden=!$('phonePlay').hidden;return;}
+      $('phoneLobby').hidden=!visible;if(visible){$('phoneLobby').append(deck);}else if(deck.parentNode!==deckHome){deckHome.insertBefore(deck,deckAnchor);}if(!visible){if(state.screen==='play')$('phoneSetup').hidden=!$('phonePlay').hidden;return;}
       const char=catalog.find(c=>c.kind===slot.kind);if(!char)return;
       const key=JSON.stringify(slot)+catalog.length;if(key===lobbyKey)return;lobbyKey=key;
       $('phoneLobbyStatus').textContent=slot.ready?'已決定：'+char.name+' · '+char.skins[slot.skin]+'，等待開賽':slot.stage?'選擇造型：'+char.skins[slot.skin]:'選擇你的角色';
@@ -127,17 +132,17 @@ class VolleyNetwork{
     function openPad(mode){padMode=mode;$('phoneSetup').hidden=true;$('phonePlay').hidden=false;$('sensorFeedback').textContent=mode==='motion'?'動作感測已啟用':'觸控模式';updateAction();}
     function startDrill(){drill=0;$('phoneReady').hidden=false;updateAction();$('phoneTaskLabel').textContent='練習：接球';$('phoneGesture').textContent='手機放平，由下往上揮';$('sensorFeedback').textContent='練習不會控制大螢幕';}
     function gesture(direction,details={}){
-      if(drill==='done')return;if(drill!==null){const steps=[['up','接球'],['up','托球'],['up','起跳／攔網'],['down','扣球']];if(direction===steps[drill][0]){$('sensorFeedback').textContent=steps[drill][1]+' 辨識成功！';drill++;if(drill===4){drill='done';$('phoneTaskLabel').textContent='練習完成！';$('phoneGesture').textContent='按準備，等待大螢幕開賽';}else{$('phoneTaskLabel').textContent='練習：'+steps[drill][1];$('phoneGesture').textContent=['手機放平，向上揮接球','手機舉起、背面朝上，往上推','手機放平，向上揮起跳','向左／中／右下揮扣球'][drill];}}return;}
+      if(drill==='done')return;if(drill!==null){const steps=[['up','接球'],['up','托球'],['up','起跳／攔網'],['down','扣球']];if(direction===steps[drill][0]){$('sensorFeedback').textContent=steps[drill][1]+' 辨識成功！';drill++;if(drill===4){drill='done';$('phoneTaskLabel').textContent='練習完成！';$('phoneGesture').textContent='按準備，等待大螢幕開賽';}else{$('phoneTaskLabel').textContent='練習：'+steps[drill][1];$('phoneGesture').textContent=['手機放平，向上揮接球','手機放平，向上揮舉球','手機放平，向上揮起跳','向左／中／右下揮扣球'][drill];}}return;}
       if(!seat)return;const task=state.task;
       if(direction==='up'){
-        if(['spike','approach','block'].includes(task)){send('jump');$('sensorFeedback').textContent='↑ 起跳／攔網';}
+        if(['spike','serve','approach','block'].includes(task)){send('jump');$('sensorFeedback').textContent='↑ 起跳／攔網';}
         else if(['receive','set','toss'].includes(task)){send('hit');$('sensorFeedback').textContent=task==='set'?'↑ 托球':task==='toss'?'↑ 拋球':'↑ 接球';}
       }else if(['spike','serve'].includes(task)){send('aim',details.aim||0);send('hit');$('sensorFeedback').textContent=(details.aim||0)<-.25?'↙ 向左扣球':(details.aim||0)>.25?'↘ 向右扣球':'↓ 向中間扣球';}
     }
     const motion=new VolleyMotionController({onGesture:gesture,onMove:value=>{if(padMode==='motion'&&manualPointer===null){if(!tiltArmed){if(Math.abs(value)<.12)tiltArmed=true;return;}const controlled=['receive','block'].includes(state.task)?value*.6:0;outputMove(controlled);}},onStatus:text=>{$('sensorStatus').textContent=text;$('sensorFeedback').textContent=text;if(text.startsWith('校正完成')){openPad('motion');startDrill();}}});
     $('chooseMotion').onclick=async()=>{try{await motion.enable();$('calibration').hidden=false;$('sensorStatus').textContent='已允許感測器。請先校正握姿。';}catch(error){$('sensorStatus').textContent=error.message;}};
     $('calibrate').onclick=()=>motion.calibrate();$('motionSensitivity').onchange=()=>{motion.classifier.sensitivity=Number($('motionSensitivity').value);};$('phoneDrill').onclick=()=>{if(padMode==='motion')startDrill();else $('sensorFeedback').textContent='請在設定中啟用動作手把後練習。';};$('chooseTouch').onclick=()=>{motion.disable();openPad('touch');};$('phoneSettings').onclick=()=>{motion.disable();stopMove();$('phoneSetup').hidden=false;$('phonePlay').hidden=true;};
-    const pressAction=()=>{if(!$('padAction').disabled&&drill===null)send('action');};$('padAction').onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();pressAction();};$('padAction').onclick=e=>{if(e.detail===0)pressAction();};
+    const pressAction=()=>{if(state.screen==='setup'&&state.lobby?.step==='lineup'){pick('confirm');return;}if(!$('padAction').disabled&&drill===null)send('action');};$('padAction').onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();pressAction();};$('padAction').onclick=e=>{if(e.detail===0)pressAction();};
     document.querySelectorAll('[data-padmove]').forEach(b=>{b.onpointerdown=e=>{if(beginMove(e,b))outputMove(Number(b.dataset.padmove),true);};b.onpointerup=stopMove;b.onpointercancel=stopMove;b.onlostpointercapture=stopMove;});
     $('phoneReady').onclick=async()=>{if(!connection?.open)return;drill=null;updateAction();ready=!ready;connection.send({type:'ready',value:ready});$('phoneReady').textContent=ready?'已準備，等待大螢幕開賽':'我準備好了';try{wake=await navigator.wakeLock?.request('screen');}catch(_){}};
     function lost(){$('remoteCourt').srcObject=null;motion.disable();stopMove();$('phoneLink').textContent='已斷線';$('sensorFeedback').textContent='與大螢幕失去連線，請重新加入。';$('phoneWho').textContent='連線已中斷。請重新整理，或回到加入房間。';$('phoneSetup').hidden=false;$('phonePlay').hidden=true;}
@@ -149,7 +154,7 @@ class VolleyNetwork{
           else if(data.type==='full'){$('phoneWho').textContent=data.message;}
           else if(data.type==='state'){state=data;const task=data.task,labels={toss:'拋球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'扣球',block:'攔網',cover:'掩護隊友',wait:'等待開賽'};
             renderPhoneLobby(data.lobby);updateAction();$('remoteScore').textContent=data.screen==='setup'?'主機正在選角':('藍隊 '+data.score[0]+' : '+data.score[1]+' 紅隊');if(drill!==null)return;$('phoneTaskLabel').textContent=data.paused?'暫停中':data.screen==='setup'?'等待開賽':labels[task]||'準備';
-            const gestures={toss:'向上托起手機拋球',serve:'球到高點時向下揮擊',receive:'手機直握後放平，向上揮接球',set:'手機舉起、背面朝上，往上推',approach:'先看隊友托球，托高後上舉起跳',spike:data.airborne?'向左／中／右下揮，控制扣球方向！':'手機放平，上揮起跳，再下揮扣球',block:'調整站位，向上舉起攔網',cover:'看大螢幕，準備下一球',wait:'在手機選好手把，按準備'};$('phoneGesture').textContent=padMode==='motion'?(gestures[task]||'看大螢幕'):'左手搖桿移動，右手按鈕跟著提示操作';
+            const gestures={toss:'手機放平，上揮拋球起跳，再下揮發球',serve:data.airborne?'向左／中／右下揮發球':'手機放平，上揮起跳，再下揮發球',receive:'手機放平，向上揮接球',set:'手機放平，向上揮舉球',approach:'先看隊友托球，托高後上舉起跳',spike:data.airborne?'向左／中／右下揮，控制扣球方向！':'手機放平，上揮起跳，再下揮扣球',block:'調整站位，向上舉起攔網',cover:'看大螢幕，準備下一球',wait:'在手機選好手把，按準備'};$('phoneGesture').textContent=padMode==='motion'?(gestures[task]||'看大螢幕'):'左手搖桿移動，右手按鈕跟著提示操作';
           }else if(data.type==='feedback'){$('sensorFeedback').textContent=data.text;$('sensorFeedback').style.color=data.color||'';try{if(data.vibration)navigator.vibrate?.(data.vibration);}catch(_){}}
           else if(data.type==='pong'){$('phoneLink').textContent='已連線 '+Math.round((performance.now()-data.at)/2)+'ms';}
         });connection.on('close',lost);connection.on('error',lost);
