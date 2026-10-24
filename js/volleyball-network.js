@@ -63,7 +63,7 @@ class VolleyNetwork{
       if(data.type==='ready'){client.ready=!!data.value;this.renderSeats();return;}
       if(data.type!=='input'||!Number.isSafeInteger(data.seq)||data.seq<=client.lastSeq)return;
       const now=performance.now();if(now-client.lastInput>1000){client.inputs=0;client.lastInput=now;}if(++client.inputs>45)return;client.lastSeq=data.seq;
-      if(!['hit','jump','move','aim','action'].includes(data.action))return;const value=['move','aim'].includes(data.action)?Math.max(-1,Math.min(1,Number(data.value)||0)):0;this.input(client.id,data.action,value);
+      if(!['hit','jump','move','aim','aimDepth','action'].includes(data.action))return;const value=['move','aim','aimDepth'].includes(data.action)?Math.max(-1,Math.min(1,Number(data.value)||0)):0;this.input(client.id,data.action,value);
     });
     const lost=()=>{if(!client||!this.clients.has(conn.peer))return;this.input(client.id,'move',0);this.clients.delete(conn.peer);this.calls.get(conn.peer)?.close();this.calls.delete(conn.peer);client.stream?.media?.getTracks().forEach(t=>t.stop());this.renderSeats();document.getElementById('roomStatus').textContent='P'+(this.seats.indexOf(client.id)+1)+' 已離線，遊戲已暫停。';this.onDisconnect(client.id);};conn.on('close',lost);conn.on('error',lost);
   }
@@ -76,7 +76,7 @@ class VolleyNetwork{
     const $=id=>document.getElementById(id);document.body.classList.add('phoneMode');$('nav').hidden=true;$('court').hidden=true;$('phone').hidden=false;$('loading').hidden=true;
     let peer,connection,seat=null,seq=0,padMode='touch',state={task:'wait'},move=0,lastMove=0,ready=false,wake=null,drill=null;
     function send(action,value=0){if(!connection?.open)return;connection.send({type:'input',action,value,seq:++seq});if(action!=='move'){try{navigator.vibrate?.(15);}catch(_){}}}
-    let manualPointer=null,manualControl=null,moveTimer=null,tiltArmed=true;
+    let manualPointer=null,manualControl=null,moveTimer=null,lastDepthAt=0,tiltArmed=true;
     const stick=$('padStick');
     // Safari may zoom on repeated taps or multi-touch unless native gestures are cancelled.
     const deck=document.querySelector('.phoneControlDeck'),deckHome=deck.parentNode,deckAnchor=deck.nextSibling;let lobbyMoveAt=0;
@@ -96,7 +96,7 @@ class VolleyNetwork{
       if(e&&e.pointerId!==manualPointer)return;
       manualPointer=null;manualControl=null;tiltArmed=false;
       stick.classList.remove('active');stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');
-      stick.setAttribute('aria-valuenow','0');stick.setAttribute('aria-valuetext','停止');outputMove(0,true);
+      stick.setAttribute('aria-valuenow','0');stick.setAttribute('aria-valuetext','停止');outputMove(0,true);send('aimDepth',0);
     }
     function beginMove(e,control){
       if(manualPointer!==null||e.button!==0)return false;
@@ -109,7 +109,7 @@ class VolleyNetwork{
       if(distance>radius){x*=radius/distance;y*=radius/distance;}
       const axis=x/radius,value=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;
       stick.style.setProperty('--stick-x',x+'px');stick.style.setProperty('--stick-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(value*100)));
-      stick.setAttribute('aria-valuetext',value===0?'停止':(value<0?'向左 ':'向右 ')+Math.round(Math.abs(value)*100)+'%');outputMove(value,force);
+      stick.setAttribute('aria-valuetext',value===0?'停止':(value<0?'向左 ':'向右 ')+Math.round(Math.abs(value)*100)+'%');outputMove(value,force);if(force||performance.now()-lastDepthAt>=60){send('aimDepth',Math.abs(y/radius)<.12?0:y/radius);lastDepthAt=performance.now();}
     }
     stick.onpointerdown=e=>{if(beginMove(e,stick)){stick.classList.add('active');dragStick(e,true);}};
     stick.onpointermove=e=>dragStick(e);stick.onpointerup=stopMove;stick.onpointercancel=stopMove;stick.onlostpointercapture=stopMove;

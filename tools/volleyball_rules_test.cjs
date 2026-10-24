@@ -16,6 +16,7 @@ m=new VolleyMatch();m.input(0,'hit');step(m,.3);m.paused=true;const before=m.sna
 events=[];m=new VolleyMatch({practice:true,onEvent:e=>events.push(e)});
 for(let i=0;i<120*22;i++){
  const f=m.flight,p=m.players[0],task=m.task(0);
+ if(task==='receive')m.input(0,'move',f?.recipient===0?Math.max(-1,Math.min(1,(f.end.x-p.x)*m.side(p.team)*3)):0);
  if(f?.recipient===0&&f.kind==='spike'&&f.contactTime-f.t<.57&&p.y===0)m.input(0,'jump');
  if(f?.recipient===0&&Math.abs(f.contactTime-f.t)<.012)m.input(0,'hit');
  m.update(1/120);
@@ -56,7 +57,7 @@ for(const [team,id,setter]of [[0,0,1],[1,2,3]]){
 }
 // A diving receive must cover real distance before it can make contact.
 m=new VolleyMatch({mode:'four'});Object.assign(m.players[0],{x:-2.4,tx:-2.4,z:9.8,tz:9.8});
-m.sendFlight('receive',0,0,{x:0,y:2.7,z:9.45},{x:0,y:2.25,z:9.45},.12,12);m.input(0,'hit');assert(m.players[0].diveTime>0);step(m,.13);assert.equal(m.flight.kind,'set');assert(m.players[0].x>-2);
+m.sendFlight('receive',0,0,{x:0,y:2.7,z:9.45},{x:0,y:2.25,z:9.45},.12,12);m.input(0,'move',1);m.input(0,'hit');assert(m.players[0].diveTime>0);step(m,.13);assert.equal(m.flight.kind,'set');assert(m.players[0].x>-2);
 // A strong hit on the edge of a block can deflect out; the blocker is last touch.
 m=new VolleyMatch({mode:'four'});Object.assign(m.players[3],{x:0,tx:0,z:-1.3,tz:-1.3,y:2.4,vy:0,jumpKind:'block'});
 m.sendFlight('receive',1,2,{x:1.1,y:6.4,z:.1},{x:1.1,y:2.25,z:-10},1,4);m.flight.power=3;step(m,.03);assert.equal(m.flight.deflection,'save');assert.equal(m.lastTouch,1);assert(m.flight.end.x<VOLLEY_COURT.halfWidth);assert(m.stats.blocks===1);
@@ -84,7 +85,7 @@ console.log('PASS: pre-receive movement before serves and opponent sets, mirrore
 m=new VolleyMatch();m.input(0,'action');assert.equal(m.flight.kind,'serve');step(m,.59);m.input(0,'action');assert.equal(m.flight.kind,'receive');
 m=new VolleyMatch({mode:'four'});assert.equal(m.task(3),'block');m.input(3,'action');assert.equal(m.players[3].jumpKind,'block');
 m=new VolleyMatch({practice:true});let contextContacts=0;const notify=m.onEvent;m.onEvent=e=>{if(e.type==='contact'&&e.player===0)contextContacts++;notify(e);};
-for(let t=0;t<18;t+=1/120){const f=m.flight,p=m.players[0];if(f?.recipient===0){if(f.kind==='spike'&&f.contactTime-f.t<.57&&p.y===0)m.input(0,'action');if(Math.abs(f.contactTime-f.t)<.012)m.input(0,'action');}m.update(1/120);}
+for(let t=0;t<18;t+=1/120){const f=m.flight,p=m.players[0];if(m.task(0)==='receive')m.input(0,'move',f?.recipient===0?Math.max(-1,Math.min(1,(f.end.x-p.x)*3)):0);if(f?.recipient===0){if(f.kind==='spike'&&f.contactTime-f.t<.57&&p.y===0)m.input(0,'action');if(Math.abs(f.contactTime-f.t)<.012)m.input(0,'action');}m.update(1/120);}
 assert(contextContacts>=3);console.log('PASS: contextual action serves, receives, jumps, spikes and blocks from live state.');
 
 // Mirrored direct-out attacks: the receiving AI lets an untouched out ball land.
@@ -124,3 +125,21 @@ console.log('PASS poor follow-up timing drops at most one grade');
 // Set follows manual approach and early jump; late ascent fixes the contact point.
 for(const team of [0,1]){const g=new VolleyMatch({mode:'four'}),p=g.players[team*2],side=g.side(team);Object.assign(p,{x:0,tx:0,z:side*2.1,tz:side*2.1});g.sendFlight('spike',team,p.id,{x:0,y:5,z:side*1.75},{x:0,y:6.7,z:side*1.75},1.28,12);g.input(p.id,'move',1);const bx=g.ball.x;g.updatePlayers(.05);assert.equal(g.ball.x,bx);assert(p.x*side>0);assert.equal(g.flight.end.x,p.x);g.input(p.id,'jump');for(let i=0;i<20;i++)g.updatePlayers(.01);const early=p.x;assert(early*side>.5);for(let i=0;i<10;i++)g.updatePlayers(.01);const locked=p.x,target=g.flight.end.x;for(let i=0;i<15;i++)g.updatePlayers(.01);assert.equal(p.x,locked);assert.equal(g.flight.end.x,target);assert(p.attackLocked);}
 console.log('PASS mirrored set tracking, early jump movement, continuous ball position and late ascent lock');
+
+// Limited receive assistance approaches the lane without carrying an idle player there.
+for(const team of [0,1]){
+ const g=new VolleyMatch({mode:'four'}),p=g.players[team*2],side=g.side(team);
+ Object.assign(p,{x:-4,tx:-4,z:side*9.8,tz:side*9.8});
+ g.sendFlight('receive',team,p.id,{x:4,y:6,z:-side*2},{x:4,y:2.25,z:side*9.45},1.5,12);
+ for(let i=0;i<120;i++)g.updatePlayers(1/120);
+ assert(p.x>-4&&p.x<-3);assert(4-p.x>6);
+ const before=p.x;g.input(p.id,'move',-side);g.updatePlayers(.1);assert(p.x<before);
+}
+// Stick strength controls shot direction directly, with independent depth and mirrored sides.
+for(const team of [0,1]){
+ const g=new VolleyMatch({mode:'four'}),p=g.players[team*2];
+ g.sendFlight('spike',team,p.id,{x:0,y:6,z:g.side(team)*2},{x:0,y:6,z:g.side(team)*2},1,12);
+ for(const direction of [-1,-.4,0,.4,1]){g.input(p.id,'move',direction);g.updatePlayers(.01);assert.equal(p.aim,direction*g.side(team));}
+ g.input(p.id,'aimDepth',-1);const deep=g.attackTarget(p,'spike');g.input(p.id,'aimDepth',1);const short=g.attackTarget(p,'spike');assert(Math.abs(deep.z)>Math.abs(short.z));
+}
+console.log('PASS limited receive nudge, manual override, direct analog aim and mirrored shot depth');
