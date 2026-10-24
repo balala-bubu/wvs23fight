@@ -283,6 +283,22 @@ function volleyServePose(progress,after){
 function volleyShufflePose(phase,direction){
   const pose=runPose(phase),s=Math.sin(phase);pose.rSh=[-.65,0,-.25];pose.lSh=[-.65,0,.25];pose.rHp=[s*.25,0,-direction*Math.max(0,s)*.3];pose.lHp=[-s*.25,0,-direction*Math.max(0,-s)*.3];pose.chest=[.18,0,-direction*.08];return pose;
 }
+function volleySetPose(progress,after){
+  const ready=S_({rHp:[-.18,0,-.24],lHp:[-.18,0,.24],rKn:[.68],lKn:[.68],drop:-.42,chest:[.12],head:[-.25],rSh:[-2.05,0,-.3],lSh:[-2.05,0,.3],rEl:[-1.1],lEl:[-1.1]});
+  const loaded=S_({rHp:[-.3,0,-.26],lHp:[-.3,0,.26],rKn:[.9],lKn:[.9],drop:-.6,chest:[.08],head:[-.3],rSh:[-2.45,0,-.24],lSh:[-2.45,0,.24],rEl:[-.85],lEl:[-.85]});
+  const release=S_({rHp:[0,0,-.17],lHp:[0,0,.17],rKn:[.08],lKn:[.08],drop:.12,chest:[-.1],head:[-.3],rSh:[-3.0,0,-.18],lSh:[-3.0,0,.18],rEl:[-.1],lEl:[-.1]});
+  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+  if(after!=null)return after<.18?volleyBlendPose(loaded,release,smooth(after/.18)):volleyBlendPose(release,POSE.stance,smooth((after-.18)/.3));
+  return volleyBlendPose(ready,loaded,smooth((progress-.45)/.55));
+}
+function volleyNetFacing(p,ball,task){
+  const side=p.team===0?1:-1,base=side===1?Math.PI:0;
+  const track=['set','receive','cover','block'].includes(task)?Math.max(-.65,Math.min(.65,Math.atan2((ball.x-p.x)*-side,Math.abs(ball.z-p.z)+2))):0;
+  return base+track;
+}
+function volleyBackstepPose(phase){
+  const pose=runPose(-phase);pose.rSh=[-.45,0,-.2];pose.lSh=[-.45,0,.2];pose.chest=[.08];pose.drop-=.08;return pose;
+}
 function applyPose(m, Pz, k){
   for (const n in m.joints){ const o = m.joints[n].rotation, t = Pz[n]; o.x += (t[0]-o.x)*k; o.y += (t[1]-o.y)*k; o.z += (t[2]-o.z)*k; }
   m.hips.rotation.y += (Pz.turn - m.hips.rotation.y)*k;

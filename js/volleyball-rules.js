@@ -17,7 +17,7 @@ class VolleyMatch {
   serveReady(){
     this.status='play';this.rally=0;this.combo=0;this.flight=null;this.stage='ready';this.stageTime=0;this.server=this.practice?1:this.server;this.lastTouch=this.server;this.strike={grade:'normal',color:'#ffffff',combo:0};
     const server=this.serverSlot[this.server],side=this.side(this.server);this.active=server;
-    for(const p of this.players){p.serveContactAt=null;p.stepPhase=0;p.groundSpeed=0;p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
+    for(const p of this.players){p.setContactAt=null;p.serveContactAt=null;p.stepPhase=0;p.groundSpeed=0;p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
     const p=this.players[server];p.x=p.tx=2.5;p.z=p.tz=(VOLLEY_COURT.halfLength+1.2)*side;this.ball={x:p.x,y:3.3,z:p.z-.3*side,vx:0,vy:0,vz:0};this.emit('serve',{team:this.server,player:server});
   }
   task(id){
@@ -43,6 +43,14 @@ class VolleyMatch {
       if(p.y>.08||p.jumpLock>0)return;
       p.jumpAge=0;p.vy=10.5;p.jumpLock=.75;p.jumpKind=task==='block'?'block':'spike';p.pose=task==='block'?'block':'spikeWind';p.poseTime=.85;
       if(task==='approach'){p.slideVX=Math.abs(p.move)>.35?p.move*this.side(p.team)*4:0;p.quick=!!this.flight&&this.flight.contactTime-this.flight.t<.28;if(!p.quick)this.emit('hint',{player:id,text:'等隊友托高球，再起跳'});}
+      // A jump just after the setter releases converts the existing flight to a quick set.
+      const f=this.flight;
+      if(task==='spike'&&f?.recipient===id&&f.attack==='normal'&&f.t<=.22){
+        const duration=.52;f.attack='quick';f.contactTime=f.t+duration;
+        this.ball.vx=(f.end.x-this.ball.x)/duration;this.ball.vz=(f.end.z-this.ball.z)/duration;
+        this.ball.vy=(f.end.y-this.ball.y+.5*f.g*duration*duration)/duration;
+        this.emit('quick',{player:id});
+      }else if(task==='approach'&&p.quick)this.emit('quick',{player:id});
       this.emit('jump',{player:id,task,slide:p.slideVX!==0});return;
     }
     if(action!=='hit'||p.swing>0)return;
@@ -98,6 +106,7 @@ class VolleyMatch {
     p.pose=kind==='receive'?'shieldW':kind==='set'?'setUp':kind==='serve'?'serveHit':'spikeHit';p.poseTime=.42;p.swing=0;
     this.emit('contact',{...this.strike,player:p.id,kind,quality,combo:this.combo,timing:delta,slide:p.slideVX!==0});
     if(kind==='serve')p.serveContactAt=this.time;
+    if(kind==='set')p.setContactAt=this.time;
     const start={x:this.ball.x,y:this.ball.y,z:this.ball.z};
     if(kind==='receive'){
       this.receivers[p.team]=mate.id;this.blockers[p.team]=p.id;

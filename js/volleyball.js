@@ -3,7 +3,7 @@ const scene=new THREE.Scene();
 const Volleyball=(()=>{
   const $=id=>document.getElementById(id),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const labels={toss:'準備發球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'空中扣球',block:'準備攔網',cover:'掩護隊友',wait:'準備就位'};
-  const instructions={toss:'按擊球拋球',serve:'球到高點時擊球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'看隊友托球，準備起跳',spike:'搖桿左右瞄準；上推打深、下拉吊短',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
+  const instructions={toss:'按擊球拋球',serve:'球到高點時擊球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'舉球前後提早起跳可打快攻',spike:'搖桿左右瞄準；上推打深、下拉吊短',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
   let slowFrames=0,frameWindow=0,pixelRatio=1.5;
   let renderer,setupCamera,replayCamera,resultCamera,effects,resultTime=0,impact,impactLife=0,arena,ball,ballShadow,target,reticle,trail,trailRibbon,strikeLabel,strikeCanvas,strikeTexture,labelLife=0,trailPoints=[],players=[],models=new Map(),rings=[],shadows=[],views=[],match=null,playMode='solo',screen='setup',last=0,clock=0,muted=false,audio=null,feedbackTime=0,practice=false,network=null;
   const replay=new VolleyReplay();let replayEnabled=true;
@@ -121,6 +121,7 @@ const Volleyball=(()=>{
   function hint(player,text,duration=1.0,color='#ffffff'){for(const v of views)if(v.id===player){v.root.querySelector('.viewHint').textContent=text;v.root.querySelector('.viewHint').style.color=color;v.root.querySelector('.viewHint').classList.add('visible');v.hintTime=duration;}}
   function onEvent(e){
     if(e.type==='contact'){const text=({weak:'勉強救起…',normal:'OK',nice:'NICE!',good:'GOOD!',super:'SUPER!'})[e.grade];effects.hit(new THREE.Vector3(match.ball.x,match.ball.y,match.ball.z),e.color,e.grade);impactLife=.12;impact.position.set(match.ball.x,match.ball.y,match.ball.z);impact.material.color.set(e.color);sound('hit',e.grade,e.kind);showStrikeLabel(text,e.color);network?.feedback(e.player,text,e.grade==='super'?[20,30,40]:20,e.color);}
+    else if(e.type==='quick'){hint(e.player,'快攻！球會加速到位',.7);}
     else if(e.type==='jump'&&e.slide){hint(e.player,'背飛起跳！',.6);}
     else if(e.type==='dive'){hint(e.player,'飛撲救球！',.55);}
     else if(e.type==='hint'){hint(e.player,e.text,.8);network?.feedback(e.player,e.text);}
@@ -188,9 +189,16 @@ const Volleyball=(()=>{
         if(task==='toss')pose=volleyServePose(0,null);
         else if(task==='serve')pose=volleyServePose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||.6),0,1),null);
         else if(serveAge!==null&&serveAge<.46)pose=volleyServePose(1,serveAge);
-        else if(p.moving&&p.y<.2&&p.poseTime<=0&&task==='receive')pose=volleyShufflePose(p.stepPhase||0,Math.sign(p.tx-p.x)*match.side(p.team));
-        applyPose(m,pose,Math.min(1,dt*18));m.holder.position.set(p.x,p.y+.1,p.z);let turn=p.team===0?Math.PI:0;
-        if(p.moving&&p.y<.2&&task!=='receive'&&task!=='serve'&&task!=='toss')turn=Math.atan2(p.tx-p.x,p.tz-p.z);const delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));m.holder.rotation.y+=delta*Math.min(1,dt*12);
+        else if(task==='set')pose=volleySetPose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||1.2),0,1),null);
+        else if(p.setContactAt!=null&&visual.time-p.setContactAt<.48)pose=volleySetPose(1,visual.time-p.setContactAt);
+        else if(p.moving&&p.y<.2&&p.poseTime<=0){
+          const dx=p.tx-p.x,dz=(p.tz-p.z)*match.side(p.team);
+          pose=Math.abs(dx)>Math.abs(dz)?volleyShufflePose(p.stepPhase||0,Math.sign(dx)*match.side(p.team)):dz>0?volleyBackstepPose(p.stepPhase||0):runPose(p.stepPhase||0);
+        }
+        applyPose(m,pose,Math.min(1,dt*18));m.holder.position.set(p.x,p.y+.1,p.z);
+        // Keep hips facing the net. Tracking the ball permits a side stance, never a U-turn.
+        const turn=volleyNetFacing(p,visual.ball,task),delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));
+        m.holder.rotation.y+=delta*Math.min(1,dt*8);
         rings[i].position.set(p.x,.17,p.z);rings[i].visible=p.human;shadows[i].position.set(p.x,.16,p.z);shadows[i].material.opacity=.22-p.y*.035;shadows[i].scale.setScalar(1+p.y*.06);
       }
       $('score0').textContent=match.score[0];$('score1').textContent=match.score[1];$('serve0').style.visibility=match.server===0?'visible':'hidden';$('serve1').style.visibility=match.server===1?'visible':'hidden';
