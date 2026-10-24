@@ -11,7 +11,7 @@ const model={joints:Object.fromEntries(JK.map(n=>[n,{rotation:{x:0,y:0,z:0}}])),
 let count=0;
 for(let i=0;i<=120;i++){
  const t=i/120,phase=t*Math.PI*4;
- for(const pose of [runPose(phase),volleyBackstepPose(phase),volleyShufflePose(phase,-1),volleyShufflePose(phase,1),volleySetPose(t,null),volleySetPose(1,t*.5),volleyServePose(t,null),volleyServePose(1,t*.5)]){
+ for(const pose of [runPose(phase),volleyTossPose(t),volleyBackstepPose(phase),volleyShufflePose(phase,-1),volleyShufflePose(phase,1),volleySetPose(t,null),volleySetPose(1,t*.5),volleyServePose(t,null),volleyServePose(1,t*.5)]){
   for(const joint of JK){assert.equal(pose[joint].length,3,joint);assert(pose[joint].every(Number.isFinite),joint);}
   applyPose(model,pose,.25);
   for(const joint of Object.values(model.joints))assert(Object.values(joint.rotation).every(Number.isFinite));

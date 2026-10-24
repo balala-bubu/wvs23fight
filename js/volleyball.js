@@ -3,7 +3,7 @@ const scene=new THREE.Scene();
 const Volleyball=(()=>{
   const $=id=>document.getElementById(id),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const labels={toss:'準備發球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'空中扣球',block:'準備攔網',cover:'掩護隊友',wait:'準備就位'};
-  const instructions={toss:'按擊球拋球',serve:'球到高點時擊球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'舉球前後提早起跳可打快攻',spike:'搖桿左右瞄準；上推打深、下拉吊短',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
+  const instructions={toss:'按擊球拋球',serve:'看球的高度，再按一次跳起發球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'舉球前後提早起跳可打快攻',spike:'搖桿左右瞄準；上推打深、下拉吊短',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
   let slowFrames=0,frameWindow=0,pixelRatio=1.5;
   let renderer,setupCamera,replayCamera,resultCamera,effects,resultTime=0,impact,impactLife=0,arena,ball,ballShadow,target,reticle,trail,trailRibbon,strikeLabel,strikeCanvas,strikeTexture,labelLife=0,trailPoints=[],players=[],models=new Map(),rings=[],shadows=[],views=[],match=null,playMode='solo',screen='setup',last=0,clock=0,muted=false,audio=null,feedbackTime=0,practice=false,network=null;
   const replay=new VolleyReplay();let replayEnabled=true;
@@ -187,7 +187,7 @@ const Volleyball=(()=>{
         if(p.y>.3){pose=p.pose==='spikeHit'&&p.poseTime>0?POSE.spikeHit:p.jumpKind==='block'?POSE.block:POSE.spikeWind;}
         const serveAge=p.serveContactAt==null?null:visual.time-p.serveContactAt;
         if(task==='toss')pose=volleyServePose(0,null);
-        else if(task==='serve')pose=volleyServePose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||.6),0,1),null);
+        else if(task==='serve')pose=p.y>.05?volleyServePose(clamp((p.jumpAge||0)/.18,0,1),null):volleyTossPose(visual.flight?.t||0);
         else if(serveAge!==null&&serveAge<.46)pose=volleyServePose(1,serveAge);
         else if(task==='set')pose=volleySetPose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||1.2),0,1),null);
         else if(p.setContactAt!=null&&visual.time-p.setContactAt<.48)pose=volleySetPose(1,visual.time-p.setContactAt);

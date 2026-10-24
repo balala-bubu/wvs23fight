@@ -82,7 +82,7 @@ for(const team of [0,1]){
 }
 console.log('PASS: pre-receive movement before serves and opponent sets, mirrored controls, stop, bounds and pause.');
 // One phone action is resolved from authoritative match state (not a stale phone label).
-m=new VolleyMatch();m.input(0,'action');assert.equal(m.flight.kind,'serve');step(m,.59);m.input(0,'action');assert.equal(m.flight.kind,'receive');
+m=new VolleyMatch();m.input(0,'action');assert.equal(m.flight.kind,'serve');step(m,.59);m.input(0,'action');step(m,.2);assert.equal(m.flight.kind,'receive');
 m=new VolleyMatch({mode:'four'});assert.equal(m.task(3),'block');m.input(3,'action');assert.equal(m.players[3].jumpKind,'block');
 m=new VolleyMatch({practice:true});let contextContacts=0;const notify=m.onEvent;m.onEvent=e=>{if(e.type==='contact'&&e.player===0)contextContacts++;notify(e);};
 for(let t=0;t<18;t+=1/120){const f=m.flight,p=m.players[0];if(m.task(0)==='receive')m.input(0,'move',f?.recipient===0?Math.max(-1,Math.min(1,(f.end.x-p.x)*3)):0);if(f?.recipient===0){if(f.kind==='spike'&&f.contactTime-f.t<.57&&p.y===0)m.input(0,'action');if(Math.abs(f.contactTime-f.t)<.012)m.input(0,'action');}m.update(1/120);}
@@ -147,7 +147,7 @@ console.log('PASS limited receive nudge, manual override, direct analog aim and 
 // Both servers start beyond the end line, finish the swing, then run into court.
 for(const team of [0,1]){
  const g=new VolleyMatch({mode:'four'});g.server=team;g.serveReady();const p=g.players[g.active],side=g.side(team);
- assert(p.z*side>VOLLEY_COURT.halfLength);g.input(p.id,'hit');step(g,.59);g.input(p.id,'hit');assert.equal(g.flight.kind,'receive');
+ assert(p.z*side>VOLLEY_COURT.halfLength);g.input(p.id,'hit');step(g,.59);g.input(p.id,'hit');step(g,.2);assert.equal(g.flight.kind,'receive');
  const z=p.z;step(g,.1);assert.equal(p.z,z);step(g,.8);assert(p.z*side<VOLLEY_COURT.halfLength);assert(p.stepPhase>0);
 }
 console.log('PASS baseline serve, follow-through hold and physical return run on both sides');
@@ -166,3 +166,16 @@ for(const paused of [false,true]){
  const g=new VolleyMatch({mode:'four'});g.sendFlight('spike',0,0,{x:0,y:5,z:1.75},{x:0,y:6.7,z:1.75},1.28,12);g.flight.attack='normal';g.flight.t=paused?.1:.3;g.paused=paused;g.input(0,'jump');assert.equal(g.flight.attack,'normal');assert.equal(g.flight.contactTime,1.28);
 }
 console.log('PASS quick attack after release, continuous ball position, successful mirrored spikes, late jump and pause');
+
+// First press tosses only. Second press starts a physical jump, then strikes the moving ball.
+for(const team of [0,1]){
+ const heights=[];
+ for(const delay of [.35,.6,.9]){
+  const events=[],g=new VolleyMatch({mode:'four',onEvent:e=>events.push(e)});g.server=team;g.serveReady();const id=g.active,p=g.players[id];
+  g.input(id,'action');assert.equal(p.y,0);assert.equal(p.vy,0);step(g,delay);assert.equal(p.y,0);assert(g.ball.y>3.6);
+  g.input(id,'action');assert(p.vy>0);assert.equal(g.flight.kind,'serve');step(g,.2);
+  assert.equal(g.flight.kind,'receive');assert(p.y>.5);heights.push(g.flight.start.y);assert(events.some(e=>e.type==='contact'&&e.kind==='serve'));
+ }
+ assert(Math.max(...heights)-Math.min(...heights)>.3);
+}
+console.log('PASS two-action toss/jump serve and different physical contact heights on both sides');

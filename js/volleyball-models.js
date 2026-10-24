@@ -280,6 +280,11 @@ function volleyServePose(progress,after){
   if(after!=null)return after<.16?volleyBlendPose(POSE.serveHit,follow,smooth(after/.16)):volleyBlendPose(follow,POSE.stance,smooth((after-.16)/.3));
   return progress<.65?volleyBlendPose(ready,POSE.serveWind,smooth(progress/.65)):volleyBlendPose(POSE.serveWind,POSE.serveHit,smooth((progress-.65)/.35));
 }
+function volleyTossPose(time){
+  const low=S_({lSh:[-.85,0,.2],lEl:[-.4],rSh:[.1,0,-.2],rEl:[-.6],rKn:[.2],lKn:[.2],drop:-.12});
+  const high=S_({lSh:[-2.8,0,.2],lEl:[-.1],rSh:[-1.8,0,-.3],rEl:[-1.4],head:[-.25],chest:[-.12],rKn:[.2],lKn:[.2],drop:-.12});
+  return volleyBlendPose(low,high,Math.min(1,Math.max(0,time/.22)));
+}
 function volleyShufflePose(phase,direction){
   const pose=runPose(phase),s=Math.sin(phase);pose.rSh=[-.65,0,-.25];pose.lSh=[-.65,0,.25];pose.rHp=[s*.25,0,-direction*Math.max(0,s)*.3];pose.lHp=[-s*.25,0,-direction*Math.max(0,-s)*.3];pose.chest=[.18,0,-direction*.08];return pose;
 }

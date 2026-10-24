@@ -17,7 +17,7 @@ class VolleyMatch {
   serveReady(){
     this.status='play';this.rally=0;this.combo=0;this.flight=null;this.stage='ready';this.stageTime=0;this.server=this.practice?1:this.server;this.lastTouch=this.server;this.strike={grade:'normal',color:'#ffffff',combo:0};
     const server=this.serverSlot[this.server],side=this.side(this.server);this.active=server;
-    for(const p of this.players){p.setContactAt=null;p.serveContactAt=null;p.stepPhase=0;p.groundSpeed=0;p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
+    for(const p of this.players){p.serveSwingAt=null;p.setContactAt=null;p.serveContactAt=null;p.stepPhase=0;p.groundSpeed=0;p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
     const p=this.players[server];p.x=p.tx=2.5;p.z=p.tz=(VOLLEY_COURT.halfLength+1.2)*side;this.ball={x:p.x,y:3.3,z:p.z-.3*side,vx:0,vy:0,vz:0};this.emit('serve',{team:this.server,player:server});
   }
   task(id){
@@ -35,7 +35,7 @@ class VolleyMatch {
     if(action==='move'){p.move=Math.max(-1,Math.min(1,Number(value)||0));if(['spike','serve'].includes(this.task(id)))p.aim=p.move*this.side(p.team);return;}
     const task=this.task(id);
     if(action==='action'){
-      if(task==='approach'||task==='block'||(['spike','serve'].includes(task)&&p.y<.45))this.input(id,'jump');
+      if(task==='approach'||task==='block'||(task==='spike'&&p.y<.45))this.input(id,'jump');
       else if(['toss','serve','receive','set','spike'].includes(task))this.input(id,'hit');
       return;
     }
@@ -54,7 +54,12 @@ class VolleyMatch {
       this.emit('jump',{player:id,task,slide:p.slideVX!==0});return;
     }
     if(action!=='hit'||p.swing>0)return;
-    if(task==='toss'){this.toss();this.input(id,'jump');return;}
+    if(task==='toss'){this.toss();return;}
+    if(task==='serve'){
+      if(p.serveSwingAt!=null)return;
+      if(p.y<.08)this.input(id,'jump');
+      p.serveSwingAt=this.time+.18;p.pose='serveWind';p.poseTime=.3;return;
+    }
     if(task==='spike'&&p.y<.25){this.emit('hint',{player:id,text:'先起跳，再扣球！'});return;}
     p.swing=task==='spike'?.32:.20;p.pose=task==='receive'?'shieldW':task==='set'?'setUp':task==='serve'?'serveHit':'spikeHit';p.poseTime=.35;
     if(this.flight&&this.flight.recipient===id){
@@ -67,7 +72,7 @@ class VolleyMatch {
   }
   toss(){
     const p=this.players[this.active],start={x:p.x,y:3.6,z:p.z-this.side(p.team)*.3};this.stage='serve';
-    this.sendFlight('serve',p.team,p.id,start,{x:p.x,y:4.8,z:start.z},.60,12);p.pose='serveWind';p.poseTime=1.2;
+    this.sendFlight('serve',p.team,p.id,start,{x:p.x,y:6.56,z:start.z},.80,12);p.pose='serveWind';p.poseTime=1.2;
   }
   sendFlight(kind,team,recipient,start,end,duration,g=12){
     this.flight={grade:this.strike?.grade||'normal',color:this.strike?.color||'#ffffff',id:++this.serial,kind,team,recipient,t:0,contactTime:duration,g,start:{...start},end:{...end},handledNet:false};
@@ -84,11 +89,12 @@ class VolleyMatch {
   quality(delta){return Math.abs(delta)<.13?'nice':Math.abs(delta)<.30?'good':'weak';}
   tryContact(p,automatic=false){
     const f=this.flight;if(!f||p.id!==f.recipient)return false;
-    const delta=f.t-f.contactTime,window=automatic?.12:f.kind==='spike'?.55:this.config.window;
+    const delta=f.t-f.contactTime,window=automatic?.12:f.kind==='spike'?.55:f.kind==='serve'?.65:this.config.window;
     if(delta<-(automatic?.03:window)||delta>window)return false;
     const dist=Math.hypot(this.ball.x-p.x,this.ball.z-(p.z-this.side(p.team)*.35));
     const reach=automatic?1.9:f.kind==='spike'?3.4:f.kind==='receive'?1.35:2.0;if(dist>reach)return false;
     if(f.kind==='spike'&&(p.y<(automatic?1.1:.25)||Math.abs(this.ball.y-(4.25+p.y))>(automatic?1.35:3.0)))return false;
+    if(f.kind==='serve'&&(p.y<.5||Math.abs(this.ball.y-(4.25+p.y))>1.35))return false;
     if(f.kind==='receive'&&Math.abs(this.ball.y-2.25)>2.2)return false;
     if(f.kind==='set'&&Math.abs(this.ball.y-4.25)>1.5)return false;
     const quality=p.diveTime>0?'good':this.quality(delta);this.contact(p,quality,delta);return true;
@@ -175,6 +181,7 @@ class VolleyMatch {
         if(task==='receive'&&this.incomingOut(p.team)){p.pose='stance';continue;}
         if(f.t>this.config.reaction){p.tx=f.end.x;p.tz=f.end.z+side*.35;}
         if(task==='spike'&&f.contactTime-f.t<.59&&p.y===0&&p.jumpLock<=0){p.vy=10.5;p.jumpLock=.8;p.jumpKind='spike';p.pose='spikeWind';p.poseTime=1;}
+        if(task==='serve'&&f.t>=.53&&p.y===0&&p.jumpLock<=0){p.jumpAge=0;p.vy=10.5;p.jumpLock=.8;p.jumpKind='spike';}
         if(task==='serve'&&f.t>=f.contactTime-.02){this.tryContact(p,true);continue;}
         if(task==='receive'&&f.contactTime-f.t<.22)this.tryDive(p);
         if(f.t>=f.contactTime-.012)this.tryContact(p,true);
@@ -193,6 +200,7 @@ class VolleyMatch {
   updatePlayers(dt){
     for(const p of this.players){
       p.diveTime=Math.max(0,p.diveTime-dt);p.swing=Math.max(0,p.swing-dt);p.jumpLock=Math.max(0,p.jumpLock-dt);p.poseTime=Math.max(0,p.poseTime-dt);
+      if(p.serveSwingAt!=null&&this.time>=p.serveSwingAt){p.serveSwingAt=null;p.swing=.06;p.pose='serveHit';p.poseTime=.3;}
       if(p.vy!==0||p.y>0){p.jumpAge=(p.jumpAge||0)+dt;p.y+=p.vy*dt;p.vy-=19.5*dt;if(p.y<=0){p.y=0;p.vy=0;p.jumpKind=null;p.slideVX=0;}}
       const task=this.task(p.id),side=this.side(p.team);
       const attack=p.human&&task==='spike'&&this.flight?.recipient===p.id;
