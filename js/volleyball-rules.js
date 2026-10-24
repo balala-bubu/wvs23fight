@@ -17,8 +17,8 @@ class VolleyMatch {
   serveReady(){
     this.status='play';this.rally=0;this.combo=0;this.flight=null;this.stage='ready';this.stageTime=0;this.server=this.practice?1:this.server;this.lastTouch=this.server;this.strike={grade:'normal',color:'#ffffff',combo:0};
     const server=this.serverSlot[this.server],side=this.side(this.server);this.active=server;
-    for(const p of this.players){p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
-    const p=this.players[server];p.x=p.tx=2.5;p.z=p.tz=13.4*side;this.ball={x:p.x,y:3.3,z:p.z-.3*side,vx:0,vy:0,vz:0};this.emit('serve',{team:this.server,player:server});
+    for(const p of this.players){p.serveContactAt=null;p.stepPhase=0;p.groundSpeed=0;p.offset=0;p.aim=0;p.aimDepth=0;p.swing=0;p.quick=false;p.slideVX=0;p.diveTime=0;p.y=p.vy=0;p.pose='stance';p.poseTime=0;p.tx=p.id===this.receivers[p.team]?2.5:-2.5;p.tz=this.side(p.team)*(p.id===this.receivers[p.team]?9.8:2.7);p.x=p.tx;p.z=p.tz;}
+    const p=this.players[server];p.x=p.tx=2.5;p.z=p.tz=(VOLLEY_COURT.halfLength+1.2)*side;this.ball={x:p.x,y:3.3,z:p.z-.3*side,vx:0,vy:0,vz:0};this.emit('serve',{team:this.server,player:server});
   }
   task(id){
     const p=this.players[id];if(this.status!=='play')return 'wait';
@@ -97,6 +97,7 @@ class VolleyMatch {
     if(quality==='nice'&&p.human)this.perfects++;
     p.pose=kind==='receive'?'shieldW':kind==='set'?'setUp':kind==='serve'?'serveHit':'spikeHit';p.poseTime=.42;p.swing=0;
     this.emit('contact',{...this.strike,player:p.id,kind,quality,combo:this.combo,timing:delta,slide:p.slideVX!==0});
+    if(kind==='serve')p.serveContactAt=this.time;
     const start={x:this.ball.x,y:this.ball.y,z:this.ball.z};
     if(kind==='receive'){
       this.receivers[p.team]=mate.id;this.blockers[p.team]=p.id;
@@ -198,19 +199,21 @@ class VolleyMatch {
           if(incoming)p.tz=this.flight.end.z+side*.35;
           // A small nudge suggests the lane; manual input overrides it completely.
           const nudge=incoming&&Math.abs(p.move)<.02?Math.max(-.8,Math.min(.8,(this.flight.end.x-p.x)*1.2)):0;
-          p.tx=Math.max(-6.7,Math.min(6.7,p.tx+(p.move*side*4.2+nudge)*dt));
+          p.tx=Math.max(-6.7,Math.min(6.7,p.tx+(p.move*side*8.4+nudge)*dt));
         }
         else if(task==='block'){p.tx=Math.max(-6.6,Math.min(6.6,p.offset));p.tz=side*1.3;}
         else if(task==='approach'){p.tx=Math.max(-5.7,Math.min(5.7,p.tx+p.move*side*dt*5));p.tz=side*2.1;}
       }
 
       const dx=p.tx-p.x,dz=p.tz-p.z,distance=Math.hypot(dx,dz),speed=(p.human?10.5:this.config.speed)*(p.diveTime>0?1.65:1);
-      const step=Math.min(distance,speed*dt);p.moving=distance>.12;
-      if(distance>.001){p.x+=p.slideVX&&p.y>0?Math.sign(p.slideVX)*Math.min(Math.abs(dx),Math.abs(p.slideVX)*dt):dx/distance*step;p.z+=dz/distance*step;}
+      const recovering=p.serveContactAt!==null&&p.serveContactAt!==undefined&&this.time-p.serveContactAt<.24;
+      const step=recovering?0:Math.min(distance,speed*dt),beforeX=p.x,beforeZ=p.z;
+      if(distance>.001&&!recovering){p.x+=p.slideVX&&p.y>0?Math.sign(p.slideVX)*Math.min(Math.abs(dx),Math.abs(p.slideVX)*dt):dx/distance*step;p.z+=dz/distance*step;}
       if(attack&&p.attackSteer){
         const f=this.flight;if(!p.attackLocked||!f.attackTargetLocked){f.end.x=p.x;f.attackTargetLocked=p.attackLocked;this.ball.vx=(f.end.x-this.ball.x)/Math.max(.05,f.contactTime-f.t);}
       }
-      p.x=Math.max(-VOLLEY_COURT.halfWidth-.2,Math.min(VOLLEY_COURT.halfWidth+.2,p.x));p.z=side*Math.max(.7,Math.min(VOLLEY_COURT.halfLength,Math.abs(p.z)));
+      p.groundSpeed=Math.hypot(p.x-beforeX,p.z-beforeZ)/Math.max(.001,dt);p.moving=p.groundSpeed>.15;p.stepPhase=(p.stepPhase||0)+Math.hypot(p.x-beforeX,p.z-beforeZ)*2.4;
+      p.x=Math.max(-VOLLEY_COURT.halfWidth-.2,Math.min(VOLLEY_COURT.halfWidth+.2,p.x));p.z=side*Math.max(.7,Math.min((task==='toss'||task==='serve'||p.serveContactAt!=null)?VOLLEY_COURT.halfLength+1.2:VOLLEY_COURT.halfLength,Math.abs(p.z)));
     }
   }
   update(dt){

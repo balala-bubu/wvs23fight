@@ -269,6 +269,20 @@ function runPose(ph){
   return S_({rHp:[-s*0.9,0,-0.05], lHp:[s*0.9,0,0.05], rKn:[Math.max(0,s)*1.1+0.2,0,0], lKn:[Math.max(0,-s)*1.1+0.2,0,0],
     rSh:[s*0.8,0,-0.15], lSh:[-s*0.8,0,0.15], rEl:[-1.2], lEl:[-1.2], chest:[0.25], head:[-0.15], drop:-0.1+Math.abs(Math.cos(ph))*0.15});
 }
+// Blend complete poses so wind-up, contact and follow-through have continuous arcs.
+function volleyBlendPose(a,b,t){
+  const out={};for(const key in a)out[key]=Array.isArray(a[key])?a[key].map((v,i)=>v+(b[key][i]-v)*t):typeof a[key]==='number'?a[key]+(b[key]-a[key])*t:t<.5?a[key]:b[key];return out;
+}
+function volleyServePose(progress,after){
+  const ready=S_({lSh:[-.9,0,.2],rSh:[.25,0,-.15],rEl:[-.7],chest:[-.08,-.15,0],rHp:[.18],lHp:[-.2],rKn:[.25],lKn:[.15],drop:-.12});
+  const follow=S_({rSh:[-.45,.35,.35],rEl:[-.25],lSh:[.3,0,.25],chest:[.4,.5,0],rHp:[-.25],lHp:[.3],rKn:[.35],lKn:[.15],drop:-.12});
+  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+  if(after!=null)return after<.16?volleyBlendPose(POSE.serveHit,follow,smooth(after/.16)):volleyBlendPose(follow,POSE.stance,smooth((after-.16)/.3));
+  return progress<.65?volleyBlendPose(ready,POSE.serveWind,smooth(progress/.65)):volleyBlendPose(POSE.serveWind,POSE.serveHit,smooth((progress-.65)/.35));
+}
+function volleyShufflePose(phase,direction){
+  const pose=runPose(phase),s=Math.sin(phase);pose.rSh=[-.65,0,-.25];pose.lSh=[-.65,0,.25];pose.rHp=[s*.25,0,-direction*Math.max(0,s)*.3];pose.lHp=[-s*.25,0,-direction*Math.max(0,-s)*.3];pose.chest=[.18,0,-direction*.08];return pose;
+}
 function applyPose(m, Pz, k){
   for (const n in m.joints){ const o = m.joints[n].rotation, t = Pz[n]; o.x += (t[0]-o.x)*k; o.y += (t[1]-o.y)*k; o.z += (t[2]-o.z)*k; }
   m.hips.rotation.y += (Pz.turn - m.hips.rotation.y)*k;

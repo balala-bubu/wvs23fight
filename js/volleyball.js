@@ -93,6 +93,15 @@ const Volleyball=(()=>{
     const distance=Math.min(18,Math.max(12.5+front*1.5,widthDistance));
     const task=match.task(p.id);
     if(!reduce&&match.status==='play'){
+      const serveAge=p.serveContactAt==null?null:match.time-p.serveContactAt;
+      if(serveAge!==null&&serveAge<1.5){
+        const t=clamp(serveAge/1.5,0,1),blend=Math.sin(Math.PI*t)*.55;
+        const position=new THREE.Vector3(p.x*.55+side*1.7,7.7+p.y*.12,p.z+side*distance);
+        const look=new THREE.Vector3(p.x*.3+ball.position.x*.1+side*.35,3.4,p.z*.3-side*5);
+        position.lerp(new THREE.Vector3(ball.position.x*.3+side*1.7,8.5,ball.position.z+side*distance),blend);
+        look.lerp(new THREE.Vector3(ball.position.x,ball.position.y,ball.position.z-side*3),blend);
+        return {position,look};
+      }
       if(task==='set')return {position:new THREE.Vector3(p.x+side*4.5,3.0,p.z+side*Math.max(7,widthDistance*.65)),look:new THREE.Vector3(p.x*.65+ball.position.x*.35,Math.max(5.5,ball.position.y),p.z-side*2)};
       if(task==='spike'&&p.y>.15)return {position:new THREE.Vector3(p.x+side*2.8,6.4+p.y*1.1,p.z+side*Math.max(9,widthDistance*.75)),look:new THREE.Vector3(p.x*.4+ball.position.x*.3,3.5+p.y*.3,-side*6)};
     }
@@ -173,10 +182,15 @@ const Volleyball=(()=>{
       const visual=replay.playing?replay.sample():match;
       $('replayLayer').hidden=!replay.playing;$('views').hidden=replay.playing;$('pointBanner').hidden=replay.playing||match.status!=='point';
       ball.position.set(visual.ball.x,visual.ball.y,visual.ball.z);ball.rotation.x+=dt*(8+match.combo*3);ball.rotation.z+=dt*3;
-      for(let i=0;i<4;i++){const p=visual.players[i],m=players[i],task=match.task(i);let pose=p.diveTime>0?POSE.dive:p.poseTime>0?POSE[p.pose]:p.moving?runPose(clock*11):POSE.stance;
+      for(let i=0;i<4;i++){const p=visual.players[i],m=players[i],task=match.task(i);let pose=p.diveTime>0?POSE.dive:p.poseTime>0?POSE[p.pose]:p.moving?runPose(p.stepPhase||0):POSE.stance;
         if(p.y>.3){pose=p.pose==='spikeHit'&&p.poseTime>0?POSE.spikeHit:p.jumpKind==='block'?POSE.block:POSE.spikeWind;}
+        const serveAge=p.serveContactAt==null?null:visual.time-p.serveContactAt;
+        if(task==='toss')pose=volleyServePose(0,null);
+        else if(task==='serve')pose=volleyServePose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||.6),0,1),null);
+        else if(serveAge!==null&&serveAge<.46)pose=volleyServePose(1,serveAge);
+        else if(p.moving&&p.y<.2&&p.poseTime<=0&&task==='receive')pose=volleyShufflePose(p.stepPhase||0,Math.sign(p.tx-p.x)*match.side(p.team));
         applyPose(m,pose,Math.min(1,dt*18));m.holder.position.set(p.x,p.y+.1,p.z);let turn=p.team===0?Math.PI:0;
-        if(p.moving&&p.y<.2)turn=Math.atan2(p.tx-p.x,p.tz-p.z);const delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));m.holder.rotation.y+=delta*Math.min(1,dt*12);
+        if(p.moving&&p.y<.2&&task!=='receive'&&task!=='serve'&&task!=='toss')turn=Math.atan2(p.tx-p.x,p.tz-p.z);const delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));m.holder.rotation.y+=delta*Math.min(1,dt*12);
         rings[i].position.set(p.x,.17,p.z);rings[i].visible=p.human;shadows[i].position.set(p.x,.16,p.z);shadows[i].material.opacity=.22-p.y*.035;shadows[i].scale.setScalar(1+p.y*.06);
       }
       $('score0').textContent=match.score[0];$('score1').textContent=match.score[1];$('serve0').style.visibility=match.server===0?'visible':'hidden';$('serve1').style.visibility=match.server===1?'visible':'hidden';

@@ -72,7 +72,7 @@ console.log('PASS: mirrored slide/quick attacks, physical diving saves, block-ou
 // Receivers can pre-position before a serve or while opponents build an attack.
 for(const team of [0,1]){
  m=new VolleyMatch({mode:'four'});m.server=1-team;m.serveReady();const id=m.receivers[team],p=m.players[id],side=m.side(team),x=p.x,z=p.z;
- assert.equal(m.task(id),'receive');m.input(id,'move',1);step(m,.4);assert((p.x-x)*side>1.3&&(p.x-x)*side<2);assert.equal(p.z,z);
+ assert.equal(m.task(id),'receive');m.input(id,'move',1);step(m,.4);assert((p.x-x)*side>3&&(p.x-x)*side<3.7);assert.equal(p.z,z);
  m.input(id,'move',0);step(m,.1);const stopped=p.x;step(m,.3);assert.equal(p.x,stopped);
  m.input(id,'move',-1);step(m,.6);assert((p.x-stopped)*side< -2);
  step(m,4);assert(p.x>=-6.7&&p.x<=6.7);
@@ -143,3 +143,11 @@ for(const team of [0,1]){
  g.input(p.id,'aimDepth',-1);const deep=g.attackTarget(p,'spike');g.input(p.id,'aimDepth',1);const short=g.attackTarget(p,'spike');assert(Math.abs(deep.z)>Math.abs(short.z));
 }
 console.log('PASS limited receive nudge, manual override, direct analog aim and mirrored shot depth');
+
+// Both servers start beyond the end line, finish the swing, then run into court.
+for(const team of [0,1]){
+ const g=new VolleyMatch({mode:'four'});g.server=team;g.serveReady();const p=g.players[g.active],side=g.side(team);
+ assert(p.z*side>VOLLEY_COURT.halfLength);g.input(p.id,'hit');step(g,.59);g.input(p.id,'hit');assert.equal(g.flight.kind,'receive');
+ const z=p.z;step(g,.1);assert.equal(p.z,z);step(g,.8);assert(p.z*side<VOLLEY_COURT.halfLength);assert(p.stepPhase>0);
+}
+console.log('PASS baseline serve, follow-through hold and physical return run on both sides');
