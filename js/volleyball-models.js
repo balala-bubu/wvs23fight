@@ -297,7 +297,7 @@ function volleyNetFacing(p,ball,task){
   return base+track;
 }
 function volleyBackstepPose(phase){
-  const pose=runPose(-phase);pose.rSh=[-.45,0,-.2];pose.lSh=[-.45,0,.2];pose.chest=[.08];pose.drop-=.08;return pose;
+  const pose=runPose(-phase);pose.rSh=[-.45,0,-.2];pose.lSh=[-.45,0,.2];pose.chest=[.08,0,0];pose.drop-=.08;return pose;
 }
 function applyPose(m, Pz, k){
   for (const n in m.joints){ const o = m.joints[n].rotation, t = Pz[n]; o.x += (t[0]-o.x)*k; o.y += (t[1]-o.y)*k; o.z += (t[2]-o.z)*k; }
