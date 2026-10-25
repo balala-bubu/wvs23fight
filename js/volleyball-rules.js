@@ -28,6 +28,11 @@ class VolleyMatch {
     if(this.flight&&p.team!==this.flight.team)return id===this.blockers[p.team]?'block':'receive';
     return 'cover';
   }
+  quickAvailable(id){
+    const p=this.players[id],f=this.flight;if(!p||!f||this.paused||this.status!=='play'||p.y>.08||p.jumpLock>0)return false;
+    const task=this.task(id);
+    return task==='approach'&&f.contactTime-f.t>=0&&f.contactTime-f.t<=.28||task==='spike'&&f.recipient===id&&f.attack==='normal'&&f.t<=.40;
+  }
   input(id,action,value=0){
     const p=this.players[id];if(!p||!p.human||this.status!=='play'||this.paused)return;
     if(action==='aim'){if(['spike','serve'].includes(this.task(id)))p.aim=Math.max(-1,Math.min(1,Number(value)||0))*this.side(p.team);return;}
@@ -42,10 +47,10 @@ class VolleyMatch {
     if(action==='jump'){
       if(p.y>.08||p.jumpLock>0)return;
       p.jumpAge=0;p.vy=10.5;p.jumpLock=.75;p.jumpKind=task==='block'?'block':'spike';p.pose=task==='block'?'block':'spikeWind';p.poseTime=.85;
-      if(task==='approach'){p.slideVX=Math.abs(p.move)>.35?p.move*this.side(p.team)*4:0;p.quick=!!this.flight&&this.flight.contactTime-this.flight.t<.28;if(!p.quick)this.emit('hint',{player:id,text:'等隊友托高球，再起跳'});}
+      if(task==='approach'){p.slideVX=Math.abs(p.move)>.35?p.move*this.side(p.team)*4:0;p.quick=!!this.flight&&this.flight.contactTime-this.flight.t<=.28;if(!p.quick)this.emit('hint',{player:id,text:'等隊友托高球，再起跳'});}
       // A jump just after the setter releases converts the existing flight to a quick set.
       const f=this.flight;
-      if(task==='spike'&&f?.recipient===id&&f.attack==='normal'&&f.t<=.22){
+      if(task==='spike'&&f?.recipient===id&&f.attack==='normal'&&f.t<=.40){
         const duration=.52;f.attack='quick';f.contactTime=f.t+duration;
         this.ball.vx=(f.end.x-this.ball.x)/duration;this.ball.vz=(f.end.z-this.ball.z)/duration;
         this.ball.vy=(f.end.y-this.ball.y+.5*f.g*duration*duration)/duration;
@@ -265,6 +270,6 @@ class VolleyMatch {
     // A serve must be struck on the toss. The ball is allowed to fall visibly.
     if(f.kind==='serve'&&f.t>2.0){this.point(1-f.team,'發球失誤');}
   }
-  snapshot(){return {status:this.status,paused:this.paused,stage:this.stage,score:[...this.score],server:this.server,humans:[...this.humans],combo:this.combo,strike:{...this.strike},perfects:this.perfects,touches:this.touches,stats:{...this.stats},ball:{...this.ball},players:this.players.map(p=>({...p,task:this.task(p.id)})),flight:this.flight?{...this.flight}:null};}
+  snapshot(){return {status:this.status,paused:this.paused,stage:this.stage,score:[...this.score],server:this.server,humans:[...this.humans],combo:this.combo,strike:{...this.strike},perfects:this.perfects,touches:this.touches,stats:{...this.stats},ball:{...this.ball},players:this.players.map(p=>({...p,task:this.task(p.id),quickAvailable:this.quickAvailable(p.id)})),flight:this.flight?{...this.flight}:null};}
 }
 if(typeof module!=='undefined')module.exports={VolleyMatch,VOLLEY_COURT};

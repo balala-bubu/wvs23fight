@@ -153,17 +153,17 @@ for(const team of [0,1]){
 console.log('PASS baseline serve, follow-through hold and physical return run on both sides');
 
 // Jump just after release accelerates a set without teleporting the ball; both sides can spike it.
-for(const team of [0,1])for(const delay of [0,.12,.21]){
+for(const team of [0,1])for(const delay of [0,.12,.21,.32,.39]){
  const events=[],g=new VolleyMatch({mode:'four',onEvent:e=>events.push(e)}),id=team*2,p=g.players[id],side=g.side(team);
  Object.assign(p,{x:0,tx:0,z:side*2.1,tz:side*2.1});
  g.sendFlight('spike',team,id,{x:-1,y:4.25,z:side*5.25},{x:0,y:6.7,z:side*1.75},1.28,12);g.flight.attack='normal';step(g,delay);
- const ball={...g.ball},oldEnd=g.flight.contactTime;g.input(id,'jump');
+ const ball={...g.ball},oldEnd=g.flight.contactTime;assert(g.quickAvailable(id));assert(g.snapshot().players[id].quickAvailable);g.input(id,'jump');assert(!g.quickAvailable(id));
  assert.equal(g.flight.attack,'quick');assert(g.flight.contactTime<oldEnd);assert.equal(g.ball.x,ball.x);assert.equal(g.ball.y,ball.y);assert.equal(g.ball.z,ball.z);assert(events.some(e=>e.type==='quick'));
  step(g,.50);g.input(id,'hit');assert.equal(g.flight.kind,'receive');assert.equal(g.lastTouch,team);
 }
 // Late jumps preserve the high set, and pause does not convert a flight.
 for(const paused of [false,true]){
- const g=new VolleyMatch({mode:'four'});g.sendFlight('spike',0,0,{x:0,y:5,z:1.75},{x:0,y:6.7,z:1.75},1.28,12);g.flight.attack='normal';g.flight.t=paused?.1:.3;g.paused=paused;g.input(0,'jump');assert.equal(g.flight.attack,'normal');assert.equal(g.flight.contactTime,1.28);
+ const g=new VolleyMatch({mode:'four'});g.sendFlight('spike',0,0,{x:0,y:5,z:1.75},{x:0,y:6.7,z:1.75},1.28,12);g.flight.attack='normal';g.flight.t=paused?.1:.5;g.paused=paused;g.input(0,'jump');assert.equal(g.flight.attack,'normal');assert.equal(g.flight.contactTime,1.28);
 }
 console.log('PASS quick attack after release, continuous ball position, successful mirrored spikes, late jump and pause');
 

@@ -121,7 +121,7 @@ const Volleyball=(()=>{
   function hint(player,text,duration=1.0,color='#ffffff'){for(const v of views)if(v.id===player){v.root.querySelector('.viewHint').textContent=text;v.root.querySelector('.viewHint').style.color=color;v.root.querySelector('.viewHint').classList.add('visible');v.hintTime=duration;}}
   function onEvent(e){
     if(e.type==='contact'){const text=({weak:'勉強救起…',normal:'OK',nice:'NICE!',good:'GOOD!',super:'SUPER!'})[e.grade];effects.hit(new THREE.Vector3(match.ball.x,match.ball.y,match.ball.z),e.color,e.grade);impactLife=.12;impact.position.set(match.ball.x,match.ball.y,match.ball.z);impact.material.color.set(e.color);sound('hit',e.grade,e.kind);showStrikeLabel(text,e.color);network?.feedback(e.player,text,e.grade==='super'?[20,30,40]:20,e.color);}
-    else if(e.type==='quick'){hint(e.player,'快攻！球會加速到位',.7);}
+    else if(e.type==='quick'){hint(e.player,'快攻！提早扣球',1);network?.feedback(e.player,'快攻！提早扣球',[20,30,20]);}
     else if(e.type==='jump'&&e.slide){hint(e.player,'背飛起跳！',.6);}
     else if(e.type==='dive'){hint(e.player,'飛撲救球！',.55);}
     else if(e.type==='hint'){hint(e.player,e.text,.8);network?.feedback(e.player,e.text);}
@@ -158,7 +158,7 @@ const Volleyball=(()=>{
     const title=jumping?'起跳':task==='block'?(air?'攔網中':'起跳攔網'):({toss:'拋球',serve:'發球',receive:'接球',set:'舉球',spike:'扣球',cover:'等候',wait:'準備'}[task]||'準備');
     $('localActionLabel').textContent=title;$('localAction').setAttribute('aria-label',title);$('localActionIcon').textContent=jumping?'↟':task==='spike'?'↘':task==='block'?'⊓':task==='receive'?'◉':'↑';
     $('localAction').disabled=match.paused||match.status!=='play'||replay.active||['cover','wait'].includes(task)||(task==='approach'||task==='block')&&air;
-    $('localActionHint').textContent=task==='spike'&&air?'球到手邊，再按扣球':jumping?'按一下起跳':'跟著提示按一下';
+    $('localActionHint').textContent=match.quickAvailable(p.id)?'快攻機會！現在起跳':task==='spike'&&air?'球到手邊，再按扣球':jumping?'按一下起跳':'跟著提示按一下';
   }
   function initLocalTouch(){
     const stick=$('localStick');const drag=e=>{if(e.pointerId!==localPointer)return;e.preventDefault();const r=stick.getBoundingClientRect(),knob=$('localStickKnob').getBoundingClientRect(),radius=(r.width-knob.width)/2-5;let x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;const distance=Math.hypot(x,y);if(distance>radius){x*=radius/distance;y*=radius/distance;}localDepth=Math.abs(y/radius)<.12?0:y/radius;const axis=x/radius;localMove=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;stick.style.setProperty('--local-x',x+'px');stick.style.setProperty('--local-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(localMove*100)));};
@@ -210,9 +210,12 @@ const Volleyball=(()=>{
         const p=match.players[v.id],task=match.task(v.id),side=match.side(p.team),k=reduce?1:1-Math.exp(-dt*(p.y>.15?8:5));
         const rig=cameraRig(p,v.camera);v.camera.position.lerp(rig.position,k);v.look.lerp(rig.look,k);v.camera.lookAt(v.look);
         v.root.querySelector('.nextAction strong').textContent=labels[task];v.root.querySelector('.nextAction span').textContent=instructions[task];
+        const quickNow=match.quickAvailable(p.id),quickActive=f?.kind==='spike'&&f.recipient===p.id&&f.attack==='quick';
         const remaining=f?f.contactTime-f.t:99;const jumpNow=task==='spike'&&p.y<.2&&remaining<.68&&remaining>.18;const blockNow=task==='block'&&f?.kind==='spike'&&remaining<.65&&remaining>.12;
-        const soon=f&&f.recipient===v.id&&Math.abs(remaining)<.30;v.root.querySelector('.nextAction').classList.toggle('ready',!!soon||jumpNow||blockNow);
-        if(jumpNow){v.root.querySelector('.nextAction strong').textContent='起跳！';v.root.querySelector('.nextAction span').textContent='按起跳，再在空中擊球';}else if(blockNow){v.root.querySelector('.nextAction strong').textContent='起跳攔網！';}
+        const soon=f&&f.recipient===v.id&&Math.abs(remaining)<.30;v.root.querySelector('.nextAction').classList.toggle('ready',!!soon||quickNow||jumpNow||blockNow);
+        if(quickNow){v.root.querySelector('.nextAction strong').textContent='快攻：現在起跳！';v.root.querySelector('.nextAction span').textContent='按起跳讓舉球加速，再提早扣球';}
+        else if(quickActive){v.root.querySelector('.nextAction strong').textContent='快攻！';v.root.querySelector('.nextAction span').textContent='球加速到位，現在準備扣球';}
+        else if(jumpNow){v.root.querySelector('.nextAction strong').textContent='起跳！';v.root.querySelector('.nextAction span').textContent='按起跳，再在空中擊球';}else if(blockNow){v.root.querySelector('.nextAction strong').textContent='起跳攔網！';}
         v.gradeTime=Math.max(0,(v.gradeTime||0)-dt);v.root.querySelector('.combo').textContent=v.gradeTime>0?v.gradeText||'':'';
         if(v.hintTime>0){v.hintTime-=dt;if(v.hintTime<=0)v.root.querySelector('.viewHint').classList.remove('visible');}
         const projected=ball.position.clone().project(v.camera),pointer=v.root.querySelector('.ballPointer');pointer.hidden=projected.x>-1&&projected.x<1&&projected.y>-1&&projected.y<1;
