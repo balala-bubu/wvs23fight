@@ -1,5 +1,7 @@
 # 世志大亂鬥 — notes for Claude
 
+**Before any work, read [AGENTS.md](AGENTS.md).** It defines cross-conversation version protection, safe integration, restoring the correct accepted volleyball version, and release verification for all three games. Preserve changes made in other conversations; never replace current main with an older checkout.
+
 Three.js r128 platform fighter, plain classic scripts (no build step), hosted on GitHub Pages.
 All files share one global scope: top-level `const`/`function` in `js/core.js` are visible to every character and map file.
 
