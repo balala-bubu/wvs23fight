@@ -3,11 +3,11 @@ const scene=new THREE.Scene();
 const Volleyball=(()=>{
   const $=id=>document.getElementById(id),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const labels={toss:'準備發球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'空中扣球',block:'準備攔網',cover:'掩護隊友',wait:'準備就位'};
-  const instructions={toss:'按擊球拋球',serve:'看球的高度，再按一次跳起發球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'舉球前後提早起跳可打快攻',spike:'搖桿左右瞄準；上推打深、下拉吊短',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
+  const instructions={toss:'按擊球拋球',serve:'球到高點時擊球',receive:'先左右站位，球到手臂時接起',set:'在頭上方托高球',approach:'看隊友托球，準備起跳',spike:'先起跳，再下揮扣球',block:'移動封住球路，再起跳',cover:'注意隊友和球的位置',wait:'看大螢幕，準備下一球'};
   let slowFrames=0,frameWindow=0,pixelRatio=1.5;
   let renderer,setupCamera,replayCamera,resultCamera,effects,resultTime=0,impact,impactLife=0,arena,ball,ballShadow,target,reticle,trail,trailRibbon,strikeLabel,strikeCanvas,strikeTexture,labelLife=0,trailPoints=[],players=[],models=new Map(),rings=[],shadows=[],views=[],match=null,playMode='solo',screen='setup',last=0,clock=0,muted=false,audio=null,feedbackTime=0,practice=false,network=null;
   const replay=new VolleyReplay();let replayEnabled=true;
-  let soloEntry=false,localPointer=null,localMove=0,localDepth=0;
+  let soloEntry=false,localPointer=null,localMove=0;
   const held=new Set(),padButtons=new Map();const colors=['#ff7a3d','#4fa3ff','#5fd36a','#d070e0'];const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   function sound(kind='hit',grade='normal',phase=''){
     if(muted)return;try{audio ||=new (window.AudioContext||window.webkitAudioContext)();audio.resume().catch(()=>{});const t=audio.currentTime,level=({weak:0,normal:1,nice:2,good:3,super:4})[grade]??1;
@@ -91,20 +91,6 @@ const Volleyball=(()=>{
     // Keep court lanes visible even in narrow split-screen/portrait viewports.
     const widthDistance=(VOLLEY_COURT.halfWidth+1.2)/(Math.tan(cam.fov*Math.PI/360)*cam.aspect);
     const distance=Math.min(18,Math.max(12.5+front*1.5,widthDistance));
-    const task=match.task(p.id);
-    if(!reduce&&match.status==='play'){
-      const serveAge=p.serveContactAt==null?null:match.time-p.serveContactAt;
-      if(serveAge!==null&&serveAge<1.5){
-        const t=clamp(serveAge/1.5,0,1),blend=Math.sin(Math.PI*t)*.55;
-        const position=new THREE.Vector3(p.x*.55+side*1.7,7.7+p.y*.12,p.z+side*distance);
-        const look=new THREE.Vector3(p.x*.3+ball.position.x*.1+side*.35,3.4,p.z*.3-side*5);
-        position.lerp(new THREE.Vector3(ball.position.x*.3+side*1.7,8.5,ball.position.z+side*distance),blend);
-        look.lerp(new THREE.Vector3(ball.position.x,ball.position.y,ball.position.z-side*3),blend);
-        return {position,look};
-      }
-      if(task==='set')return {position:new THREE.Vector3(p.x+side*4.5,3.0,p.z+side*Math.max(7,widthDistance*.65)),look:new THREE.Vector3(p.x*.65+ball.position.x*.35,Math.max(5.5,ball.position.y),p.z-side*2)};
-      if(task==='spike'&&p.y>.15)return {position:new THREE.Vector3(p.x+side*2.8,6.4+p.y*1.1,p.z+side*Math.max(9,widthDistance*.75)),look:new THREE.Vector3(p.x*.4+ball.position.x*.3,3.5+p.y*.3,-side*6)};
-    }
     return {position:new THREE.Vector3(p.x*.55+side*1.7,7.7+front*1.0+p.y*.12,p.z+side*distance),
       look:new THREE.Vector3(p.x*.30+ball.position.x*.10+side*.35,3.4+clamp((ball.position.y-5)*.12,0,.7),p.z*.30-side*5)};
   }
@@ -121,7 +107,6 @@ const Volleyball=(()=>{
   function hint(player,text,duration=1.0,color='#ffffff'){for(const v of views)if(v.id===player){v.root.querySelector('.viewHint').textContent=text;v.root.querySelector('.viewHint').style.color=color;v.root.querySelector('.viewHint').classList.add('visible');v.hintTime=duration;}}
   function onEvent(e){
     if(e.type==='contact'){const text=({weak:'勉強救起…',normal:'OK',nice:'NICE!',good:'GOOD!',super:'SUPER!'})[e.grade];effects.hit(new THREE.Vector3(match.ball.x,match.ball.y,match.ball.z),e.color,e.grade);impactLife=.12;impact.position.set(match.ball.x,match.ball.y,match.ball.z);impact.material.color.set(e.color);sound('hit',e.grade,e.kind);showStrikeLabel(text,e.color);network?.feedback(e.player,text,e.grade==='super'?[20,30,40]:20,e.color);}
-    else if(e.type==='quick'){hint(e.player,'快攻！球會加速到位',.7);}
     else if(e.type==='jump'&&e.slide){hint(e.player,'背飛起跳！',.6);}
     else if(e.type==='dive'){hint(e.player,'飛撲救球！',.55);}
     else if(e.type==='hint'){hint(e.player,e.text,.8);network?.feedback(e.player,e.text);}
@@ -152,7 +137,7 @@ const Volleyball=(()=>{
   }
   function pause(value){if(!match||!['play','point'].includes(match.status))return;match.paused=value;VolleyAudio.setState(value?'pause':'play');resetLocalStick();held.clear();match.players.forEach(p=>p.move=0);$('pauseModal').hidden=!value;$('pause').textContent=value?'繼續':'暫停';}
   function playerInput(index,action,value){if(match&&screen==='play')match.input(index,action,value);}
-  function resetLocalStick(){localMove=0;localDepth=0;localPointer=null;const stick=$('localStick');if(stick){stick.style.setProperty('--local-x','0px');stick.style.setProperty('--local-y','0px');stick.classList.remove('active');stick.setAttribute('aria-valuenow','0');}if(match)match.input(match.humans[0],'move',0);}
+  function resetLocalStick(){localMove=0;localPointer=null;const stick=$('localStick');if(stick){stick.style.setProperty('--local-x','0px');stick.style.setProperty('--local-y','0px');stick.classList.remove('active');stick.setAttribute('aria-valuenow','0');}if(match)match.input(match.humans[0],'move',0);}
   function updateLocalAction(){
     if(!match||$('touchControls').hidden)return;const p=match.players[match.humans[0]],task=match.task(p.id),air=p.y>.45,jumping=task==='approach'||task==='spike'&&!air;
     const title=jumping?'起跳':task==='block'?(air?'攔網中':'起跳攔網'):({toss:'拋球',serve:'發球',receive:'接球',set:'舉球',spike:'扣球',cover:'等候',wait:'準備'}[task]||'準備');
@@ -161,7 +146,7 @@ const Volleyball=(()=>{
     $('localActionHint').textContent=task==='spike'&&air?'球到手邊，再按扣球':jumping?'按一下起跳':'跟著提示按一下';
   }
   function initLocalTouch(){
-    const stick=$('localStick');const drag=e=>{if(e.pointerId!==localPointer)return;e.preventDefault();const r=stick.getBoundingClientRect(),knob=$('localStickKnob').getBoundingClientRect(),radius=(r.width-knob.width)/2-5;let x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;const distance=Math.hypot(x,y);if(distance>radius){x*=radius/distance;y*=radius/distance;}localDepth=Math.abs(y/radius)<.12?0:y/radius;const axis=x/radius;localMove=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;stick.style.setProperty('--local-x',x+'px');stick.style.setProperty('--local-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(localMove*100)));};
+    const stick=$('localStick');const drag=e=>{if(e.pointerId!==localPointer)return;e.preventDefault();const r=stick.getBoundingClientRect(),knob=$('localStickKnob').getBoundingClientRect(),radius=(r.width-knob.width)/2-5;let x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;const distance=Math.hypot(x,y);if(distance>radius){x*=radius/distance;y*=radius/distance;}const axis=x/radius;localMove=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;stick.style.setProperty('--local-x',x+'px');stick.style.setProperty('--local-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(localMove*100)));};
     stick.onpointerdown=e=>{if(e.button!==0||localPointer!==null)return;e.preventDefault();localPointer=e.pointerId;stick.setPointerCapture(e.pointerId);stick.classList.add('active');drag(e);};stick.onpointermove=drag;
     const stop=e=>{if(e.pointerId===localPointer)resetLocalStick();};stick.onpointerup=stop;stick.onpointercancel=stop;stick.onlostpointercapture=stop;
     stick.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(['Home','Escape'].includes(e.key)){resetLocalStick();return;}localPointer='keyboard';localMove=e.key==='ArrowLeft'?-1:1;stick.style.setProperty('--local-x',localMove*32+'px');};stick.onkeyup=e=>{if(localPointer==='keyboard'){e.preventDefault();e.stopPropagation();resetLocalStick();}};stick.onblur=resetLocalStick;
@@ -170,7 +155,7 @@ const Volleyball=(()=>{
   }
   function keyboardInputs(){
     if(!match||match.paused)return;const bindings=[['KeyA','KeyD'],['ArrowLeft','ArrowRight'],['KeyF','KeyH'],['Numpad4','Numpad6']];
-    match.humans.forEach((id,index)=>{if(network?.isRemote(id))return;const [left,right]=bindings[index];let gp=null;try{gp=navigator.getGamepads?.()[index];}catch(_){}let move=index===0&&localPointer!==null?localMove:held.has(left)?-1:held.has(right)?1:0;if(gp&&Math.abs(gp.axes[0])>.2)move=gp.axes[0];match.input(id,'move',move);match.input(id,'aimDepth',gp&&Math.abs(gp.axes[1])>.2?gp.axes[1]:index===0?localDepth:0);
+    match.humans.forEach((id,index)=>{if(network?.isRemote(id))return;const [left,right]=bindings[index];let gp=null;try{gp=navigator.getGamepads?.()[index];}catch(_){}let move=index===0&&localPointer!==null?localMove:held.has(left)?-1:held.has(right)?1:0;if(gp&&Math.abs(gp.axes[0])>.2)move=gp.axes[0];match.input(id,'move',move);
       if(gp){for(const [b,a]of [[0,'jump'],[1,'hit']]){const key=index+':'+b,down=!!gp.buttons[b]?.pressed;if(down&&!padButtons.get(key))match.input(id,a);padButtons.set(key,down);}}
     });
   }
@@ -183,31 +168,19 @@ const Volleyball=(()=>{
       const visual=replay.playing?replay.sample():match;
       $('replayLayer').hidden=!replay.playing;$('views').hidden=replay.playing;$('pointBanner').hidden=replay.playing||match.status!=='point';
       ball.position.set(visual.ball.x,visual.ball.y,visual.ball.z);ball.rotation.x+=dt*(8+match.combo*3);ball.rotation.z+=dt*3;
-      for(let i=0;i<4;i++){const p=visual.players[i],m=players[i],task=match.task(i);let pose=p.diveTime>0?POSE.dive:p.poseTime>0?POSE[p.pose]:p.moving?runPose(p.stepPhase||0):POSE.stance;
+      for(let i=0;i<4;i++){const p=visual.players[i],m=players[i],task=match.task(i);let pose=p.diveTime>0?POSE.dive:p.poseTime>0?POSE[p.pose]:p.moving?runPose(clock*11):POSE.stance;
         if(p.y>.3){pose=p.pose==='spikeHit'&&p.poseTime>0?POSE.spikeHit:p.jumpKind==='block'?POSE.block:POSE.spikeWind;}
-        const serveAge=p.serveContactAt==null?null:visual.time-p.serveContactAt;
-        if(task==='toss')pose=volleyServePose(0,null);
-        else if(task==='serve')pose=p.y>.05?volleyServePose(clamp((p.jumpAge||0)/.18,0,1),null):volleyTossPose(visual.flight?.t||0);
-        else if(serveAge!==null&&serveAge<.46)pose=volleyServePose(1,serveAge);
-        else if(task==='set')pose=volleySetPose(clamp((visual.flight?.t||0)/Math.max(.01,visual.flight?.contactTime||1.2),0,1),null);
-        else if(p.setContactAt!=null&&visual.time-p.setContactAt<.48)pose=volleySetPose(1,visual.time-p.setContactAt);
-        else if(p.moving&&p.y<.2&&p.poseTime<=0){
-          const dx=p.tx-p.x,dz=(p.tz-p.z)*match.side(p.team);
-          pose=Math.abs(dx)>Math.abs(dz)?volleyShufflePose(p.stepPhase||0,Math.sign(dx)*match.side(p.team)):dz>0?volleyBackstepPose(p.stepPhase||0):runPose(p.stepPhase||0);
-        }
-        applyPose(m,pose,Math.min(1,dt*18));m.holder.position.set(p.x,p.y+.1,p.z);
-        // Keep hips facing the net. Tracking the ball permits a side stance, never a U-turn.
-        const turn=volleyNetFacing(p,visual.ball,task),delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));
-        m.holder.rotation.y+=delta*Math.min(1,dt*8);
+        applyPose(m,pose,Math.min(1,dt*18));m.holder.position.set(p.x,p.y+.1,p.z);let turn=p.team===0?Math.PI:0;
+        if(p.moving&&p.y<.2)turn=Math.atan2(p.tx-p.x,p.tz-p.z);const delta=Math.atan2(Math.sin(turn-m.holder.rotation.y),Math.cos(turn-m.holder.rotation.y));m.holder.rotation.y+=delta*Math.min(1,dt*12);
         rings[i].position.set(p.x,.17,p.z);rings[i].visible=p.human;shadows[i].position.set(p.x,.16,p.z);shadows[i].material.opacity=.22-p.y*.035;shadows[i].scale.setScalar(1+p.y*.06);
       }
       $('score0').textContent=match.score[0];$('score1').textContent=match.score[1];$('serve0').style.visibility=match.server===0?'visible':'hidden';$('serve1').style.visibility=match.server===1?'visible':'hidden';
       const f=match.flight;target.visible=!replay.active&&match.status==='play'&&!!f&&f.kind!=='serve';if(target.visible){target.position.set(f.end.x,.18,f.end.z);target.scale.setScalar(clamp((f.contactTime-f.t)*.8+.4,.4,1.7));target.material.opacity=clamp(1-(f.contactTime-f.t)*.25,.35,1);}
-      const attacker=match.players.find(p=>p.human&&['serve','spike'].includes(match.task(p.id)));reticle.visible=!replay.active&&!!attacker&&match.status==='play';if(reticle.visible){reticle.position.set(attacker.aim*6,.18,-match.side(attacker.team)*(10-attacker.aimDepth*3));}
+      const attacker=match.players.find(p=>p.human&&['serve','spike'].includes(match.task(p.id)));reticle.visible=!replay.active&&!!attacker&&match.status==='play';if(reticle.visible){reticle.position.set(attacker.aim*6,.18,-match.side(attacker.team)*10.6);}
       trail.visible=(match.status==='play'||replay.playing)&&!!visual.flight&&visual.flight.kind!=='serve';if(!match.paused){trailPoints.unshift({position:ball.position.clone(),time:clock});trailPoints=trailPoints.filter(p=>clock-p.time<=.36);const attr=trail.geometry.attributes.position;for(let i=0;i<12;i++){const time=clock-i*.03;let j=0;while(j<trailPoints.length-1&&trailPoints[j+1].time>time)j++;const a=trailPoints[j],b=trailPoints[Math.min(j+1,trailPoints.length-1)];const p=a&&b?a.position.clone().lerp(b.position,clamp((a.time-time)/Math.max(.001,a.time-b.time),0,1)):ball.position;attr.setXYZ(i,p.x,p.y,p.z);}attr.needsUpdate=true;trail.geometry.computeBoundingSphere();}trail.material.color.set(visual.flight?.color||'#ffffff');updateTail(visual.flight?.grade||'normal');
       if(replay.playing){const side=match.side(1-match.lastWinner);replayCamera.position.set(18,10,side*18);replayCamera.lookAt(ball.position.x*.3,3.2,0);}
       views.forEach(v=>{
-        const p=match.players[v.id],task=match.task(v.id),side=match.side(p.team),k=reduce?1:1-Math.exp(-dt*(p.y>.15?8:5));
+        const p=match.players[v.id],task=match.task(v.id),side=match.side(p.team),k=reduce?1:1-Math.exp(-dt*5);
         const rig=cameraRig(p,v.camera);v.camera.position.lerp(rig.position,k);v.look.lerp(rig.look,k);v.camera.lookAt(v.look);
         v.root.querySelector('.nextAction strong').textContent=labels[task];v.root.querySelector('.nextAction span').textContent=instructions[task];
         const remaining=f?f.contactTime-f.t:99;const jumpNow=task==='spike'&&p.y<.2&&remaining<.68&&remaining>.18;const blockNow=task==='block'&&f?.kind==='spike'&&remaining<.65&&remaining>.12;

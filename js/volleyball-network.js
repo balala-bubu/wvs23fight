@@ -63,7 +63,7 @@ class VolleyNetwork{
       if(data.type==='ready'){client.ready=!!data.value;this.renderSeats();return;}
       if(data.type!=='input'||!Number.isSafeInteger(data.seq)||data.seq<=client.lastSeq)return;
       const now=performance.now();if(now-client.lastInput>1000){client.inputs=0;client.lastInput=now;}if(++client.inputs>45)return;client.lastSeq=data.seq;
-      if(!['hit','jump','move','aim','aimDepth','action'].includes(data.action))return;const value=['move','aim','aimDepth'].includes(data.action)?Math.max(-1,Math.min(1,Number(data.value)||0)):0;this.input(client.id,data.action,value);
+      if(!['hit','jump','move','aim','action'].includes(data.action))return;const value=['move','aim'].includes(data.action)?Math.max(-1,Math.min(1,Number(data.value)||0)):0;this.input(client.id,data.action,value);
     });
     const lost=()=>{if(!client||!this.clients.has(conn.peer))return;this.input(client.id,'move',0);this.clients.delete(conn.peer);this.calls.get(conn.peer)?.close();this.calls.delete(conn.peer);client.stream?.media?.getTracks().forEach(t=>t.stop());this.renderSeats();document.getElementById('roomStatus').textContent='P'+(this.seats.indexOf(client.id)+1)+' 已離線，遊戲已暫停。';this.onDisconnect(client.id);};conn.on('close',lost);conn.on('error',lost);
   }
@@ -76,7 +76,7 @@ class VolleyNetwork{
     const $=id=>document.getElementById(id);document.body.classList.add('phoneMode');$('nav').hidden=true;$('court').hidden=true;$('phone').hidden=false;$('loading').hidden=true;
     let peer,connection,seat=null,seq=0,padMode='touch',state={task:'wait'},move=0,lastMove=0,ready=false,wake=null,drill=null;
     function send(action,value=0){if(!connection?.open)return;connection.send({type:'input',action,value,seq:++seq});if(action!=='move'){try{navigator.vibrate?.(15);}catch(_){}}}
-    let manualPointer=null,manualControl=null,moveTimer=null,lastDepthAt=0,tiltArmed=true;
+    let manualPointer=null,manualControl=null,moveTimer=null,tiltArmed=true;
     const stick=$('padStick');
     // Safari may zoom on repeated taps or multi-touch unless native gestures are cancelled.
     const deck=document.querySelector('.phoneControlDeck'),deckHome=deck.parentNode,deckAnchor=deck.nextSibling;let lobbyMoveAt=0;
@@ -96,7 +96,7 @@ class VolleyNetwork{
       if(e&&e.pointerId!==manualPointer)return;
       manualPointer=null;manualControl=null;tiltArmed=false;
       stick.classList.remove('active');stick.style.setProperty('--stick-x','0px');stick.style.setProperty('--stick-y','0px');
-      stick.setAttribute('aria-valuenow','0');stick.setAttribute('aria-valuetext','停止');outputMove(0,true);send('aimDepth',0);
+      stick.setAttribute('aria-valuenow','0');stick.setAttribute('aria-valuetext','停止');outputMove(0,true);
     }
     function beginMove(e,control){
       if(manualPointer!==null||e.button!==0)return false;
@@ -109,7 +109,7 @@ class VolleyNetwork{
       if(distance>radius){x*=radius/distance;y*=radius/distance;}
       const axis=x/radius,value=Math.abs(axis)<.12?0:Math.sign(axis)*(Math.abs(axis)-.12)/.88;
       stick.style.setProperty('--stick-x',x+'px');stick.style.setProperty('--stick-y',y+'px');stick.setAttribute('aria-valuenow',String(Math.round(value*100)));
-      stick.setAttribute('aria-valuetext',value===0?'停止':(value<0?'向左 ':'向右 ')+Math.round(Math.abs(value)*100)+'%');outputMove(value,force);if(force||performance.now()-lastDepthAt>=60){send('aimDepth',Math.abs(y/radius)<.12?0:y/radius);lastDepthAt=performance.now();}
+      stick.setAttribute('aria-valuetext',value===0?'停止':(value<0?'向左 ':'向右 ')+Math.round(Math.abs(value)*100)+'%');outputMove(value,force);
     }
     stick.onpointerdown=e=>{if(beginMove(e,stick)){stick.classList.add('active');dragStick(e,true);}};
     stick.onpointermove=e=>dragStick(e);stick.onpointerup=stopMove;stick.onpointercancel=stopMove;stick.onlostpointercapture=stopMove;
@@ -120,7 +120,7 @@ class VolleyNetwork{
     function updateAction(){
       const task=state.task,airborne=state.airborne,busy=state.paused||state.screen==='setup'||state.status!=='play'||drill!==null;
       const selecting=state.screen==='setup'&&state.lobby?.step==='lineup';
-      const jumping=task==='approach'||(task==='spike'&&!airborne);
+      const jumping=task==='approach'||(['spike','serve'].includes(task)&&!airborne);
       const text=drill!==null?(drill==='done'?'先按準備':'手勢練習'):busy?(state.paused?'已暫停':'等待開賽'):task==='block'?(airborne?'攔網中':'起跳攔網'):jumping?(airborne?'等待扣球':'起跳'):({receive:'接球',set:'托球',toss:'拋球',serve:'發球',spike:'扣球',cover:'等待隊友',wait:'準備就位'}[task]||'準備');
       $('padActionLabel').textContent=text;$('padActionIcon').textContent=jumping?'↟':actionIcons[task]||'·';
       $('padAction').disabled=!!busy||['cover','wait'].includes(task)||((task==='approach'||task==='block')&&airborne);
@@ -179,7 +179,7 @@ class VolleyNetwork{
           else if(data.type==='full'){$('phoneWho').textContent=data.message;}
           else if(data.type==='state'){state=data;if(seat?.remote)showOwnView(data);const task=data.task,labels={toss:'拋球',serve:'發球',receive:'接球',set:'托球',approach:'準備起跳',spike:'扣球',block:'攔網',cover:'掩護隊友',wait:'等待開賽'};
             renderPhoneLobby(data.lobby);updateAction();$('remoteScore').textContent=data.screen==='setup'?'主機正在選角':('藍隊 '+data.score[0]+' : '+data.score[1]+' 紅隊');if(drill!==null)return;$('phoneTaskLabel').textContent=data.paused?'暫停中':data.screen==='setup'?'等待開賽':labels[task]||'準備';
-            const gestures={toss:'手機放平，上揮只拋球，再下揮跳起發球',serve:'看球高度，向左／中／右下揮跳起發球',receive:'手機放平，向上揮接球',set:'手機放平，向上揮舉球',approach:'先看隊友托球，托高後上舉起跳',spike:data.airborne?'向左／中／右下揮，控制扣球方向！':'手機放平，上揮起跳，再下揮扣球',block:'調整站位，向上舉起攔網',cover:'看大螢幕，準備下一球',wait:'在手機選好手把，按準備'};$('phoneGesture').textContent=padMode==='motion'?(gestures[task]||'看大螢幕'):'左手搖桿移動，右手按鈕跟著提示操作';
+            const gestures={toss:'手機放平，上揮拋球起跳，再下揮發球',serve:data.airborne?'向左／中／右下揮發球':'手機放平，上揮起跳，再下揮發球',receive:'手機放平，向上揮接球',set:'手機放平，向上揮舉球',approach:'先看隊友托球，托高後上舉起跳',spike:data.airborne?'向左／中／右下揮，控制扣球方向！':'手機放平，上揮起跳，再下揮扣球',block:'調整站位，向上舉起攔網',cover:'看大螢幕，準備下一球',wait:'在手機選好手把，按準備'};$('phoneGesture').textContent=padMode==='motion'?(gestures[task]||'看大螢幕'):'左手搖桿移動，右手按鈕跟著提示操作';
           }else if(data.type==='feedback'){$('sensorFeedback').textContent=data.text;$('sensorFeedback').style.color=data.color||'';try{if(data.vibration)navigator.vibrate?.(data.vibration);}catch(_){}}
           else if(data.type==='pong'){$('phoneLink').textContent='已連線 '+Math.round((performance.now()-data.at)/2)+'ms';}
         });connection.on('close',lost);connection.on('error',lost);
