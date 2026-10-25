@@ -1,6 +1,6 @@
 'use strict';
 (async()=>{
-  const version='?v=20261025-restore-pre-avalon';
+  const version='?v=20261025-conversation-final';
   const $=id=>document.getElementById(id),bar=$('loadBar'),status=$('loadStatus');let done=0;
   const slow=setTimeout(()=>{if($('loadHint'))$('loadHint').textContent='載入比平常久，仍在等待資源；也可以重新載入。';if($('loadRecovery'))$('loadRecovery').hidden=false;},15000);
   const tick=()=>{if(bar)bar.value=++done;if(status)status.textContent=done<11?'正在準備球館…':'正在準備選手…';};
