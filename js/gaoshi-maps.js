@@ -35,42 +35,45 @@ var GaoshiMaps = (function(){
       noPlaceZones:[{x:0,y:8,w:8,h:8}], hideZones:[{x:0,y:15,w:32,h:1}], killY:99, solidBounds:true,
       sky:[0x5d9ad6, 0xf3d9a0], look:'farm', testBoxes:[] };
   }
-  // 原作 Old Mansion：左邊穩固地面、右邊致命荊棘、左側大玻璃碎片、上下兩層各一顆紅按鈕叫電梯（預設在上面），右上有兩條致命藤蔓，中間夾一塊安全木台
+  // 原作 Old Mansion（照原作截圖排）：左邊草地出生；中間是破房子：石地基、左側門廊（上面插著大玻璃）、右側中層平台和吊柱、
+  // 屋簷一整排；電梯預設卡在屋簷中間，地基和屋簷各一顆紅按鈕；右下是荊棘叢，中間夾一座安全木架；終點在右上的木台
   function buildMansion(){
     const W = 32, H = 18, {g, fill} = grid(W, H);
-    fill(0,12,6,17,'W');           // stable ground on the left (start)
-    fill(7,17,31,17,'W');          // foundation
-    fill(7,16,21,16,'H');          // ground floor of the house
-    fill(9,6,14,6,'H');            // upper floor, left half
-    fill(18,6,23,6,'H');           // upper floor, right half (shaft x15–17 between)
-    fill(22,10,22,15,'H');         // broken right wall
-    fill(10,1,13,1,'R'); fill(18,2,21,2,'R');   // what is left of the roof
-    fill(26,8,28,8,'P');           // safe wooden platform between the vines
-    fill(30,9,31,9,'H');           // goal ledge
-    g[8][30] = 'F';
-    [1,2,4,5].forEach(x=>g[11][x]='S');
+    fill(0,17,31,17,'G');          // grass ground (start on the left)
+    fill(7,16,7,16,'W');           // stone step
+    fill(8,15,21,16,'W');          // foundation
+    g[15][14] = '.'; g[15][15] = '.';   // elevator pit, so the car sits flush at the bottom
+    fill(9,11,12,11,'H');          // porch on stilts (the glass sticks out of it)
+    fill(17,9,21,9,'H');           // middle platform
+    fill(20,10,20,12,'H');         // hanging post under it
+    fill(7,5,13,5,'R'); fill(16,5,21,5,'R');   // roof eave, elevator shaft x14–15 between
+    fill(25,6,28,6,'H');           // goal platform
+    fill(25,14,26,14,'P');         // safe wooden frame inside the thorns
+    g[5][27] = 'F';
+    [1,2,3,4].forEach(x=>g[16][x]='S');
     return { id:'mansion', name:'老宅', size:[W,H], grid:g.map(r=>r.join('')),
       hazards:[
-        {type:'elevator', x:15, w:3, top:6, bottom:15.5, speed:2.6, waitSec:1.6, buttons:[{x:11.5, y:16}, {x:10.2, y:6}]},
-        {type:'spikes', look:'thorns', rect:{x:23, y:15.6, w:9, h:1.4}, lethal:true},
-        {type:'spikes', look:'glass', rect:{x:8.6, y:14.1, w:0.8, h:1.9}, lethal:true},
-        {type:'spikes', look:'vine', rect:{x:24.9, y:0, w:0.45, h:4.6}, lethal:true},
-        {type:'spikes', look:'vine', rect:{x:29.2, y:0, w:0.45, h:5.6}, lethal:true}],
-      noPlaceZones:[{x:15, y:6, w:3, h:10}], killY:99, solidBounds:true,
-      sky:[0x1c1830, 0x5a4a6e], look:'mansion', testBoxes:[] };
+        {type:'elevator', x:14, w:2, top:5, bottom:15, speed:2.6, waitSec:1.6, buttons:[{x:18.2, y:15}, {x:9.8, y:5}]},
+        {type:'spikes', look:'thorns', rect:{x:22.2, y:13.8, w:2.6, h:3.2}, lethal:true},
+        {type:'spikes', look:'thorns', rect:{x:27.2, y:13.8, w:4.8, h:3.2}, lethal:true},
+        {type:'spikes', look:'glass', rect:{x:6.4, y:8.2, w:2.8, h:2.8}, lethal:true}],
+      noPlaceZones:[{x:14, y:5, w:2, h:11}], killY:99, solidBounds:true,
+      sky:[0xd9b0b4, 0xf3cf9a], look:'mansion', testBoxes:[] };
   }
-  // 原作 Waterfall：大懸崖；玩家從崖下左邊的小平台出發，終點在崖頂左邊的枯樹；要先往右蓋再往上；瀑布會把人往下沖；崖頂的草會擋住放在裡面的冰
+  // 原作 Waterfall（照原作截圖排）：左半是大懸崖，崖頂往右伸出去，下面挖空；玩家從崖下左邊的小平台出發；
+  // 終點在崖頂最左邊的枯樹；瀑布從崖尖往下沖；右邊是空的，掉下去就沒了
   function buildWaterfall(){
     const W = 32, H = 18, {g, fill} = grid(W, H);
-    fill(0,6,15,6,'Q'); fill(0,7,15,9,'K');      // cliff top (goal side), overhanging the start
-    fill(0,14,5,17,'K');                          // small start ledge under the cliff
-    fill(26,3,31,3,'Q'); fill(26,4,31,17,'K');   // tall cliff on the right, the river pours off it
+    fill(0,6,21,6,'Q');                           // grassy cliff top, reaching out to the right
+    fill(0,7,16,10,'K'); fill(17,7,18,8,'K'); fill(19,7,20,7,'K');   // overhang, thinning toward the tip
+    fill(0,11,1,13,'K');                          // cliff wall behind the start
+    fill(0,14,6,15,'K'); fill(0,16,5,17,'K');    // start ledge
     g[5][3] = 'F';
-    [1,2,3,4].forEach(x=>g[13][x]='S');
+    [2,3,4,5].forEach(x=>g[13][x]='S');
     return { id:'waterfall', name:'瀑布', size:[W,H], grid:g.map(r=>r.join('')),
-      hazards:[{type:'push', look:'waterfall', rect:{x:22.6, y:3.2, w:3.4, h:16}, accel:85, maxVy:30}],
+      hazards:[{type:'push', look:'waterfall', rect:{x:18.3, y:6.6, w:1.9, h:13}, accel:85, maxVy:30}],
       noPlaceZones:[], killY:20, solidBounds:true,
-      sky:[0x6fb3e8, 0xd8eef2], look:'falls', testBoxes:[] };
+      sky:[0x6fbfdc, 0xc8e8ee], look:'falls', testBoxes:[] };
   }
   const LIST = [buildRooftops(), buildFarm(), buildMansion(), buildWaterfall()];
   return { LIST, byId:Object.fromEntries(LIST.map(m=>[m.id,m])) };
