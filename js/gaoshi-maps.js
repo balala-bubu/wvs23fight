@@ -35,7 +35,44 @@ var GaoshiMaps = (function(){
       noPlaceZones:[{x:0,y:8,w:8,h:8}], hideZones:[{x:0,y:15,w:32,h:1}], killY:99, solidBounds:true,
       sky:[0x5d9ad6, 0xf3d9a0], look:'farm', testBoxes:[] };
   }
-  const LIST = [buildRooftops(), buildFarm()];
+  // 原作 Old Mansion：左邊穩固地面、右邊致命荊棘、左側大玻璃碎片、上下兩層各一顆紅按鈕叫電梯（預設在上面），右上有兩條致命藤蔓，中間夾一塊安全木台
+  function buildMansion(){
+    const W = 32, H = 18, {g, fill} = grid(W, H);
+    fill(0,12,6,17,'W');           // stable ground on the left (start)
+    fill(7,17,31,17,'W');          // foundation
+    fill(7,16,21,16,'H');          // ground floor of the house
+    fill(9,6,14,6,'H');            // upper floor, left half
+    fill(18,6,23,6,'H');           // upper floor, right half (shaft x15–17 between)
+    fill(22,10,22,15,'H');         // broken right wall
+    fill(10,1,13,1,'R'); fill(18,2,21,2,'R');   // what is left of the roof
+    fill(26,8,28,8,'P');           // safe wooden platform between the vines
+    fill(30,9,31,9,'H');           // goal ledge
+    g[8][30] = 'F';
+    [1,2,4,5].forEach(x=>g[11][x]='S');
+    return { id:'mansion', name:'老宅', size:[W,H], grid:g.map(r=>r.join('')),
+      hazards:[
+        {type:'elevator', x:15, w:3, top:6, bottom:15.5, speed:2.6, waitSec:1.6, buttons:[{x:11.5, y:16}, {x:10.2, y:6}]},
+        {type:'spikes', look:'thorns', rect:{x:23, y:15.6, w:9, h:1.4}, lethal:true},
+        {type:'spikes', look:'glass', rect:{x:8.6, y:14.1, w:0.8, h:1.9}, lethal:true},
+        {type:'spikes', look:'vine', rect:{x:24.9, y:0, w:0.45, h:4.6}, lethal:true},
+        {type:'spikes', look:'vine', rect:{x:29.2, y:0, w:0.45, h:5.6}, lethal:true}],
+      noPlaceZones:[{x:15, y:6, w:3, h:10}], killY:99, solidBounds:true,
+      sky:[0x1c1830, 0x5a4a6e], look:'mansion', testBoxes:[] };
+  }
+  // 原作 Waterfall：大懸崖；玩家從崖下左邊的小平台出發，終點在崖頂左邊的枯樹；要先往右蓋再往上；瀑布會把人往下沖；崖頂的草會擋住放在裡面的冰
+  function buildWaterfall(){
+    const W = 32, H = 18, {g, fill} = grid(W, H);
+    fill(0,6,15,6,'Q'); fill(0,7,15,9,'K');      // cliff top (goal side), overhanging the start
+    fill(0,14,5,17,'K');                          // small start ledge under the cliff
+    fill(26,3,31,3,'Q'); fill(26,4,31,17,'K');   // tall cliff on the right, the river pours off it
+    g[5][3] = 'F';
+    [1,2,3,4].forEach(x=>g[13][x]='S');
+    return { id:'waterfall', name:'瀑布', size:[W,H], grid:g.map(r=>r.join('')),
+      hazards:[{type:'push', look:'waterfall', rect:{x:22.6, y:3.2, w:3.4, h:16}, accel:85, maxVy:30}],
+      noPlaceZones:[], killY:20, solidBounds:true,
+      sky:[0x6fb3e8, 0xd8eef2], look:'falls', testBoxes:[] };
+  }
+  const LIST = [buildRooftops(), buildFarm(), buildMansion(), buildWaterfall()];
   return { LIST, byId:Object.fromEntries(LIST.map(m=>[m.id,m])) };
 })();
 if (typeof module !== 'undefined') module.exports = GaoshiMaps;

@@ -31,7 +31,10 @@ var GaoshiPhysics = (function(){
     const solid = map.grid.map((row,y)=>[...row].map((c,x)=>{ if (c==='S') spawns.push({x:x+0.5, y:y+1}); if (c==='F') flag = {x, y:y+1}; return !(c==='.'||c==='S'||c==='F'); }));
     // the goal is the flag itself: its pole and its cloth, so a runner has to really touch it
     const goalRects = flag ? [{x:flag.x+0.4, y:flag.y-FLAG.pole, w:0.2, h:FLAG.pole}, {x:flag.x+0.5, y:flag.y-FLAG.pole, w:FLAG.clothW, h:FLAG.clothH}] : [map.goal];
-    return { W, H, map, solid, spawns, flag, goalRects, boxes:[], items:[], hazards:(map.hazards||[]).map(h=>Object.assign({angle:0}, h)), killY:map.killY, t:0, players:[], order:[] };
+    const w = { W, H, map, solid, spawns, flag, goalRects, boxes:[], items:[], hazards:(map.hazards||[]).map(h=>Object.assign({angle:0}, h)), killY:map.killY, t:0, players:[], order:[] };
+    // elevator: a moving solid slab, parked at the top until someone stands on a button
+    for (const h of w.hazards) if (h.type === 'elevator'){ h.y = h.top; h.state = 'idle'; h.wait = 0; h.pressed = h.buttons.map(()=>false); h.bi = w.boxes.length; w.boxes.push({x:h.x, y:h.y, w:h.w, h:0.5}); }
+    return w;
   }
   const tileSolid = (w,x,y)=> x<0 || x>=w.W ? true : (y<0 || y>=w.H ? false : w.solid[y][x]);
   const overlap = (a,b)=> a.l < b.r-EPS && a.r > b.l+EPS && a.t < b.b-EPS && a.b > b.t+EPS;
@@ -172,12 +175,30 @@ var GaoshiPhysics = (function(){
     const D = RL.dims(it.type, it.r), cx = it.x + D.w/2, cy = it.y + D.h/2, nx = Math.max(sh.l, Math.min(cx, sh.r)), ny = Math.max(sh.t, Math.min(cy, sh.b));
     return (nx-cx)*(nx-cx) + (ny-cy)*(ny-cy) < d.radius*d.radius;
   }
+  const rectBox = (q)=>({l:q.x, r:q.x+q.w, t:q.y, b:q.y+q.h});
+  const shrink = (r)=>({l:r.l + (r.r-r.l)*0.1, r:r.r - (r.r-r.l)*0.1, t:r.t + (r.b-r.t)*0.1, b:r.b - (r.b-r.t)*0.05});   // ~80% damage box
+  // elevator: idle at top → (button) down → wait at bottom → back up → idle. Riders move with it.
+  function stepElevator(w, h, dt){
+    h.pressed = h.buttons.map(bt=>w.players.some(p=>p.alive && !p.done && overlap(rectOf(p), {l:bt.x-0.55, r:bt.x+0.55, t:bt.y-0.4, b:bt.y+0.05})));
+    let dy = 0;
+    if (h.state === 'idle'){ if (h.pressed.some(Boolean)) h.state = 'down'; }
+    else if (h.state === 'down'){ dy = Math.min(h.speed*dt, h.bottom - h.y); if (h.y + dy >= h.bottom - 1e-6){ h.state = 'wait'; h.wait = h.waitSec; } }
+    else if (h.state === 'wait'){ h.wait -= dt; if (h.wait <= 0) h.state = 'up'; }
+    else if (h.state === 'up'){ dy = -Math.min(h.speed*dt, h.y - h.top); if (h.y + dy <= h.top + 1e-6) h.state = 'idle'; }
+    if (!dy) return;
+    const riders = w.players.filter(p=>!p.remote && p.x + p.w/2 > h.x + EPS && p.x - p.w/2 < h.x + h.w - EPS && Math.abs(p.y - h.y) < 0.08 && p.vy >= 0);
+    h.y += dy; w.boxes[h.bi].y = h.y;
+    for (const p of riders){ p.y = h.y; if (dy < 0) p.vy = 0; }
+  }
   const touchesGoal = (w, r)=> w.goalRects.some(g=>overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h}));
 
   // ---------- world step (fixed 60 Hz) ----------
   function stepWorld(w, inputs, dt){
     dt = dt || DT; w.t += dt;
     for (const h of w.hazards) if (h.type === 'rotating_blade') h.angle = w.t / h.periodSec * Math.PI * 2;
+    for (const h of w.hazards) if (h.type === 'elevator') stepElevator(w, h, dt);
+    // waterfall: anyone in the water is pushed down (falls faster, jumps lower)
+    for (const h of w.hazards) if (h.type === 'push') for (const p of w.players) if (!p.remote && p.alive && !p.done && overlap(rectOf(p), rectBox(h.rect))) p.vy = Math.min(p.vy + h.accel*dt, Math.max(p.vy, h.maxVy));
     // online: other people's runners are puppets driven by the network, only local runners are simulated here
     w.players.forEach((p,i)=>{ if (!p.remote) stepPlayer(w, p, inputs[i] || {}, dt); else p.events.length = 0; });
     separatePlayers(w);
@@ -193,6 +214,7 @@ var GaoshiPhysics = (function(){
       if (p.done) continue;
       if (p.y - p.h > w.killY) { kill(p, {type:'fall'}); p.gone = true; continue; }
       for (const h of w.hazards) if (h.lethal && h.type === 'rotating_blade' && bladeHits(h, r)) kill(p, {type:'hazard', id:h.type});
+      for (const h of w.hazards) if (h.lethal && h.type === 'spikes' && p.alive && overlap(shrink(r), rectBox(h.rect))) kill(p, {type:'hazard', id:h.look || h.type});
       for (const it of w.items) if (p.alive && itemKills(it, r)) kill(p, {type:'item', item:it.type, owner:it.owner, trap:!!RL.ITEMS[it.type].trap});
       if (!p.alive) continue;
       for (const it of w.items) if (it.type === 'coin' && it.carrier === undefined && overlap(r, {l:it.cx-0.4, r:it.cx+0.4, t:it.cy-0.4, b:it.cy+0.4})){ it.carrier = p.i; p.coin = it; p.events.push('coin'); }

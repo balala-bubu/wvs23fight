@@ -205,7 +205,7 @@ var GaoshiGame = (function(){
   function mapThumb(map){
     const cv = document.createElement('canvas'), k = 6; cv.width = 32*k; cv.height = 18*k; const g = cv.getContext('2d');
     const hx = (n)=>'#' + n.toString(16).padStart(6,'0'); const gr = g.createLinearGradient(0,0,0,cv.height); gr.addColorStop(0, hx(map.sky[0])); gr.addColorStop(1, hx(map.sky[1])); g.fillStyle = gr; g.fillRect(0,0,cv.width,cv.height);
-    const C = {'#':'#8b92a1', C:'#a04a3a', G:'#6f9a4a', B:'#a8382e', T:'#3f8f3a', M:'#7d7f86', P:'#8a6038', O:'#b9bec4', F:'#f2c14e'};
+    const C = {W:'#6d6a72', H:'#5a3f2e', R:'#3e3448', K:'#7a6e60', Q:'#5ea83f', '#':'#8b92a1', C:'#a04a3a', G:'#6f9a4a', B:'#a8382e', T:'#3f8f3a', M:'#7d7f86', P:'#8a6038', O:'#b9bec4', F:'#f2c14e'};
     map.grid.forEach((row,y)=>[...row].forEach((c,x)=>{ if ('.S'.includes(c)) return; g.fillStyle = C[c] || '#888'; g.fillRect(x*k, y*k, k, k); }));
     return cv;
   }
@@ -753,7 +753,7 @@ var GaoshiGame = (function(){
       ART.updateItems(dt, t, S.items);
       const tm = Math.max(0, S.timer), sec = Math.ceil(tm); $('timer').textContent = S.mode === 'score' || S.mode === 'over' ? '' : sec; $('timer').classList.toggle('low', tm <= 5);
     } else if (S.mode === 'select') animateSelect(dt);
-    const hz = S.world && S.mode === 'race' ? S.world.hazards[0] : null;
+    const hz = S.world && S.mode === 'race' ? S.world.hazards : null;
     ART.update(dt, t, hz);
     // screen shake (skipped with reduced motion)
     if (S.shake > 0 && !reduceMotion){ S.shake -= dt; camera.position.x = (Math.random()-.5)*S.shake; camera.position.y = 9.4 + (Math.random()-.5)*S.shake; } else if (camera.position.x !== 0){ camera.position.x = 0; camera.position.y = 9.4; }
