@@ -1,9 +1,9 @@
 import {ITEM_KINDS} from '../game/itemCatalog'
 /** Data-only racing protocol. No media, executable code, or asset transfer. */
-export const PROTOCOL = 4
+export const PROTOCOL = 5
 export const SNAPSHOT_HZ = 15
 export const INPUT_HZ = 30
-export const RACER_WIDTH = 52
+export const RACER_WIDTH = 53
 const MAGIC = 51025, HEADER = 14
 export type Seat = { slot:number; character:string; kart:string; skin?:number; ready:boolean; connected:boolean }
 export type Controls = {seq:number; throttle:number; brake:number; steer:number; drift:boolean; item:number}
@@ -29,7 +29,7 @@ export function readFrame(data:unknown):Frame|null {
  if(a.length!==HEADER+a[9]*RACER_WIDTH+a[10]+a[11]*7+a[12]*4+a[13]*8||!a.every(n=>Number.isFinite(n)&&Math.abs(n)<1e8))return null
  let p=HEADER;const take=(n:number)=>Array.from(a.slice(p,p+=n)),racers=Array.from({length:a[9]},()=>take(RACER_WIDTH)),crates=take(a[10]),traps=Array.from({length:a[11]},()=>take(7)),bees=Array.from({length:a[12]},()=>take(4)),shots=Array.from({length:a[13]},()=>take(8))
  for(const shot of shots)if(!int(shot[0],0,3)||!int(shot[7],0,5))return null
- for(const r of racers)if(!int(r[20],0,ITEM_KINDS.length)||!int(r[21],0,ITEM_KINDS.length)||!int(r[23],1,6)||!int(r[25],0,6)||!int(r[29],0,1))return null
+ for(const r of racers)if(!int(r[20],0,ITEM_KINDS.length)||!int(r[21],0,ITEM_KINDS.length)||!int(r[51],0,ITEM_KINDS.length)||!int(r[52],0,8)||!int(r[23],1,6)||!int(r[25],0,6)||!int(r[29],0,1))return null
  return {race:a[2],seq:a[3],time:a[4],phase:a[5],phaseTime:a[6],raceTime:a[7],countdown:a[8],racers,crates,traps,bees,shots}
 }
 export const mixAngle=(a:number,b:number,t:number)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t

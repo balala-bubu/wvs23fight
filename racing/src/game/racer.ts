@@ -26,6 +26,9 @@ export class Racer {
   progress: Progress
   place = 1
   item: ItemKind | null = null
+  reserveItem: ItemKind | null = null
+  reserveUses = 0
+  useDelay = 0
   /** Seconds left on the item roulette (item is revealed at 0). */
   roulette = 0
   rouletteItem: ItemKind | null = null

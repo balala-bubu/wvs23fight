@@ -34,6 +34,9 @@ export type HudState = {
   lastLap: number
   item: ItemKind | null
   itemUses:number
+  reserveItem: ItemKind | null
+  reserveUses: number
+  reserveRolling: boolean
   ink:number
   effect:string
   coins:number
@@ -196,7 +199,7 @@ export class Game {
   networkSnapshot():Omit<Frame,'race'|'seq'> {
     const kinds:readonly string[]=ITEM_KINDS
     return {time:this.time,phase:['intro','countdown','racing','done'].indexOf(this.phase),phaseTime:this.phaseTime,raceTime:this.raceTime,countdown:this.countdownShown,
-      racers:this.racers.map(r=>{const k=r.kart,p=r.progress;return [k.position.x,k.position.y,k.position.z,k.yaw,k.velocity.x,k.velocity.y,k.velocity.z,k.speed,+k.grounded,k.airTime,+k.drifting,k.driftDir,k.driftCharge,k.driftTier,k.boostTime,k.boostPower,k.spinAngle,r.shieldTime,r.goo,r.roulette,kinds.indexOf(r.item??'')+1,kinds.indexOf(r.rouletteItem??'')+1,r.incomingBee,r.place,r.finishPlace,p.lapsDone,p.u,p.lastS,p.lapStart,+p.finished,p.finishTime,p.lapTimes.at(-1)??0,r.respawnTime,r.input.steer,r.wrongWay,k.surface.speedMul,k.groundNormal.x,k.groundNormal.y,k.groundNormal.z,p.lapTimes.length?Math.min(...p.lapTimes):0,this.networkInputs.get(r.id)?.c.seq??0,this.trick.get(r)??-1,r.invincibleTime,r.smallTime,r.rocketTime,r.goldenTime,r.inkTime,r.ghostTime,r.chompTime,r.itemUses,r.coins,0]}),
+      racers:this.racers.map(r=>{const k=r.kart,p=r.progress;return [k.position.x,k.position.y,k.position.z,k.yaw,k.velocity.x,k.velocity.y,k.velocity.z,k.speed,+k.grounded,k.airTime,+k.drifting,k.driftDir,k.driftCharge,k.driftTier,k.boostTime,k.boostPower,k.spinAngle,r.shieldTime,r.goo,r.roulette,kinds.indexOf(r.item??'')+1,kinds.indexOf(r.rouletteItem??'')+1,r.incomingBee,r.place,r.finishPlace,p.lapsDone,p.u,p.lastS,p.lapStart,+p.finished,p.finishTime,p.lapTimes.at(-1)??0,r.respawnTime,r.input.steer,r.wrongWay,k.surface.speedMul,k.groundNormal.x,k.groundNormal.y,k.groundNormal.z,p.lapTimes.length?Math.min(...p.lapTimes):0,this.networkInputs.get(r.id)?.c.seq??0,this.trick.get(r)??-1,r.invincibleTime,r.smallTime,r.rocketTime,r.goldenTime,r.inkTime,r.ghostTime,r.chompTime,r.itemUses,r.coins,kinds.indexOf(r.reserveItem??'')+1,r.reserveUses]}),
       crates:this.items.crates.map(c=>+c.mesh.visible),traps:this.items.traps.map(t=>{const p=t.body.translation(),q=t.body.rotation();return [p.x,p.y-.25,p.z,q.x,q.y,q.z,q.w]}),bees:this.items.bees.slice(0,12).map(b=>[b.pos.x,b.pos.y,b.pos.z,b.mesh.rotation.y]),shots:this.items.shots.map(s=>[s.kind,s.pos.x,s.pos.y,s.pos.z,s.mesh.rotation.y,s.life,s.age,s.owner.id])}
   }
   networkShowResult(result:RaceResult):void {this.mode='ended';this.resultsShown=true;this.finishedResult=result;this.stopLoops();this.music.start(RESULTS_SONG);this.hooks.finished(result)}
@@ -227,7 +230,7 @@ export class Game {
       if(!n[8])yawRate*=.55
       const targetYaw=n[3]-(local?yawRate*age:0)
       k.yaw=local?k.yaw+Math.atan2(Math.sin(targetYaw-k.yaw),Math.cos(targetYaw-k.yaw))*(1-Math.exp(-14*dt)):targetYaw;k.prevYaw=k.yaw;k.speed=v[7];k.grounded=!!v[8];k.airTime=v[9];k.drifting=!!v[10];k.driftDir=v[11];k.driftCharge=v[12];k.driftTier=v[13];k.boostTime=v[14];k.boostPower=v[15];k.spinAngle=v[16];r.shieldTime=v[17];r.goo=v[18];r.roulette=v[19];const item=kinds[v[20]-1]??null;if(r.isPlayer&&item&&item!==r.item&&r.roulette<=0){this.hooks.itemReady(item);this.audio.play('itemReady')}r.item=item;r.rouletteItem=kinds[v[21]-1]??null;r.incomingBee=v[22];r.place=v[23];r.finishPlace=v[24]
-      r.progress={...r.progress,lapsDone:v[25],u:v[26],lastS:v[27],lapStart:v[28],finished:!!v[29],finishTime:v[30],lapTimes:v[31]?[v[31]]:[]};r.respawnTime=v[32];r.input.steer=THREE.MathUtils.damp(r.input.steer,local?this.input.axes.steer:v[33],14,dt);r.wrongWay=v[34];r.invincibleTime=v[42];r.smallTime=v[43];r.rocketTime=v[44];r.goldenTime=v[45];r.inkTime=v[46];r.ghostTime=v[47];r.chompTime=v[48];r.itemUses=v[49];r.coins=v[50];k.surface.speedMul=v[35];k.groundNormal.set(v[36],v[37],v[38]);this.track.locate(k.position,r.tracker);if(v[41]>=0)this.trick.set(r,v[41]);else this.trick.delete(r)
+      r.progress={...r.progress,lapsDone:v[25],u:v[26],lastS:v[27],lapStart:v[28],finished:!!v[29],finishTime:v[30],lapTimes:v[31]?[v[31]]:[]};r.respawnTime=v[32];r.input.steer=THREE.MathUtils.damp(r.input.steer,local?this.input.axes.steer:v[33],14,dt);r.wrongWay=v[34];r.invincibleTime=v[42];r.smallTime=v[43];r.rocketTime=v[44];r.goldenTime=v[45];r.inkTime=v[46];r.ghostTime=v[47];r.chompTime=v[48];r.itemUses=v[49];r.coins=v[50];r.reserveItem=kinds[(v[51]??0)-1]??null;r.reserveUses=v[52]??0;k.surface.speedMul=v[35];k.groundNormal.set(v[36],v[37],v[38]);this.track.locate(k.position,r.tracker);if(v[41]>=0)this.trick.set(r,v[41]);else this.trick.delete(r)
     })
     this.ordered=[...this.racers].sort((a,b)=>a.place-b.place)
     if(this.phase==='countdown'){const n=Math.max(1,Math.min(3,Math.ceil(CONFIG.race.countdown+.6-f.phaseTime)));if(n!==this.networkCount){this.networkCount=n;this.hooks.countdown(n);this.audio.play('count')}}else if(this.networkCount!==0){this.networkCount=0;this.hooks.countdown(0);this.hooks.banner('go');this.music.start(RACE_SONG)}
@@ -548,7 +551,7 @@ export class Game {
     for (const o of this.racers) if (o !== r && o.position.distanceToSquared(k.position) < 20 * 20) nearby.push({ position: o.position, radius: 1.1, hazard: false })
     // Line up with crates when empty-handed.
     driver.laneBias = 0
-    if (!r.item && r.roulette <= 0 && path === this.track.main) {
+    if (!(r.item && r.reserveItem) && r.roulette <= 0 && path === this.track.main) {
       for (const c of this.items.crates) {
         if (c.respawn > 0) continue
         const d = c.pos.distanceTo(k.position)
@@ -940,9 +943,10 @@ export class Game {
       laps: CONFIG.race.laps,
       time: p.finished ? p.progress.finishTime : this.raceTime,
       lastLap: p.progress.lapTimes[p.progress.lapTimes.length - 1] ?? 0,
+      reserveItem:p.reserveItem,reserveUses:p.reserveItem?(p.reserveUses||itemCharges(p.reserveItem)):0,reserveRolling:!!p.item&&p.roulette>0,
       item: p.item,itemUses:p.item?(p.itemUses||itemCharges(p.item)):0,ink:p.inkTime,coins:p.coins,
       effect:p.rocketTime>0?'奶龍自動駕駛':p.invincibleTime>0?'無敵中':p.smallTime>0?'縮小減速':p.ghostTime>0?'幽靈穿透':p.chompTime>0?'貝殼夾擊':p.goldenTime>0?'持續加速':'',
-      rolling: p.roulette > 0,
+      rolling: !p.item && p.roulette > 0,
       shield: p.shieldTime,
       driftTier: k.driftTier,
       driftCharge: k.driftCharge,

@@ -49,8 +49,8 @@ export const CONFIG = {
     fluffSpeed: 0.5,
   },
   items: {
-    boxRespawn: 3.2,
-    roulette: 1.1,
+    boxRespawn: 1.2,
+    roulette: 0.45,
     shieldSeconds: 8,
     pepperSeconds: 1.7,
     pepperPower: 1.2,

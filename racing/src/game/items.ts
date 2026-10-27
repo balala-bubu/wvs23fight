@@ -129,11 +129,11 @@ export class Items {
         continue
       }
       for (const r of racers) {
-        if (r.respawnTime > 0) continue
+        if (r.respawnTime > 0 || r.finished || r.roulette > 0 || (r.item && r.reserveItem)) continue
         const d = r.position.distanceToSquared(c.pos)
         if (d < 2.3 * 2.3) {
           this.breakCrate(c, r)
-          if (!r.item && r.roulette <= 0) {
+          if (r.roulette <= 0) {
             r.roulette = CONFIG.items.roulette
             r.rouletteItem = rollItem(r.place - 1, racers.length, Math.random)
             this.hooks.got(r)
@@ -145,11 +145,17 @@ export class Items {
     this.stepExtras(dt,racers)
     // Roulettes.
     for (const r of racers) {
+      r.useDelay = Math.max(0, r.useDelay - dt)
       if (r.roulette > 0) {
         r.roulette -= dt
         if (r.roulette <= 0) {
-          r.item = r.rouletteItem
-          r.itemUses=0
+          if (r.item) {
+            r.reserveItem = r.rouletteItem
+            r.reserveUses = r.rouletteItem ? itemCharges(r.rouletteItem) : 0
+          } else {
+            r.item = r.rouletteItem
+            r.itemUses = r.item ? itemCharges(r.item) : 0
+          }
           r.rouletteItem = null
           r.aiItemDelay = 0.6 + Math.random() * 2.2
         }
@@ -309,7 +315,8 @@ export class Items {
 
   use(r: Racer, ordered: Racer[]): ItemKind | null {
     const held=r.item
-    if(!held)return null
+    if(!held || r.useDelay > 0)return null
+    r.useDelay = 0.25
     const remaining=(r.itemUses||itemCharges(held))-1
     r.itemUses=remaining;r.item=remaining>0?held:null;r.aiItemDelay=.55
     const party=['shield','pepper','shell','bee','taffy','bomb','star','coin'] as const
@@ -330,13 +337,13 @@ export class Items {
       case 'ghost':{
         r.ghostTime=4
         const victim=ordered.find(o=>o!==r&&o.item&&!o.finished)
-        if(victim){r.item=victim.item;r.itemUses=victim.itemUses;victim.item=null;victim.itemUses=0}
+        if(victim){r.item=victim.item;r.itemUses=victim.itemUses;victim.item=victim.reserveItem;victim.itemUses=victim.reserveUses;victim.reserveItem=null;victim.reserveUses=0}
         this.fx.ring(r.position,'#b7a0ff',16,7,.6);break
       }
       case 'chomp':r.chompTime=7;r.chompCooldown=0;break
       case 'ink':for(const o of ordered)if(o!==r&&!o.finished&&o.place<r.place&&!this.protected(o))o.inkTime=4;break
       case 'lightning':
-        for(const o of ordered)if(o!==r&&!o.finished&&!this.protected(o)){o.smallTime=5;o.item=null;o.itemUses=0;o.coins=Math.max(0,o.coins-3);o.kart.spinOut(.6,.6);this.fx.ring(o.position,'#ffe066',10,5,.6)}
+        for(const o of ordered)if(o!==r&&!o.finished&&!this.protected(o)){o.smallTime=5;o.item=null;o.itemUses=0;o.reserveItem=null;o.reserveUses=0;o.roulette=0;o.rouletteItem=null;o.coins=Math.max(0,o.coins-3);o.kart.spinOut(.6,.6);this.fx.ring(o.position,'#ffe066',10,5,.6)}
         break
       case 'horn':this.blast(r.position,8,r,ordered);this.clearNearby(r.position,12);break
       case 'leader':{const target=ordered.find(o=>o!==r&&!o.finished);if(target)this.launchBee(r,target);break}
@@ -362,6 +369,12 @@ export class Items {
         this.hooks.sfx('beeLaunch', r.position)
         break
       }
+    }
+    if (!r.item && r.reserveItem) {
+      r.item = r.reserveItem
+      r.itemUses = r.reserveUses
+      r.reserveItem = null
+      r.reserveUses = 0
     }
     return kind
   }

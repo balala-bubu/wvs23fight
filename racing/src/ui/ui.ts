@@ -87,6 +87,19 @@ export class Ui {
     })
   }
 
+  private updateReserve(s: HudState): void {
+    const slot = this.q('hud', '[data-reserve-slot]')
+    const icon = this.q('hud', '[data-reserve-icon]')
+    const name = this.q('hud', '[data-reserve-name]')
+    const empty = this.q('hud', '[data-reserve-empty]')
+    slot.className = 'itemslot' + (s.reserveItem ? ' ready' : s.reserveRolling ? ' rolling' : '')
+    icon.innerHTML = s.reserveItem ? ITEM_ICONS[s.reserveItem] : s.reserveRolling ? ITEM_ICONS[ITEM_KINDS[this.rouletteIndex]] : ''
+    empty.hidden = !!s.reserveItem || s.reserveRolling
+    name.textContent = s.reserveItem ? this.t(`item.${s.reserveItem}`) : s.reserveRolling ? '抽選中…' : ''
+    slot.title = s.reserveItem ? this.t(`item.${s.reserveItem}.desc`) : '用完第一格後自動遞補'
+    this.q('hud', '[data-reserve-count]').textContent = s.reserveUses > 1 ? '×' + s.reserveUses : ''
+  }
+
   private t(key: string, vars?: Record<string, string | number>): string {
     return this.i18n.t(key, vars)
   }
@@ -106,7 +119,7 @@ export class Ui {
       'title',
       h(`<section>
         <a class="club-back" href="../../index.html">← 世志遊戲大集合</a><div class="title-wrap">
-          <div class="logo"><span class="logo-kicker" data-i18n="game.subtitle"></span><span class="logo-main" data-i18n="game.title"></span><span class="logo-sub">WVS KART RACING</span></div>
+          <img class="race-brand" src="racing-logo.png" alt="世志賽車世界 WVS KART WORLD" width="1738" height="900">
           <p class="tagline" data-i18n="game.tagline"></p>
           <nav class="menu">
             <button class="btn btn-primary btn-big" data-nav data-act="race">${ICON.flag}<span data-i18n="menu.race"></span></button>
@@ -148,9 +161,9 @@ export class Ui {
           <div class="timebox" data-time>0:00.00</div>
         </div>
         <div class="hud-tr">
-          <div class="itemslot" data-itemslot><div class="item-icon" data-item-icon></div><span class="item-empty" data-item-empty data-i18n="hud.emptyItem"></span></div>
+          <div class="inventory"><div class="item-primary"><span class="slot-label">使用中</span><div class="itemslot" data-itemslot><div class="item-icon" data-item-icon></div><span class="item-empty" data-item-empty data-i18n="hud.emptyItem"></span></div>
           <div class="item-name" data-item-name></div><div class="item-count" data-item-count></div><div class="item-effect" data-item-effect></div>
-          <div class="item-key" data-item-key></div>
+          <div class="item-key" data-item-key></div></div><div class="item-reserve"><span class="slot-label">下一個</span><div class="itemslot" data-reserve-slot><div class="item-icon" data-reserve-icon></div><span class="item-empty" data-reserve-empty>空欄位</span></div><div class="item-name" data-reserve-name></div><div class="item-count" data-reserve-count></div></div></div><p class="inventory-help">用完自動遞補・最多攜帶兩個</p>
         </div>
         <button class="pausebtn" data-act="pause" aria-label="pause">${ICON.pause}</button>
         <div class="hud-bl"><canvas class="minimap" data-minimap width="220" height="220"></canvas></div>
@@ -683,6 +696,7 @@ export class Ui {
     if(!s.item&&!s.rolling)name.textContent=this.t('hud.pickupItem')
     slot.dataset.item = s.rolling ? '' : (s.item ?? '')
     slot.classList.toggle('shielded', s.shield > 0)
+    this.updateReserve(s)
     this.q('hud','[data-item-count]').textContent=s.itemUses>1?'×'+s.itemUses:''
     this.q('hud','[data-item-effect]').textContent=(s.effect?s.effect+' · ':'')+'Offer '+s.coins+'/10'
     this.screens.get('hud')?.classList.toggle('inked',s.ink>0)
