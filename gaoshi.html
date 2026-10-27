@@ -15,6 +15,7 @@
   color-scheme:dark;
 }
 html,body{height:100%;margin:0;overflow:hidden}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
@@ -86,6 +87,52 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 #loading[hidden]{display:none}
 #touchNote{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:13px;color:var(--dim);background:var(--panel);padding:6px 12px;border-radius:10px;text-align:center}
 @media (max-width:640px){.plate{min-width:0;flex:1}.plate .nm{font-size:20px}.mapc{width:46vw}.mapc canvas{width:100%;height:auto;aspect-ratio:16/9}}
+
+.roster .rc.rnd{color:var(--gold);font-weight:900}
+.skins .rc{min-width:110px;font-size:17px}
+.skins .rc.on{border-color:var(--pc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pc) 40%,transparent)}
+.skins .okb{border-color:var(--gold);color:var(--gold);font-weight:700}
+.roster button:focus-visible,.card:focus-visible,.big:focus-visible,.ghost:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* party box */
+#scrPick{justify-content:flex-end;padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+.pickBox{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--line);border-radius:20px;padding:12px 16px;max-width:min(980px,100%)}
+.cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.card{position:relative;width:170px;min-height:190px;border-radius:16px;border:3px solid var(--line);background:#1d1714;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 10px 12px;transition:transform .15s,opacity .2s}
+.card canvas{width:88px;height:66px}
+.card b{font-size:20px}
+.card .ds{font-size:13px;color:var(--dim);text-align:center;line-height:1.35}
+.card .cat{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-top:auto}
+.card .cat.trap{color:#ff8f6b;border-color:#ff8f6b}
+.card .mk{display:flex;gap:2px;position:absolute;top:-10px;right:-6px}
+.card .mk i{font-style:normal;font-family:var(--pixel);font-size:16px;line-height:1;padding:2px 5px;border-radius:5px;color:#000}
+.card.taken{opacity:.45;transform:scale(.94)}
+.card .tk{position:absolute;inset:auto 8px 46px;background:rgba(0,0,0,.8);border-radius:8px;font-weight:900;padding:4px;color:var(--gold)}
+/* place labels */
+.tagl.bad{background:var(--bad);color:#fff}
+.tagl.bad::after{border-top-color:var(--bad)}
+/* score bars (each cell = 1/5 point) */
+.bar{display:grid;grid-template-columns:repeat(25,1fr);gap:2px;width:150px;margin-top:3px}
+.bar i{height:7px;border-radius:2px;background:rgba(246,238,223,.14)}
+.bar i.pt{margin-right:3px}
+.bar i.f{background:var(--pc)}
+.bar i.n{background:var(--pc);animation:fill .3s both;box-shadow:0 0 6px var(--pc)}
+@keyframes fill{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+.chip{flex-direction:column;align-items:stretch;gap:0}
+.chip .top{display:flex;gap:8px;align-items:center}
+.sheet.wide{width:min(720px,100%);box-sizing:border-box}
+.srows{display:flex;flex-direction:column;gap:10px;width:100%}
+.srow{display:grid;grid-template-columns:150px 1fr;grid-template-rows:auto auto;gap:4px 12px;align-items:center;border-left:6px solid var(--pc);background:#1d1714;border-radius:10px;padding:8px 12px}
+.srow .nm{display:flex;gap:8px;align-items:center;grid-row:1/3}
+.srow .nm b{font-family:var(--pixel);font-size:24px;color:var(--pc)}
+.srow .aw{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.srow .aw .a{font-size:14px;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--pc);color:#000;animation:pop2 .35s both}
+.srow .aw .a.trap{background:#ff8f6b}.srow .aw .a.coin{background:var(--gold)}
+.srow .aw .none{color:var(--dim);font-size:14px}
+.srow .bar{width:100%;grid-column:2}
+.srow .bar i{height:10px}
+@keyframes pop2{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@media (max-width:640px){.card{width:44vw;min-height:170px}.srow{grid-template-columns:1fr}.srow .nm{grid-row:auto}.srow .bar{grid-column:1}}
+@media (prefers-reduced-motion: reduce){.bar i.n,.srow .aw .a,.flash{animation:none}}
 </style>
 </head>
 <body>
@@ -109,7 +156,7 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 </section>
 
 <section class="scr" id="scrSelect" hidden>
-  <div class="selTop"><h2 class="scrH">選角色</h2><div class="roster" id="roster"></div></div>
+  <div class="selTop"><h2 class="scrH" id="selH">選角色</h2><div class="roster" id="roster"></div><div class="roster skins" id="skins" hidden></div></div>
   <div class="plates" id="plates" style="margin-bottom:env(safe-area-inset-bottom,0px)"></div>
   <button class="ghost" id="selBack">← 返回</button>
 </section>
@@ -121,29 +168,39 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
   <button class="ghost" id="mapBack">返回選角</button>
 </section>
 
+<section class="scr" id="scrPick" hidden>
+  <div class="pickBox"><h2 class="scrH">派對盒</h2><div class="cards" id="cards"></div>
+    <div class="keys">P1 <kbd>A</kbd><kbd>D</kbd> 選、<kbd>W</kbd> 拿　P2 <kbd>←</kbd><kbd>→</kbd> 選、<kbd>↑</kbd> 拿　也可以直接點　<span id="pickNote"></span></div></div>
+</section>
+
+<section class="scr dimmer" id="scrScore" hidden>
+  <div class="sheet wide"><div class="res" id="scVerdict"></div><div class="why" id="scWhy"></div><div class="srows" id="scRows"></div>
+    <button class="big" id="scNext">下一回合</button></div>
+</section>
+
 <div id="hud" hidden>
   <div class="hudTop"><div class="phase"><span id="phaseName">跑到終點旗！</span><span class="t" id="timer">60</span></div></div>
   <div class="chips l" id="chipsL"></div><div class="chips r" id="chipsR"></div>
   <div id="tags"></div>
-  <div class="hint" id="hint">第 1 次試玩：只有跑關，選道具和放道具在下一版加入</div>
+  <div class="hint" id="hint"></div>
   <div id="flashBox"></div>
 </div>
 
 <section class="scr dimmer" id="scrPause" hidden>
   <div class="sheet"><div class="res">暫停</div>
-    <div class="row"><button class="big" id="pResume">繼續</button><button class="big" id="pRetry">重跑</button></div>
+    <div class="row"><button class="big" id="pResume">繼續</button><button class="big" id="pRestart">重新開始</button></div>
     <div class="row"><button class="ghost" id="pMap">換地圖</button><button class="ghost" id="pChar">換角色</button><button class="ghost" id="pTitle">回標題</button></div>
   </div>
 </section>
 
 <section class="scr dimmer" id="scrResult" hidden>
   <div class="sheet"><div class="res" id="resTitle"></div><div class="why" id="resWhy"></div><div class="rank" id="resRank"></div>
-    <div class="row"><button class="big" id="rRetry">再跑一次</button></div>
+    <div class="row"><button class="big" id="rRetry">再來一場</button></div>
     <div class="row"><button class="ghost" id="rMap">換地圖</button><button class="ghost" id="rChar">換角色</button><button class="ghost" id="rTitle">回標題</button></div>
   </div>
 </section>
 
-<div id="touchNote" hidden>這一版先用鍵盤玩；手機當手把會在第 3 次加入</div>
+<div id="touchNote" hidden>這一版先用鍵盤和滑鼠玩；手機當手把之後加入</div>
 
 <script>
 (async()=>{
@@ -152,14 +209,14 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
   const script = (src)=>new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = src.startsWith('http') ? src : src + version; s.onload = ok; s.onerror = ()=>no(new Error('無法載入 ' + src)); document.head.appendChild(s); });
   try{
     await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
-    await script('js/gaoshi-physics.js'); await script('js/gaoshi-maps.js');
+    await script('js/gaoshi-rules.js'); await script('js/gaoshi-physics.js'); await script('js/gaoshi-maps.js');
     await script('js/gaoshi-scene.js'); await script('js/gaoshi-models.js');
     // roster follows 世志大亂鬥: read its character list so new characters show up here too
     let names = ['waffle','tommy','karl','seafood','bear','serene','kiafes','newton','kattisbbb','jackson','janice','masterogway','kelsey','wxinyy','jennie','pudding','xuan','ichung'];
     try { const html = await (await fetch('brawl.html' + version, {cache:'no-cache'})).text(); const found = [...html.matchAll(/S\('characters\/([a-z]+)\.js'\)/g)].map(m=>m[1]); if (found.length) names = found; } catch(_){}
     bar.max = names.length + 1; status.textContent = '正在準備角色…';
     for (const n of names){ try { await script('characters/' + n + '.js'); } catch(e){ console.warn(e); } bar.value++; }
-    await script('js/gaoshi.js'); bar.value++;
+    await script('js/gaoshi-art.js'); await script('js/gaoshi.js'); bar.value++;
     GaoshiGame.boot(); document.getElementById('loading').hidden = true;
   }catch(e){ status.textContent = '載入失敗：' + e.message + '，請重新整理'; console.error(e); }
 })();

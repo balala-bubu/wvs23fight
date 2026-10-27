@@ -2,6 +2,7 @@
  * Numbers follow PLAN.md §7.2. Loaded by gaoshi.html and by tools/gaoshi_test.cjs. */
 'use strict';
 var GaoshiPhysics = (function(){
+  const RL = (typeof GaoshiRules !== 'undefined') ? GaoshiRules : require('./gaoshi-rules.js');
   const G = 66;                                    // TODO(verify): 對照原作 — gravity not published
   // solved for the discrete 60 Hz step so the peak lands on the target height exactly
   const vFromApex = (h)=>{ const a = G/120; return a + Math.sqrt(a*a + 2*G*h); };
@@ -20,13 +21,17 @@ var GaoshiPhysics = (function(){
     wallJumpInputLock:0.12, wallClimb:true, playersCollide:true,
   };
   const DT = 1/60, EPS = 1e-4, PROBE = 0.05;
+  const FLAG = {pole:3.4, clothW:1.5, clothH:1.0};
 
   // ---------- world ----------
   // map: {size:[W,H], grid:[strings], goal, hazards, killY}; any char other than '.', 'S', 'F' is solid.
   function makeWorld(map){
     const [W,H] = map.size, spawns = [];
-    const solid = map.grid.map((row,y)=>[...row].map((c,x)=>{ if (c==='S') spawns.push({x:x+0.5, y:y+1}); return !(c==='.'||c==='S'||c==='F'); }));
-    return { W, H, map, solid, spawns, boxes:[], hazards:(map.hazards||[]).map(h=>Object.assign({angle:0}, h)), goal:map.goal, killY:map.killY, t:0, players:[], order:[] };
+    let flag = null;
+    const solid = map.grid.map((row,y)=>[...row].map((c,x)=>{ if (c==='S') spawns.push({x:x+0.5, y:y+1}); if (c==='F') flag = {x, y:y+1}; return !(c==='.'||c==='S'||c==='F'); }));
+    // the goal is the flag itself: its pole and its cloth, so a runner has to really touch it
+    const goalRects = flag ? [{x:flag.x+0.4, y:flag.y-FLAG.pole, w:0.2, h:FLAG.pole}, {x:flag.x+0.5, y:flag.y-FLAG.pole, w:FLAG.clothW, h:FLAG.clothH}] : [map.goal];
+    return { W, H, map, solid, spawns, flag, goalRects, boxes:[], items:[], hazards:(map.hazards||[]).map(h=>Object.assign({angle:0}, h)), killY:map.killY, t:0, players:[], order:[] };
   }
   const tileSolid = (w,x,y)=> x<0 || x>=w.W ? true : (y<0 || y>=w.H ? false : w.solid[y][x]);
   const overlap = (a,b)=> a.l < b.r-EPS && a.r > b.l+EPS && a.t < b.b-EPS && a.b > b.t+EPS;
@@ -36,6 +41,7 @@ var GaoshiPhysics = (function(){
     for (let y=Math.floor(r.t); y<=Math.floor(r.b-EPS); y++) for (let x=Math.floor(r.l); x<=Math.floor(r.r-EPS); x++)
       if (tileSolid(w,x,y)) out.push({l:x, r:x+1, t:y, b:y+1});
     for (const b of w.boxes) if (b.solid !== false){ const q = {l:b.x, r:b.x+b.w, t:b.y, b:b.y+b.h}; if (overlap(r,q)) out.push(q); }
+    for (const it of w.items) for (const s of RL.itemSolids(it)){ const q = {l:s.x, r:s.x+s.w, t:s.y, b:s.y+s.h}; if (overlap(r,q)) out.push(q); }
     if (playersToo && PHYSICS.playersCollide) for (const p of w.players) if (p!==self && p.alive && !p.done){ const q = rectOf(p); if (overlap(r,q)) out.push(Object.assign(q,{player:p})); }
     return out;
   }
@@ -156,6 +162,15 @@ var GaoshiPhysics = (function(){
     return false;
   }
   function kill(p, cause){ if (!p.alive || p.done) return; p.alive = false; p.cause = cause; p.vy = -14; p.vx = -p.face*3; p.events.push('die'); }
+  // item hazards: barbed wire (lower part of its cells) and the saw disc around its hub
+  function itemKills(it, r){
+    const d = RL.ITEMS[it.type]; if (!d.lethal) return false;
+    const sh = {l:r.l + (r.r-r.l)*0.1, r:r.r - (r.r-r.l)*0.1, t:r.t + (r.b-r.t)*0.1, b:r.b - (r.b-r.t)*0.05};   // ~80% damage box
+    if (d.lethal === 'rect') return overlap(sh, {l:it.x+0.05, r:it.x+d.w-0.05, t:it.y+0.3, b:it.y+d.h});
+    const cx = it.x + d.w/2, cy = it.y + d.h/2, nx = Math.max(sh.l, Math.min(cx, sh.r)), ny = Math.max(sh.t, Math.min(cy, sh.b));
+    return (nx-cx)*(nx-cx) + (ny-cy)*(ny-cy) < d.radius*d.radius;
+  }
+  const touchesGoal = (w, r)=> w.goalRects.some(g=>overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h}));
 
   // ---------- world step (fixed 60 Hz) ----------
   function stepWorld(w, inputs, dt){
@@ -164,16 +179,32 @@ var GaoshiPhysics = (function(){
     w.players.forEach((p,i)=>stepPlayer(w, p, inputs[i] || {}, dt));
     separatePlayers(w);
     for (const p of w.players){
-      if (!p.alive || p.done) continue;
       const r = rectOf(p);
-      if (p.y - p.h > w.killY) { kill(p, {type:'fall'}); continue; }
+      if (!p.alive){
+        // 原作：屍體被彈到旗子上也算碰到旗子（死後碰旗）；掉出畫面的屍體就消失
+        if (!p.postmortem && !p.gone && touchesGoal(w, r)){ p.postmortem = true; p.events.push('postmortem'); }
+        if (!p.gone && p.y - p.h > w.killY){ p.gone = true; }
+        continue;
+      }
+      if (p.done) continue;
+      if (p.y - p.h > w.killY) { kill(p, {type:'fall'}); p.gone = true; continue; }
       for (const h of w.hazards) if (h.lethal && h.type === 'rotating_blade' && bladeHits(h, r)) kill(p, {type:'hazard', id:h.type});
-      const g = w.goal;
-      if (p.alive && overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h})){ p.done = true; p.finishT = w.t; w.order.push(p.i); p.events.push('goal'); }
+      for (const it of w.items) if (p.alive && itemKills(it, r)) kill(p, {type:'item', item:it.type, owner:it.owner, trap:!!RL.ITEMS[it.type].trap});
+      if (!p.alive) continue;
+      for (const it of w.items) if (it.type === 'coin' && it.carrier === undefined && overlap(r, {l:it.cx-0.4, r:it.cx+0.4, t:it.cy-0.4, b:it.cy+0.4})){ it.carrier = p.i; p.coin = it; p.events.push('coin'); }
+      if (touchesGoal(w, r)){ p.done = true; p.finishT = w.t; w.order.push(p.i); p.events.push('goal'); }
+    }
+    // a coin follows its carrier; if the carrier dies it drops where they fell
+    for (const it of w.items) if (it.type === 'coin' && it.carrier !== undefined){
+      const p = w.players[it.carrier];
+      if (p.alive || p.done){ it.cx = p.x; it.cy = p.y - p.h - 0.6; }
+      else { it.carrier = undefined; p.coin = null; it.cx = Math.max(0.5, Math.min(w.W-0.5, p.x)); it.cy = Math.min(p.y - 0.5, w.H - 0.5); if (p.gone){ it.cx = it.x + 0.5; it.cy = it.y + 0.5; } }
     }
   }
   const raceOver = (w)=> w.players.every(p=>!p.alive || p.done);
+  // §5 input: who finished, in which order, with a coin, and which trap killed whom
+  const roundResult = (w)=> w.players.map(p=>({id:p.i, finished:p.done, order:p.done ? w.order.indexOf(p.i) : -1, coin:!!(p.done && p.coin), killedBy:p.cause && p.cause.type === 'item' ? {owner:p.cause.owner, trap:p.cause.trap} : null}));
 
-  return { PHYSICS, DT, makeWorld, addPlayer, stepPlayer, stepWorld, raceOver, rectOf, kill, solidsIn };
+  return { PHYSICS, DT, FLAG, roundResult, makeWorld, addPlayer, stepPlayer, stepWorld, raceOver, rectOf, kill, solidsIn };
 })();
 if (typeof module !== 'undefined') module.exports = GaoshiPhysics;

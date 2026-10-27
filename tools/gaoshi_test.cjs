@@ -70,8 +70,60 @@ for (const m of M.LIST){
   ok(m.name + '：18 列 × 32 欄', m.grid.length === 18 && m.grid.every(r=>r.length === 32));
   const w = P.makeWorld(m); ok(m.name + '：4 個出生點，腳下是實心', w.spawns.length === 4 && w.spawns.every(s=>w.solid[s.y][Math.floor(s.x)]));
 }
-// rooftops: without bridge nobody can reach; with test bridge a scripted run reaches the goal
-{ const m = M.byId.rooftops, w = P.makeWorld(m); w.boxes = m.testBoxes.slice(); const p = P.addPlayer(w, 0);
+// rooftops: no items → nobody gets across; two planks → a scripted run reaches and touches the flag
+const R = require('../js/gaoshi-rules.js');
+function rooftopRun(withPlanks){
+  const m = M.byId.rooftops, w = P.makeWorld(m); if (withPlanks) w.items = [{type:'plank',x:10,y:10,owner:0},{type:'plank',x:15,y:9,owner:0}];
+  const p = P.addPlayer(w, 0);
   for (let f=0; f<600 && !p.done && p.alive; f++){ const fr = p.x - p.w/2; P.stepWorld(w, [{right:true, run:true, jump: (p.onGround && (fr > 5.6 && fr < 6.5 || fr > 12.4 && fr < 13.4 || fr > 17.4 && fr < 18.6 || fr > 24.0 && fr < 25.2)) || (!p.onGround && p.vy < 0)}], P.DT); }
-  ok('屋頂：搭了測試橋可以抵達終點', p.done, 'x=' + p.x.toFixed(1) + ' alive=' + p.alive); }
+  return p;
+}
+ok('屋頂：不放道具過不去', !rooftopRun(false).done);
+{ const p = rooftopRun(true); ok('屋頂：放兩塊木板可以碰到旗子', p.done, 'x=' + p.x.toFixed(1)); }
+// flag must really be touched: jumping high over the pole does not count
+{ const m = M.byId.rooftops, w = P.makeWorld(m); const p = P.addPlayer(w, 0, {x:24, y:8}); w.goalRects.forEach(g=>{}); p.y = 2; p.vy = 0;
+  for (let f=0; f<4; f++) P.stepWorld(w, [{}], P.DT); p.x = 29.5; p.y = 3.0; P.stepWorld(w, [{}], P.DT);
+  ok('從旗子上方經過、沒碰到不算抵達', !p.done, 'y=' + p.y.toFixed(2)); }
+// corpse touching the flag
+{ const m = M.byId.rooftops, w = P.makeWorld(m); const p = P.addPlayer(w, 0, {x:28.6, y:8}); P.kill(p, {type:'fall'}); p.vx = 6; p.vy = 0;
+  for (let f=0; f<60; f++) P.stepWorld(w, [{}], P.DT);
+  ok('屍體碰到旗子：記錄死後碰旗，但不算抵達', p.postmortem && !p.done); }
+// item hazards & trap attribution
+{ const w = P.makeWorld(room()); w.items = [{type:'wire', x:10, y:15, owner:1}]; const p = P.addPlayer(w, 0, {x:5, y:16}); P.addPlayer(w, 1, {x:2, y:16});
+  for (let f=0; f<90; f++) P.stepWorld(w, [{right:true},{}], P.DT);
+  ok('碰到鐵絲網會倒下，死因記到放的人', !p.alive && p.cause.owner === 1 && p.cause.trap); }
+{ const w = P.makeWorld(room()); w.items = [{type:'saw', x:10, y:13, owner:1}]; const p = P.addPlayer(w, 0, {x:5, y:16});
+  for (let f=0; f<90; f++) P.stepWorld(w, [{right:true}], P.DT);
+  ok('碰到旋轉鋸會倒下', !p.alive); }
+// coin
+{ const w = P.makeWorld(room()); const c = {type:'coin', x:8, y:15, owner:0, cx:8.5, cy:15.5}; w.items = [c]; const p = P.addPlayer(w, 0, {x:5, y:16});
+  for (let f=0; f<40; f++) P.stepWorld(w, [{right:true}], P.DT);
+  ok('碰到金幣會帶著走', c.carrier === 0 && Math.abs(c.cx - p.x) < 0.01);
+  P.kill(p, {type:'fall'}); P.stepWorld(w, [{}], P.DT); ok('帶著金幣倒下會掉下金幣', c.carrier === undefined); }
+// placement
+{ const w = P.makeWorld(M.byId.rooftops);
+  ok('放置：和場景重疊不行', !R.canPlace(w, 'plank', 0, 12).ok);
+  ok('放置：空中的木板可以', R.canPlace(w, 'plank', 10, 10).ok);
+  ok('放置：鐵絲網在空中不行', R.canPlace(w, 'wire', 10, 5).why === '要放在東西上面');
+  ok('放置：鐵絲網放在屋頂上可以', R.canPlace(w, 'wire', 22, 7).ok);
+  ok('放置：起點旁邊不行', !R.canPlace(w, 'plank', 1, 8).ok);
+  ok('放置：終點旗旁邊不行', !R.canPlace(w, 'hay', 28, 6).ok);
+  w.items.push({type:'plank', x:10, y:10}); ok('放置：和道具重疊不行', R.canPlace(w, 'hay', 11, 9).why === '和道具重疊');
+  ok('放置：鐵絲網可以放在木板上', R.canPlace(w, 'wire', 10, 9).ok);
+  ok('炸彈炸到 3×3 內的道具', R.bombHits(w, 13, 11).length === 1 && R.bombHits(w, 15, 11).length === 0);
+  const n = R.nearestLegal(w, 'plank', 0, 12); ok('逾時會找最近的合法位置', n && R.canPlace(w, 'plank', n.x, n.y).ok); }
+// scoring §5.1
+{ const sc = (ps, st)=>{ const r = R.scoreRound(ps, st || {}); const o = {}; for (const id in r.awards) o[id] = R.total(r.awards[id]); return o; };
+  const P0 = (id, fin, order, extra)=>Object.assign({id, finished:fin, order:fin ? order : -1, coin:false, killedBy:null}, extra || {});
+  let r = sc([P0(0,true,0), P0(1,false), P0(2,false)]); ok('3 人 A 獨自先到 = 9/5', r[0] === 9);
+  r = sc([P0(0,true,0), P0(1,true,1), P0(2,false)]); ok('3 人 A、B 到，A 先 = 6/5、5/5', r[0] === 6 && r[1] === 5);
+  r = sc([P0(0,true,0), P0(1,false)]); ok('2 人 A 到 = 6/5（沒有獨走）', r[0] === 6);
+  r = sc([P0(0,true,0), P0(1,true,1)]); ok('全員到達 = 0', r[0] === 0 && r[1] === 0);
+  r = sc([P0(0,false), P0(1,false)]); ok('全員倒下 = 0', r[0] === 0 && r[1] === 0);
+  r = sc([P0(0,true,0,{coin:true}), P0(1,true,1)]); ok('全員到達、A 帶金幣 = 只有 A 3/5', r[0] === 3 && r[1] === 0);
+  r = sc([P0(0,true,1), P0(1,true,0), P0(2,false)], {0:2}); ok('A 連兩回合沒到，這回合到 = 加逆襲', r[0] === 9);
+  r = sc([P0(0,false,-1,{killedBy:{owner:1,trap:true}}), P0(1,true,0), P0(2,false,-1,{killedBy:{owner:1,trap:true}})]); ok('B 的陷阱殺死 A、C 且 B 到 = 5+3+1+2', r[1] === 11);
+  r = sc([P0(0,false,-1,{killedBy:{owner:0,trap:true}}), P0(1,true,0)]); ok('死在自己的陷阱上不算陷阱分', r[0] === 0);
+  ok('兩人同分同回合達標 = 平手', R.winners({0:25, 1:25, 2:10}, 4).length === 2);
+  ok('連續兩回合沒人得分 → 派對盒保證有炸彈', R.partyBox(()=>0.01, {guaranteeBomb:true}).includes('bomb')); }
 console.log(fail ? fail + ' failed' : 'all passed'); process.exit(fail ? 1 : 0);

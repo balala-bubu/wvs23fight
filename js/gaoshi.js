@@ -1,13 +1,14 @@
-/* 世志搞事 — game flow, rendering and input (step 1: race only).
- * Flow follows 世志大亂鬥: title → character select → map select → match → results (retry / 換地圖 / 換角色). */
+/* 世志搞事 — game flow, input and HUD.
+ * Flow follows 世志大亂鬥: title → character (+ costume) select → map select → match → results.
+ * A match is rounds of PICK → PLACE → RACE → SCORE (PLAN.md §6). */
 'use strict';
 var GaoshiGame = (function(){
-  const PH = GaoshiPhysics, $ = (id)=>document.getElementById(id);
-  const COLORS = ['#ff7a3d','#4fa3ff','#5fd36a','#d070e0'];
-  const WX = (x)=>x - 16, WY = (y)=>18 - y;
-  const RACE_TIME = 60, MODEL_H = 2.15;
+  const PH = GaoshiPhysics, RL = GaoshiRules, ART = GaoshiArt, $ = (id)=>document.getElementById(id);
+  const COLORS = ['#ff7a3d','#4fa3ff','#5fd36a','#d070e0'], COLOR_N = [0xff7a3d, 0x4fa3ff, 0x5fd36a, 0xd070e0];
+  const WX = ART.WX, WY = ART.WY, MODEL_H = 2.15, SEL_H = 6.2;
+  const RU = RL.RULES;
 
-  // ---------- sound (tiny WebAudio synth, no files) ----------
+  // ---------- sound ----------
   let AC = null;
   function audio(){ if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(_){} } if (AC && AC.state !== 'running') AC.resume().catch(()=>{}); }
   function beep(f, d, type='square', vol=.08, slide=0, when=0){
@@ -15,90 +16,19 @@ var GaoshiGame = (function(){
     o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d);
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + .02);
   }
+  function noise(d, vol){ if (!AC) return; const b = AC.createBuffer(1, AC.sampleRate*d, AC.sampleRate), a = b.getChannelData(0); for (let i=0;i<a.length;i++) a[i] = (Math.random()*2-1) * (1 - i/a.length);
+    const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; g.gain.value = vol; s.connect(g).connect(AC.destination); s.start(); }
   const SND = {
     jump:()=>beep(420,.12,'square',.05,380), wall:()=>beep(620,.12,'square',.05,420), land:()=>beep(140,.07,'triangle',.07,-40),
     die:()=>beep(520,.45,'sawtooth',.06,-420), goal:()=>{ [523,659,784,1047].forEach((f,i)=>beep(f,.18,'square',.06,0,i*.09)); },
-    tick:()=>beep(880,.06,'square',.05), go:()=>beep(1175,.25,'square',.07), pick:()=>beep(660,.06,'triangle',.08),
+    tick:()=>beep(880,.06,'square',.05), go:()=>beep(1175,.25,'square',.07), pick:()=>beep(660,.06,'triangle',.08), no:()=>beep(180,.15,'square',.06,-60),
+    place:()=>{ beep(300,.08,'triangle',.09,-120); beep(520,.06,'square',.04,0,.06); }, boom:()=>{ noise(.6,.35); beep(90,.5,'sawtooth',.12,-60); },
+    coin:()=>{ beep(988,.08,'square',.05); beep(1319,.18,'square',.05,0,.08); }, award:(k)=>beep(523 + k*90,.12,'square',.05),
   };
 
-  // ---------- map rendering ----------
-  const LOOK = {
-    '#':{c:0x8b92a1, e:0xdfe4ec, map:'stone'}, C:{c:0xa04a3a, e:0xe08a6a},
-    G:{c:0x6f9a4a, e:0x6fae4c, map:'grass'}, B:{c:0xa8382e, e:0xf3ead8}, T:{c:0x3f8f3a, e:0xb4ec82},
-    M:{c:0x7d7f86, e:0xd3d6dc}, P:{c:0x8a6038, e:0xd8a96d}, O:{c:0xb9bec4, e:0xf4f7fa}, plank:{c:0xb5793e, e:0xffd27a},
-  };
-  const matCache = {};
-  function lookMat(k, edge){
-    const key = k + (edge ? 'e' : ''); if (matCache[key]) return matCache[key];
-    const L0 = LOOK[k] || LOOK['#'];
-    const o = {color: edge ? L0.e : L0.c};
-    if (!edge && L0.map === 'stone') o.map = stoneTex; if (!edge && L0.map === 'grass') o.map = grassTex;
-    return (matCache[key] = new THREE.MeshLambertMaterial(o));
-  }
-  function skyTexture(a, b){
-    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 128; const g = cv.getContext('2d');
-    const gr = g.createLinearGradient(0,0,0,128); gr.addColorStop(0, '#' + a.toString(16).padStart(6,'0')); gr.addColorStop(1, '#' + b.toString(16).padStart(6,'0'));
-    g.fillStyle = gr; g.fillRect(0,0,4,128); const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; return t;
-  }
-  let mapGroup = null, bladeMeshes = [];
-  function addBox(group, x, y, w, h, d, mat, z=0){ const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(WX(x + w/2), WY(y + h/2), z); group.add(m); return m; }
-  function buildMapScene(map, boxes){
-    if (mapGroup) scene.remove(mapGroup);
-    mapGroup = new THREE.Group(); bladeMeshes = []; scene.add(mapGroup);
-    const G0 = mapGroup, grid = map.grid, H = grid.length, W = grid[0].length;
-    const sky = new THREE.Mesh(new THREE.PlaneGeometry(260, 120), new THREE.MeshBasicMaterial({map:skyTexture(map.sky[0], map.sky[1]), fog:false}));
-    sky.position.set(0, 12, -60); G0.add(sky);
-    const solidAt = (x,y)=> y>=0 && y<H && x>=0 && x<W && !'.SF'.includes(grid[y][x]);
-    // backdrop: distant silhouettes, darker than the play area
-    let s = 7; const r = ()=> (s = (s*16807) % 2147483647) / 2147483647;
-    if (map.look === 'city'){
-      const dark = new THREE.MeshBasicMaterial({color:0x3b4260}), win = new THREE.MeshBasicMaterial({color:0xf2c96a});
-      for (let i=0;i<26;i++){ const w = 3 + r()*5, h = 6 + r()*16, x = -60 + i*5 + r()*2, z = -18 - r()*14;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 3), dark); b.position.set(x, h/2 - 6, z); G0.add(b);
-        for (let k=0;k<4;k++){ const q = new THREE.Mesh(new THREE.PlaneGeometry(.5,.6), win); q.position.set(x - w/2 + .8 + r()*(w-1.6), -6 + 2 + r()*(h-3), z + 1.52); G0.add(q); } }
-    } else {
-      const hill = new THREE.MeshLambertMaterial({color:0x4d7a3c});
-      for (let i=0;i<7;i++){ const m = new THREE.Mesh(new THREE.SphereGeometry(12 + r()*8, 16, 10), hill); m.position.set(-50 + i*17, -8, -30 - r()*10); m.scale.y = .55; G0.add(m); }
-    }
-    // solid cells merged into horizontal runs, plus a bright top edge so platforms read clearly
-    for (let y=0;y<H;y++){
-      let x = 0;
-      while (x < W){
-        const c = grid[y][x]; if (!solidAt(x,y)){ x++; continue; }
-        let x1 = x; while (x1+1 < W && grid[y][x1+1] === c) x1++;
-        const n = x1 - x + 1, depth = c === 'G' ? 10 : 4;
-        addBox(G0, x, y, n, 1, depth, lookMat(c), c === 'G' ? -3 : 0);
-        let e = x; while (e <= x1){ if (solidAt(e, y-1)){ e++; continue; } let e1 = e; while (e1+1 <= x1 && !solidAt(e1+1, y-1)) e1++; addBox(G0, e, y, e1-e+1, .16, depth + .04, lookMat(c, true), c === 'G' ? -3 : 0); e = e1 + 1; }
-        x = x1 + 1;
-      }
-    }
-    for (const b of boxes){ addBox(G0, b.x, b.y, b.w, b.h, 2.2, lookMat('plank')); addBox(G0, b.x, b.y, b.w, .14, 2.24, lookMat('plank', true)); }
-    // flag
-    grid.forEach((row,y)=>[...row].forEach((c,x)=>{ if (c !== 'F') return;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,3.4,8), new THREE.MeshLambertMaterial({color:0xeeeeee})); pole.position.set(WX(x+.5), WY(y+1) + 1.7, .4); G0.add(pole);
-      const sh = new THREE.Shape(); sh.moveTo(0,0); sh.lineTo(1.5,-.5); sh.lineTo(0,-1); sh.closePath();
-      const fl = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshLambertMaterial({color:0xf2c14e, side:THREE.DoubleSide})); fl.position.set(WX(x+.5)+.06, WY(y+1) + 3.4, .4); G0.add(fl); G0.userData.flag = fl;
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(.9,.06,8,32), new THREE.MeshBasicMaterial({color:0xf2c14e, transparent:true, opacity:.5})); ring.rotation.x = Math.PI/2; ring.position.set(WX(x+.5), WY(y+1)+.05, .4); G0.add(ring); }));
-    // hazards
-    for (const h of map.hazards || []) if (h.type === 'rotating_blade'){
-      const g = new THREE.Group(); g.position.set(WX(h.center[0]), WY(h.center[1]), .8); G0.add(g);
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,.5,16), new THREE.MeshLambertMaterial({color:0x444448})); hub.rotation.x = Math.PI/2; g.add(hub);
-      const arm = new THREE.Group(); g.add(arm);
-      [[-1,0xd93a2e],[1,0xf2f2f2]].forEach(([s,col])=>{ const m = new THREE.Mesh(new THREE.BoxGeometry(h.length/2, h.thickness, .18), new THREE.MeshLambertMaterial({color:col})); m.position.x = s*h.length/4; arm.add(m); });
-      bladeMeshes.push({arm, h});
-    }
-  }
-  function mapThumb(map){
-    const cv = document.createElement('canvas'), W = map.size[0], H = map.size[1], k = 6; cv.width = W*k; cv.height = H*k; const g = cv.getContext('2d');
-    const gr = g.createLinearGradient(0,0,0,cv.height); gr.addColorStop(0,'#'+map.sky[0].toString(16).padStart(6,'0')); gr.addColorStop(1,'#'+map.sky[1].toString(16).padStart(6,'0')); g.fillStyle = gr; g.fillRect(0,0,cv.width,cv.height);
-    map.grid.forEach((row,y)=>[...row].forEach((c,x)=>{ if ('.S'.includes(c)) return; g.fillStyle = c === 'F' ? '#f2c14e' : '#' + (LOOK[c]||LOOK['#']).c.toString(16).padStart(6,'0'); g.fillRect(x*k, y*k, k, k); }));
-    (map.testBoxes||[]).forEach(b=>{ g.fillStyle = '#d8a96d'; g.fillRect(b.x*k, b.y*k, b.w*k, b.h*k); });
-    return cv;
-  }
-
-  // ---------- fighters (models from 世志大亂鬥) ----------
-  function makeFighterModel(kind, height){
-    const m = makeModel(kind, 0);
+  // ---------- fighters ----------
+  function makeFighterModel(kind, height, skin){
+    const m = makeModel(kind, skin || 0);
     m.holder.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(m.body), size = box.getSize(new THREE.Vector3());
     m.body.position.y -= box.min.y; m.baseScale = height / Math.max(.5, size.y);
@@ -109,222 +39,427 @@ var GaoshiGame = (function(){
   const charName = (k)=> (CHARS[k] && CHARS[k].stats && CHARS[k].stats.name) || k;
   const charTag = (k)=> (CHARS[k] && CHARS[k].stats && CHARS[k].stats.tag) || '';
   const setFace = (m, f)=>{ if (m.setFace) try { m.setFace(f); } catch(_){} };
+  // sliding down a wall: one hand on the wall, knees up (no ledge-grab pose — there is no ledge assist)
+  const WALL_POSE = P({rSh:[-1.5,0,-.25], rEl:[-.5], lSh:[-.5,0,.35], lEl:[-.9], rHp:[-.55,0,-.05], rKn:[.9], lHp:[.1], lKn:[.35], chest:[.1], head:[.05]});
 
   // ---------- input ----------
   const keys = new Set(); let pressed = [];
   const BIND = [
-    {left:['KeyA'], right:['KeyD'], jump:['KeyW','Space'], run:['ShiftLeft'], crouch:['KeyS']},
-    {left:['ArrowLeft'], right:['ArrowRight'], jump:['ArrowUp','Enter','NumpadEnter'], run:['ShiftRight'], crouch:['ArrowDown']},
+    {left:['KeyA'], right:['KeyD'], up:['KeyW'], down:['KeyS'], jump:['KeyW','Space'], run:['ShiftLeft'], crouch:['KeyS'], ok:['Space','KeyW'], back:['KeyS','Escape'], place:['Space','KeyF']},
+    {left:['ArrowLeft'], right:['ArrowRight'], up:['ArrowUp'], down:['ArrowDown'], jump:['ArrowUp','Enter','NumpadEnter'], run:['ShiftRight'], crouch:['ArrowDown'], ok:['ArrowUp','Enter','NumpadEnter'], back:['ArrowDown'], place:['Enter','NumpadEnter','Slash']},
   ];
-  function readInput(i){
-    const sets = S.players === 1 ? [BIND[0], BIND[1]] : [BIND[i]], out = {};
-    for (const a of ['left','right','jump','run','crouch']) out[a] = sets.some(b=>b[a].some(k=>keys.has(k)));
-    return out;
-  }
+  const sets = (i)=> S.players === 1 && i === 0 ? [BIND[0], BIND[1]] : [BIND[i]];
+  const held = (i, a)=> sets(i).some(b=>b[a].some(k=>keys.has(k)));
+  const is = (i, a, code)=> sets(i).some(b=>b[a].includes(code));
+  function readInput(i){ const o = {}; for (const a of ['left','right','jump','run','crouch']) o[a] = held(i, a); return o; }
   addEventListener('keydown', (e)=>{
     audio(); if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
-    if (['select','map','race'].includes(S.mode) && ['Space','Enter','NumpadEnter'].includes(e.code)) e.preventDefault();   // keys drive the game, not a focused button
-    if (!keys.has(e.code)) pressed.push(e.code); keys.add(e.code);
+    if (S.mode !== 'title' && ['Space','Enter','NumpadEnter'].includes(e.code) && !(e.target && e.target.closest && e.target.closest('.sheet'))) e.preventDefault();
+    if (!e.repeat) pressed.push(e.code); keys.add(e.code);
   });
   addEventListener('keyup', (e)=>keys.delete(e.code));
   addEventListener('blur', ()=>keys.clear());
   addEventListener('pointerdown', audio);
 
   // ---------- state ----------
-  const S = { mode:'title', players:2, kinds:[], ready:[], mapId:'rooftops', mapPick:0, world:null, models:[], time:0, endT:0, count:0, acc:0, prevMode:'' };
-  const show = (id)=>{ for (const s of ['scrTitle','scrSelect','scrMap','scrPause','scrResult']) $(s).hidden = s !== id; $('hud').hidden = !(S.mode === 'race' || S.mode === 'pause' || S.mode === 'result'); };
-  function flash(text, color){ const d = document.createElement('div'); d.className = 'flash'; d.textContent = text; if (color) d.style.color = color; const box = $('flashBox'); box.replaceChildren(d); setTimeout(()=>{ if (d.parentNode) d.remove(); }, 1200); }
-
-  // title
-  function enterTitle(){ S.mode = 'title'; clearModels(); buildMapScene(GaoshiMaps.byId.rooftops, GaoshiMaps.byId.rooftops.testBoxes); show('scrTitle'); }
-
-  // character select
+  const S = { mode:'title', players:2, kinds:[], skins:[], stage:[], cur:[], mapId:'rooftops', mapPick:0, models:[],
+    items:[], scores:{}, streak:{}, zero:0, round:0, world:null, box:[], picks:[], focus:[], placed:[], cursor:[], ghosts:[], timer:0, after:0,
+    time:0, endT:0, count:0, acc:0, rand:Math.random };
+  const SCREENS = ['scrTitle','scrSelect','scrMap','scrPick','scrScore','scrPause','scrResult'];
+  const MATCH = ['pick','place','race','score','over','pause'];
+  function show(id){ for (const s of SCREENS) $(s).hidden = s !== id; $('hud').hidden = !MATCH.includes(S.mode); }
+  function flash(text, color){ const d = document.createElement('div'); d.className = 'flash'; d.textContent = text; if (color) d.style.color = color; $('flashBox').replaceChildren(d); setTimeout(()=>{ if (d.parentNode) d.remove(); }, 1300); }
   function clearModels(){ S.models.forEach(disposeModel); S.models = []; $('tags').replaceChildren(); }
+
+  // ---------- title ----------
+  function enterTitle(){ S.mode = 'title'; clearModels(); clearGhosts(); const m = GaoshiMaps.byId.rooftops; ART.buildMap(m); show('scrTitle'); }
+
+  // ---------- character + costume select (like 世志大亂鬥) ----------
+  const ROSTER = ()=>[...CHAR_ORDER, 'random'];
   function enterSelect(){
-    S.mode = 'select'; clearModels(); show('scrSelect');
-    const n = CHAR_ORDER.length;
-    for (let i=0;i<S.players;i++){ if (!CHARS[S.kinds[i]]) S.kinds[i] = CHAR_ORDER[i % n]; S.ready[i] = false; }
-    S.kinds.length = S.players; S.ready.length = S.players;
-    for (let i=0;i<S.players;i++) S.models[i] = makeFighterModel(S.kinds[i], 6.2);
+    S.mode = 'select'; clearModels(); clearGhosts(); show('scrSelect');
+    const R0 = ROSTER();
+    for (let i=0;i<S.players;i++){
+      if (!CHARS[S.kinds[i]]) S.kinds[i] = CHAR_ORDER[i % CHAR_ORDER.length];
+      S.cur[i] = R0.indexOf(S.kinds[i]); S.stage[i] = 'char'; S.skins[i] = S.skins[i] || 0;
+    }
+    S.kinds.length = S.skins.length = S.stage.length = S.cur.length = S.players;
+    for (let i=0;i<S.players;i++) S.models[i] = makeFighterModel(S.kinds[i], SEL_H, S.skins[i]);
     renderSelect();
   }
+  const active = ()=> S.stage.findIndex(s=>s !== 'ready');
+  function rebuild(i){ disposeModel(S.models[i]); S.models[i] = makeFighterModel(S.kinds[i], SEL_H, S.skins[i]); }
+  function moveChar(i, d){
+    const R0 = ROSTER(); S.cur[i] = (S.cur[i] + d + R0.length) % R0.length; const k = R0[S.cur[i]];
+    if (k !== 'random' && k !== S.kinds[i]){ S.kinds[i] = k; S.skins[i] = 0; rebuild(i); }
+    SND.pick(); renderSelect();
+  }
+  function moveSkin(i, d){ const n = skinCount(S.kinds[i]); S.skins[i] = (S.skins[i] + d + n) % n; rebuild(i); SND.pick(); renderSelect(); }
+  function confirmSel(i){
+    const k = ROSTER()[S.cur[i]];
+    if (S.stage[i] === 'char'){
+      if (k === 'random'){ const pool = CHAR_ORDER, r = pool[Math.floor(Math.random()*pool.length)]; S.kinds[i] = r; S.skins[i] = Math.floor(Math.random()*skinCount(r)); rebuild(i); S.stage[i] = 'ready'; }
+      else S.stage[i] = skinCount(k) > 1 ? 'skin' : 'ready';
+    } else if (S.stage[i] === 'skin') S.stage[i] = 'ready';
+    SND.pick(); renderSelect();
+    if (S.stage.every(s=>s === 'ready')) setTimeout(()=>{ if (S.mode === 'select' && S.stage.every(s=>s === 'ready')) enterMap(); }, 450);
+  }
+  function backSel(i){
+    if (S.stage[i] === 'ready') S.stage[i] = (ROSTER()[S.cur[i]] !== 'random' && skinCount(S.kinds[i]) > 1) ? 'skin' : 'char';
+    else if (S.stage[i] === 'skin') S.stage[i] = 'char';
+    else if (i === 0) return enterTitle();
+    SND.pick(); renderSelect();
+  }
   function renderSelect(){
-    const roster = $('roster'); roster.replaceChildren();
-    CHAR_ORDER.forEach((k)=>{ const b = document.createElement('button'); b.textContent = charName(k); b.setAttribute('aria-label', charName(k));
-      const mk = document.createElement('span'); mk.className = 'mk';
-      S.kinds.forEach((kk,i)=>{ if (kk === k){ const t = document.createElement('i'); t.textContent = 'P' + (i+1); t.style.background = COLORS[i]; mk.appendChild(t); b.style.borderColor = COLORS[i]; } });
-      b.appendChild(mk); b.onclick = ()=>{ const i = S.ready.findIndex(r=>!r); if (i >= 0){ setKind(i, k); setReady(i, true); } }; roster.appendChild(b); });
+    const a = active(), skinStep = a >= 0 && S.stage[a] === 'skin';
+    const roster = $('roster'), skins = $('skins'); roster.hidden = skinStep; skins.hidden = !skinStep;
+    $('selH').textContent = skinStep ? 'P' + (a+1) + ' 選造型' : '選角色';
+    if (!skinStep){
+      roster.replaceChildren();
+      ROSTER().forEach((k, j)=>{ const b = document.createElement('button'); b.className = 'rc' + (k === 'random' ? ' rnd' : ''); b.textContent = k === 'random' ? '？隨機' : charName(k);
+        const mk = document.createElement('span'); mk.className = 'mk';
+        S.cur.forEach((c,i)=>{ if (c === j){ const t = document.createElement('i'); t.textContent = 'P' + (i+1); t.style.background = COLORS[i]; mk.appendChild(t); b.style.borderColor = COLORS[i]; } });
+        b.appendChild(mk);
+        b.onclick = ()=>{ const i = active(); if (i < 0) return; if (S.cur[i] === j) confirmSel(i); else { moveChar(i, j - S.cur[i]); } };
+        roster.appendChild(b); });
+    } else {
+      skins.replaceChildren(); const k = S.kinds[a], n = skinCount(k);
+      for (let s=0;s<n;s++){ const b = document.createElement('button'); b.className = 'rc' + (s === S.skins[a] ? ' on' : ''); b.textContent = skinName(k, s); b.style.setProperty('--pc', COLORS[a]);
+        b.onclick = ()=>{ if (S.skins[a] === s) confirmSel(a); else moveSkin(a, s - S.skins[a]); }; skins.appendChild(b); }
+      const ok = document.createElement('button'); ok.className = 'rc okb'; ok.textContent = '決定造型'; ok.onclick = ()=>confirmSel(a); skins.appendChild(ok);
+    }
     const plates = $('plates'); plates.replaceChildren();
-    S.kinds.forEach((k,i)=>{ const d = document.createElement('div'); d.className = 'plate' + (S.ready[i] ? ' ready' : ''); d.style.setProperty('--pc', COLORS[i]);
+    S.kinds.forEach((k,i)=>{ const d = document.createElement('div'); d.className = 'plate' + (S.stage[i] === 'ready' ? ' ready' : ''); d.style.setProperty('--pc', COLORS[i]);
       d.innerHTML = '<div class="who"></div><div class="nm"></div><div class="tag"></div><div class="st"></div>';
-      d.querySelector('.who').textContent = 'P' + (i+1); d.querySelector('.nm').textContent = charName(k); d.querySelector('.tag').textContent = charTag(k);
-      d.querySelector('.st').textContent = S.ready[i] ? '準備好了！' : (i === 0 ? 'A / D 換人　W 確定' : '← / → 換人　↑ 確定');
-      d.onclick = ()=>setReady(i, !S.ready[i]); plates.appendChild(d); });
-  }
-  function setKind(i, k){
-    if (S.kinds[i] === k) return; S.kinds[i] = k; disposeModel(S.models[i]); S.models[i] = makeFighterModel(k, 6.2); SND.pick(); renderSelect();
-  }
-  function setReady(i, r){
-    S.ready[i] = r; SND.pick(); renderSelect();
-    if (S.ready.every(Boolean)) setTimeout(()=>{ if (S.mode === 'select' && S.ready.every(Boolean)) enterMap(); }, 350);
+      const isRnd = ROSTER()[S.cur[i]] === 'random' && S.stage[i] === 'char';
+      d.querySelector('.who').textContent = 'P' + (i+1); d.querySelector('.nm').textContent = isRnd ? '？' : charName(k);
+      d.querySelector('.tag').textContent = isRnd ? '隨機挑一個人和造型' : (S.skins[i] ? '造型：' + skinName(k, S.skins[i]) : charTag(k));
+      const keysTxt = i === 0 ? ['A / D', 'W', 'S'] : ['← / →', '↑', '↓'];
+      d.querySelector('.st').textContent = S.stage[i] === 'ready' ? '準備好了！（' + keysTxt[2] + ' 取消）' : S.stage[i] === 'skin' ? keysTxt[0] + ' 換造型　' + keysTxt[1] + ' 決定　' + keysTxt[2] + ' 返回' : keysTxt[0] + ' 換人　' + keysTxt[1] + ' 決定';
+      plates.appendChild(d); });
   }
   function selectKeys(code){
-    const n = CHAR_ORDER.length;
-    [[0,'KeyA','KeyD',['KeyW','Space'],'KeyS'],[1,'ArrowLeft','ArrowRight',['ArrowUp','Enter'],'ArrowDown']].forEach(([i,l,r,ok,back])=>{
-      if (i >= S.players) return;
-      if (code === l && !S.ready[i]) setKind(i, CHAR_ORDER[(CHAR_ORDER.indexOf(S.kinds[i]) - 1 + n) % n]);
-      if (code === r && !S.ready[i]) setKind(i, CHAR_ORDER[(CHAR_ORDER.indexOf(S.kinds[i]) + 1) % n]);
-      if (ok.includes(code) && !S.ready[i]) setReady(i, true);
-      if (code === back && S.ready[i]) setReady(i, false);
-    });
+    for (let i=0;i<S.players;i++){
+      const b = BIND[i];
+      if (S.stage[i] === 'char'){ if (b.left.includes(code)) moveChar(i, -1); if (b.right.includes(code)) moveChar(i, 1); }
+      if (S.stage[i] === 'skin'){ if (b.left.includes(code)) moveSkin(i, -1); if (b.right.includes(code)) moveSkin(i, 1); }
+      if (b.ok.includes(code) && S.stage[i] !== 'ready') confirmSel(i);
+      else if (b.back.includes(code) && code !== 'Escape') backSel(i);
+    }
     if (code === 'Escape') enterTitle();
   }
 
-  // map select
-  const MAP_CARDS = () => [...GaoshiMaps.LIST.map(m=>m.id), 'random'];
+  // ---------- map select ----------
+  const MAP_CARDS = ()=>[...GaoshiMaps.LIST.map(m=>m.id), 'random'];
+  function mapThumb(map){
+    const cv = document.createElement('canvas'), k = 6; cv.width = 32*k; cv.height = 18*k; const g = cv.getContext('2d');
+    const hx = (n)=>'#' + n.toString(16).padStart(6,'0'); const gr = g.createLinearGradient(0,0,0,cv.height); gr.addColorStop(0, hx(map.sky[0])); gr.addColorStop(1, hx(map.sky[1])); g.fillStyle = gr; g.fillRect(0,0,cv.width,cv.height);
+    const C = {'#':'#8b92a1', C:'#a04a3a', G:'#6f9a4a', B:'#a8382e', T:'#3f8f3a', M:'#7d7f86', P:'#8a6038', O:'#b9bec4', F:'#f2c14e'};
+    map.grid.forEach((row,y)=>[...row].forEach((c,x)=>{ if ('.S'.includes(c)) return; g.fillStyle = C[c] || '#888'; g.fillRect(x*k, y*k, k, k); }));
+    return cv;
+  }
   function enterMap(){
-    S.mode = 'map'; clearModels(); show('scrMap');
+    S.mode = 'map'; clearModels(); clearGhosts(); show('scrMap');
     const box = $('maps'); box.replaceChildren();
     MAP_CARDS().forEach((id, j)=>{ const b = document.createElement('button'); b.className = 'mapc';
-      if (id === 'random'){ const q = document.createElement('div'); q.className = 'q'; q.textContent = '?'; b.appendChild(q); }
-      else b.appendChild(mapThumb(GaoshiMaps.byId[id]));
+      if (id === 'random'){ const q = document.createElement('div'); q.className = 'q'; q.textContent = '?'; b.appendChild(q); } else b.appendChild(mapThumb(GaoshiMaps.byId[id]));
       const t = document.createElement('b'); t.textContent = id === 'random' ? '隨機' : GaoshiMaps.byId[id].name; b.appendChild(t);
-      b.onclick = ()=>{ S.mapPick = j; startRace(); }; box.appendChild(b); });
+      b.onclick = ()=>{ S.mapPick = j; startMatch(); }; box.appendChild(b); });
     markMap();
   }
-  function markMap(){ [...$('maps').children].forEach((b,j)=>b.classList.toggle('on', j === S.mapPick)); const id = MAP_CARDS()[S.mapPick]; if (id !== 'random') buildMapScene(GaoshiMaps.byId[id], GaoshiMaps.byId[id].testBoxes); }
+  function markMap(){ [...$('maps').children].forEach((b,j)=>b.classList.toggle('on', j === S.mapPick)); const id = MAP_CARDS()[S.mapPick]; if (id !== 'random') ART.buildMap(GaoshiMaps.byId[id]); }
   function mapKeys(code){
     const n = MAP_CARDS().length;
     if (code === 'KeyA' || code === 'ArrowLeft'){ S.mapPick = (S.mapPick - 1 + n) % n; markMap(); SND.pick(); }
     if (code === 'KeyD' || code === 'ArrowRight'){ S.mapPick = (S.mapPick + 1) % n; markMap(); SND.pick(); }
-    if (['KeyW','Space','Enter','ArrowUp'].includes(code)) startRace();
+    if (['KeyW','Space','Enter','ArrowUp'].includes(code)) startMatch();
     if (code === 'Escape' || code === 'KeyS' || code === 'ArrowDown') enterSelect();
   }
 
-  // race
-  function startRace(){
+  // ---------- match ----------
+  function startMatch(){
     let id = MAP_CARDS()[S.mapPick]; if (id === 'random') id = GaoshiMaps.LIST[Math.floor(Math.random()*GaoshiMaps.LIST.length)].id;
-    S.mapId = id; const map = GaoshiMaps.byId[id];
-    buildMapScene(map, map.testBoxes); clearModels();
-    const w = PH.makeWorld(map); w.boxes = map.testBoxes.map(b=>Object.assign({}, b)); S.world = w;
-    const tags = $('tags');
-    for (let i=0;i<S.players;i++){
-      const p = PH.addPlayer(w, i); p.px = p.x; p.py = p.y;
-      const m = makeFighterModel(S.kinds[i], MODEL_H); S.models[i] = m; setFace(m, 'normal');
-      const t = document.createElement('div'); t.className = 'tagl'; t.style.setProperty('--pc', COLORS[i]); t.textContent = 'P' + (i+1); tags.appendChild(t); m.tag = t;
-    }
-    S.mode = 'race'; S.time = 0; S.endT = 0; S.count = 2.2; S.acc = 0; S.lastTick = 3; show(null);
-    $('phaseName').textContent = map.name + '：跑到終點旗！'; renderChips(); flash('預備…');
+    S.mapId = id; ART.buildMap(GaoshiMaps.byId[id]); clearModels(); clearGhosts();
+    S.items = []; S.scores = {}; S.streak = {}; S.zero = 0; S.round = 0;
+    for (let i=0;i<S.players;i++){ S.scores[i] = 0;
+      const m = makeFighterModel(S.kinds[i], MODEL_H, S.skins[i]); S.models[i] = m;
+      const t = document.createElement('div'); t.className = 'tagl'; t.style.setProperty('--pc', COLORS[i]); t.textContent = 'P' + (i+1); $('tags').appendChild(t); m.tag = t; }
+    nextRound();
   }
-  function renderChips(){
-    const L0 = $('chipsL'), R0 = $('chipsR'); L0.replaceChildren(); R0.replaceChildren();
-    S.world.players.forEach((p,i)=>{ const d = document.createElement('div'); d.className = 'chip' + (p.done ? ' done' : !p.alive ? ' dead' : ''); d.style.setProperty('--pc', COLORS[i]);
-      d.innerHTML = '<b></b><span class="n"></span><span class="s"></span>'; d.querySelector('b').textContent = 'P' + (i+1); d.querySelector('.n').textContent = charName(S.kinds[i]);
-      d.querySelector('.s').textContent = p.done ? '抵達第 ' + (S.world.order.indexOf(i)+1) : !p.alive ? '倒下' : '跑關中';
-      (i % 2 ? R0 : L0).appendChild(d); });
+  function freshWorld(){
+    const w = PH.makeWorld(GaoshiMaps.byId[S.mapId]); w.items = S.items;
+    for (const it of S.items) if (it.type === 'coin'){ it.carrier = undefined; it.cx = it.x + .5; it.cy = it.y + .5; }
+    for (let i=0;i<S.players;i++){ const p = PH.addPlayer(w, i); p.px = p.x; p.py = p.y; const m = S.models[i]; m.holder.visible = true; m.holder.rotation.set(0, 0, 0); setFace(m, 'normal'); }
+    return w;
+  }
+  const phaseLabel = (t)=>{ $('phaseName').textContent = '第 ' + S.round + ' 回合 · ' + t; };
+  function nextRound(){
+    S.round++; S.world = freshWorld(); ART.syncItems(S.items, COLOR_N); ART.placeOverlay(false);
+    S.box = RL.partyBox(S.rand, {guaranteeBomb: S.zero >= 2}).map(id=>({id, takers:[]}));
+    S.picks = Array(S.players).fill(null); S.focus = [...Array(S.players)].map((_,i)=>Math.min(i, S.box.length-1)); S.after = 0;
+    S.mode = 'pick'; S.timer = RU.pickTimeSec; show('scrPick'); phaseLabel('選道具'); renderChips(); renderPick();
+    if (S.zero >= 2 && S.box.some(c=>c.id === 'bomb')) $('pickNote').textContent = '連續兩回合沒人得分，這次一定有炸彈'; else $('pickNote').textContent = '同時拿同一個，兩個人都拿得到';
+  }
+  // --- PICK ---
+  function itemIcon(id){
+    const cv = document.createElement('canvas'), d = RL.ITEMS[id], k = 22, W = 4*k, H = 3*k; cv.width = W; cv.height = H; const g = cv.getContext('2d');
+    const ox = (W - d.w*k)/2, oy = (H - d.h*k)/2;
+    if (id === 'plank'){ g.fillStyle = '#b07a44'; g.fillRect(ox, oy+3, d.w*k, k-6); g.fillStyle = '#e0b070'; g.fillRect(ox, oy+3, d.w*k, 4); }
+    if (id === 'hay'){ g.fillStyle = '#e2bd55'; g.fillRect(ox, oy, d.w*k, d.h*k); g.fillStyle = '#8a5a2a'; g.fillRect(ox, oy+10, d.w*k, 5); g.fillRect(ox, oy+d.h*k-15, d.w*k, 5); }
+    if (id === 'wire'){ g.strokeStyle = '#c3c8cf'; g.lineWidth = 2; for (let i=0;i<6;i++){ g.beginPath(); g.arc(ox + 6 + i*7, oy + k/2, 7, 0, 7); g.stroke(); } g.fillStyle = '#5a4a3a'; g.fillRect(ox, oy+2, 3, k); g.fillRect(ox+d.w*k-3, oy+2, 3, k); }
+    if (id === 'saw'){ const cx = W/2, cy = H/2; g.fillStyle = '#d8dce2'; g.beginPath(); for (let i=0;i<32;i++){ const a = i/32*Math.PI*2, r = i%2 ? 26 : 31; g.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); } g.fill(); g.fillStyle = '#55585e'; g.fillRect(cx-11, cy-11, 22, 22); }
+    if (id === 'bomb'){ g.fillStyle = '#222226'; g.beginPath(); g.arc(W/2, H/2+4, 18, 0, 7); g.fill(); g.strokeStyle = '#c9a36a'; g.lineWidth = 3; g.beginPath(); g.moveTo(W/2+8, H/2-12); g.quadraticCurveTo(W/2+14, H/2-24, W/2+22, H/2-20); g.stroke(); g.fillStyle = '#ffb040'; g.beginPath(); g.arc(W/2+23, H/2-21, 4, 0, 7); g.fill(); }
+    if (id === 'coin'){ g.fillStyle = '#f2c14e'; g.beginPath(); g.arc(W/2, H/2, 20, 0, 7); g.fill(); g.fillStyle = '#fff2b0'; g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('★', W/2, H/2+1); }
+    return cv;
+  }
+  function renderPick(){
+    const box = $('cards'); box.replaceChildren();
+    S.box.forEach((c, j)=>{ const d = RL.ITEMS[c.id], b = document.createElement('button'); b.className = 'card' + (c.takers.length ? ' taken' : '');
+      b.appendChild(itemIcon(c.id));
+      const nm = document.createElement('b'); nm.textContent = d.name; b.appendChild(nm);
+      const ds = document.createElement('span'); ds.className = 'ds'; ds.textContent = d.desc; b.appendChild(ds);
+      const tg = document.createElement('span'); tg.className = 'cat'; tg.textContent = d.cat + (d.trap ? '　⚠ 陷阱' : ''); if (d.trap) tg.classList.add('trap'); b.appendChild(tg);
+      const fr = document.createElement('span'); fr.className = 'mk';
+      S.focus.forEach((f,i)=>{ if (f === j && !S.picks[i]){ const t = document.createElement('i'); t.textContent = 'P' + (i+1); t.style.background = COLORS[i]; fr.appendChild(t); b.style.borderColor = COLORS[i]; } });
+      b.appendChild(fr);
+      if (c.takers.length){ const tk = document.createElement('span'); tk.className = 'tk'; tk.textContent = c.takers.map(i=>'P' + (i+1)).join('、') + (c.takers.length > 1 ? ' 複製！' : ' 拿走了'); b.appendChild(tk); }
+      b.onclick = ()=>{ const i = S.picks.findIndex(p=>!p); if (i >= 0) tryPick([[i, j]]); };
+      box.appendChild(b); });
+  }
+  function tryPick(list){
+    // everyone confirming the same card in the same frame gets a copy (PLAN §6)
+    const byCard = {}; for (const [i, j] of list) if (!S.picks[i]) (byCard[j] = byCard[j] || []).push(i);
+    for (const j in byCard){ const c = S.box[j];
+      if (c.takers.length){ SND.no(); continue; }
+      for (const i of byCard[j]){ S.picks[i] = c.id; c.takers.push(i); }
+      SND.pick(); if (byCard[j].length > 1) flash('複製！'); }
+    renderPick();
+    if (S.picks.every(Boolean) && !S.after) S.after = .7;
+  }
+  function pickKeys(codes){
+    const list = [];
+    for (const code of codes) for (let i=0;i<S.players;i++){ if (S.picks[i]) continue;
+      if (is(i, 'left', code)){ S.focus[i] = (S.focus[i] + S.box.length - 1) % S.box.length; SND.pick(); renderPick(); }
+      if (is(i, 'right', code)){ S.focus[i] = (S.focus[i] + 1) % S.box.length; SND.pick(); renderPick(); }
+      if (is(i, 'ok', code)) list.push([i, S.focus[i]]); }
+    if (list.length) tryPick(list);
+  }
+  function stepPick(dt){
+    if (S.after){ S.after -= dt; if (S.after <= 0) enterPlace(); return; }
+    S.timer -= dt;
+    if (S.timer <= 0){ for (let i=0;i<S.players;i++) if (!S.picks[i]){ const free = S.box.filter(c=>!c.takers.length), c = free.length ? free[Math.floor(Math.random()*free.length)] : S.box[Math.floor(Math.random()*S.box.length)]; S.picks[i] = c.id; c.takers.push(i); }
+      renderPick(); flash('時間到，已替你隨機選擇'); S.after = .9; }
+  }
+  // --- PLACE ---
+  function clearGhosts(){ S.ghosts.forEach(ART.removeObj); S.ghosts = []; }
+  function enterPlace(){
+    S.mode = 'place'; S.timer = RU.placeTimeSec; S.after = 0; show(null); phaseLabel('放道具'); ART.placeOverlay(true, S.world);
+    S.placed = Array(S.players).fill(false); clearGhosts();
+    for (let i=0;i<S.players;i++){ const d = RL.ITEMS[S.picks[i]]; S.cursor[i] = {x:Math.round(13 + i*4 - d.w/2), y:Math.round(5 - d.h/2), rep:0, why:''}; S.ghosts[i] = ART.makeGhost(S.picks[i], COLOR_N[i]); }
+    $('hint').textContent = S.players === 1 ? '方向鍵或 WASD 移動，空白鍵或 Enter 放下；也可以用滑鼠點' : 'P1：WASD 移動、空白鍵放下　P2：方向鍵移動、Enter 放下　滑鼠可以幫 P1 放';
+    renderPlaceTags();
+  }
+  function renderPlaceTags(){
+    $('tags').querySelectorAll('.ptag').forEach(e=>e.remove());
+    for (let i=0;i<S.players;i++){ const t = document.createElement('div'); t.className = 'tagl ptag'; t.style.setProperty('--pc', COLORS[i]); t.dataset.i = i; $('tags').appendChild(t); }
+  }
+  function confirmPlace(i){
+    if (S.placed[i]) return;
+    const c = S.cursor[i], type = S.picks[i], v = RL.canPlace(S.world, type, c.x, c.y);
+    if (!v.ok){ c.why = v.why; c.whyT = 1.4; SND.no(); return; }
+    doPlace(i, type, c.x, c.y);
+  }
+  function doPlace(i, type, x, y){
+    S.placed[i] = true; ART.removeObj(S.ghosts[i]); S.ghosts[i] = null;
+    if (type === 'bomb'){
+      const hits = RL.bombHits(S.world, x, y); for (const h of hits) S.items.splice(S.items.indexOf(h), 1);
+      ART.explosion(WX(x + .5), WY(y + .5)); SND.boom(); S.shake = .35; flash('炸掉 ' + hits.length + ' 個道具', COLORS[i]);
+    } else { const it = {type, x, y, owner:i}; if (type === 'coin'){ it.cx = x + .5; it.cy = y + .5; } S.items.push(it); SND.place(); }
+    ART.syncItems(S.items, COLOR_N);
+    if (S.placed.every(Boolean) && !S.after) S.after = .7;
+  }
+  function moveCursor(i, dx, dy){ const c = S.cursor[i], d = RL.ITEMS[S.picks[i]]; c.x = Math.max(0, Math.min(32 - d.w, c.x + dx)); c.y = Math.max(0, Math.min(18 - d.h, c.y + dy)); }
+  function placeKeys(codes, dt){
+    for (const code of codes) for (let i=0;i<S.players;i++){ if (S.placed[i]) continue;
+      if (is(i, 'left', code)) moveCursor(i, -1, 0); if (is(i, 'right', code)) moveCursor(i, 1, 0);
+      if (is(i, 'up', code)) moveCursor(i, 0, -1); if (is(i, 'down', code)) moveCursor(i, 0, 1);
+      if (is(i, 'place', code)) confirmPlace(i); }
+    // hold to keep moving
+    for (let i=0;i<S.players;i++){ if (S.placed[i]) continue; const c = S.cursor[i];
+      const dx = (held(i,'right')?1:0) - (held(i,'left')?1:0), dy = (held(i,'down')?1:0) - (held(i,'up')?1:0);
+      if (dx || dy){ c.rep += dt; if (c.rep > .28){ c.rep -= .06; moveCursor(i, dx, dy); } } else c.rep = 0; }
+  }
+  function stepPlace(dt){
+    for (const c of S.cursor) if (c && c.whyT) { c.whyT -= dt; if (c.whyT <= 0) c.why = ''; }
+    if (S.after){ S.after -= dt; if (S.after <= 0){ ART.placeOverlay(false); startRace(); } return; }
+    S.timer -= dt;
+    if (S.timer <= 0){ for (let i=0;i<S.players;i++) if (!S.placed[i]){ const c = S.cursor[i], n = RL.nearestLegal(S.world, S.picks[i], c.x, c.y); if (n) doPlace(i, S.picks[i], n.x, n.y); else { S.placed[i] = true; ART.removeObj(S.ghosts[i]); } }
+      flash('時間到，自動放下'); S.after = S.after || .7; }
+  }
+  function drawPlace(){
+    const tags = $('tags').querySelectorAll('.ptag');
+    for (let i=0;i<S.players;i++){
+      const c = S.cursor[i], g = S.ghosts[i], t = tags[i];
+      if (g){ const ok = RL.canPlace(S.world, S.picks[i], c.x, c.y).ok; ART.setGhost(g, c.x, c.y, ok); }
+      if (t){ if (S.placed[i]){ t.hidden = true; continue; } t.hidden = false; const d = RL.ITEMS[S.picks[i]]; const v = new THREE.Vector3(WX(c.x + d.w/2), WY(c.y) + .3, 2.3).project(camera);
+        t.style.left = ((v.x + 1)/2*innerWidth) + 'px'; t.style.top = ((1 - v.y)/2*innerHeight) + 'px';
+        const bad = RL.canPlace(S.world, S.picks[i], c.x, c.y); t.textContent = 'P' + (i+1) + ' ' + d.name + (c.why ? '　✕ ' + c.why : (!bad.ok ? '　✕ ' + bad.why : ''));
+        t.classList.toggle('bad', !!c.why || !bad.ok); }
+    }
+  }
+  // mouse helps P1 place
+  const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0), hitP = new THREE.Vector3();
+  function mouseCell(e){ const v = new THREE.Vector2(e.clientX/innerWidth*2 - 1, -(e.clientY/innerHeight)*2 + 1); ray.setFromCamera(v, camera); if (!ray.ray.intersectPlane(plane, hitP)) return null; return {x:hitP.x + 16, y:18 - hitP.y}; }
+  canvas.addEventListener('pointermove', (e)=>{ if (S.mode !== 'place' || S.placed[0]) return; const m = mouseCell(e); if (!m) return; const d = RL.ITEMS[S.picks[0]]; S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0, 0, 0); });
+  canvas.addEventListener('click', (e)=>{ if (S.mode === 'place' && !S.placed[0]){ const m = mouseCell(e); if (m){ const d = RL.ITEMS[S.picks[0]]; S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0,0,0); } confirmPlace(0); } });
+
+  // --- RACE ---
+  function startRace(){
+    clearGhosts(); $('tags').querySelectorAll('.ptag').forEach(e=>e.remove());
+    S.world = freshWorld(); ART.syncItems(S.items, COLOR_N);
+    S.mode = 'race'; S.after = 0; S.time = 0; S.endT = 0; S.count = 1.6; S.acc = 0; S.lastTick = 6; S.timer = RU.raceTimeSec; show(null);
+    phaseLabel('跑到終點旗！'); $('hint').textContent = 'P1：A D 移動、W 跳、左 Shift 跑、S 蹲　P2：方向鍵、↑ 跳、右 Shift 跑、↓ 蹲'; renderChips(); flash('預備…');
   }
   function stepRace(dt){
     const w = S.world;
     if (S.count > 0){ S.count -= dt; if (S.count <= 0){ flash('衝！'); SND.go(); } return; }
     S.time += dt; let changed = false;
-    const inputs = w.players.map((p,i)=>readInput(i));
     w.players.forEach(p=>{ p.px = p.x; p.py = p.y; });
-    PH.stepWorld(w, inputs, PH.DT);
+    PH.stepWorld(w, w.players.map((p,i)=>readInput(i)), PH.DT);
     w.players.forEach((p,i)=>{ const m = S.models[i];
       for (const e of p.events){
-        if (e === 'jump'){ SND.jump(); m.sx = .75; m.sy = 1.3; }
-        if (e === 'walljump'){ SND.wall(); m.sx = .8; m.sy = 1.25; }
-        if (e === 'land'){ SND.land(); m.sx = 1.28; m.sy = .76; }
-        if (e === 'die'){ SND.die(); setFace(m, 'cry'); changed = true; flash('P' + (i+1) + ' 倒下了', COLORS[i]); }
-        if (e === 'goal'){ SND.goal(); changed = true; flash('P' + (i+1) + ' 抵達！', COLORS[i]); }
+        if (e === 'jump'){ SND.jump(); m.sx = .75; m.sy = 1.3; ART.burst(WX(p.x), WY(p.y), 0xe8dccb, 5, 2, {gravity:2, size:.35}); }
+        if (e === 'walljump'){ SND.wall(); m.sx = .8; m.sy = 1.25; ART.burst(WX(p.x + p.face*-.45), WY(p.y - 1), 0xffffff, 6, 3, {gravity:2, size:.3}); }
+        if (e === 'land'){ SND.land(); m.sx = 1.28; m.sy = .76; ART.burst(WX(p.x), WY(p.y), 0xe8dccb, 6, 2.5, {gravity:3, size:.4}); }
+        if (e === 'die'){ SND.die(); setFace(m, 'cry'); changed = true; S.shake = .18; ART.burst(WX(p.x), WY(p.y - 1), [COLOR_N[i], 0xffffff], 14, 7, {cubes:true}); flash('P' + (i+1) + ' 倒下了', COLORS[i]); }
+        if (e === 'goal'){ SND.goal(); changed = true; ART.burst(WX(p.x), WY(p.y - 1), [0xf2c14e, 0xff7a3d, 0x4fa3ff, 0x5fd36a, 0xd070e0], 30, 9, {cubes:true, up:4}); flash('P' + (i+1) + ' 抵達！', COLORS[i]); }
+        if (e === 'coin'){ SND.coin(); changed = true; }
+        if (e === 'postmortem') flash('P' + (i+1) + ' 的身體飛到旗子上了！', COLORS[i]);
       } });
     if (changed) renderChips();
-    const left = Math.max(0, RACE_TIME - S.time), sec = Math.ceil(left);
-    $('timer').textContent = sec; $('timer').classList.toggle('low', left <= 5);
+    const left = Math.max(0, RU.raceTimeSec - S.time), sec = Math.ceil(left); S.timer = left;
     if (left <= 5 && sec < S.lastTick){ S.lastTick = sec; SND.tick(); }
     if ((PH.raceOver(w) || left <= 0) && !S.endT) S.endT = S.time;
-    if (S.endT && S.time - S.endT > 1.4) enterResult(left <= 0);
+    if (S.endT && S.time - S.endT > 1.3) enterScore();
   }
-  function enterResult(timeUp){
-    S.mode = 'result'; const w = S.world, n = w.players.length, done = w.order.length;
-    let title, why;
-    if (n === 1){ title = done ? '抵達終點！' : '沒能抵達…'; why = done ? '用時 ' + w.players[0].finishT.toFixed(2) + ' 秒' : (timeUp ? '時間到了' : '再試一次吧'); }
-    else if (done === n){ title = '太簡單了，全員過關'; why = '正式規則裡，這回合沒有人得分'; }
-    else if (!done){ title = '太難了，沒人到終點'; why = '正式規則裡，這回合沒有人得分'; }
-    else { title = charName(S.kinds[w.order[0]]) + ' 第一個抵達！'; why = '下一版加入選道具、放道具與計分'; }
-    $('resTitle').textContent = title; $('resWhy').textContent = why;
+  // --- SCORE ---
+  function bar(i, before, gained){
+    const b = document.createElement('div'); b.className = 'bar';
+    for (let k=0;k<RU.winFifths;k++){ const s = document.createElement('i'); if (k < before) s.className = 'f'; else if (k < before + gained){ s.className = 'n'; s.style.animationDelay = (.35 + (k - before)*.08) + 's'; } if ((k+1) % 5 === 0) s.classList.add('pt'); b.appendChild(s); }
+    b.style.setProperty('--pc', COLORS[i]); return b;
+  }
+  function enterScore(){
+    S.mode = 'score'; const w = S.world, res = PH.roundResult(w), sr = RL.scoreRound(res, S.streak);
+    S.streak = RL.nextStreak(res, S.streak);
+    const anyPts = Object.values(sr.awards).some(a=>a.length); S.zero = anyPts && sr.verdict === 'normal' ? 0 : S.zero + 1;
+    for (const p of w.players) if (p.done && p.coin){ const k = S.items.indexOf(p.coin); if (k >= 0) S.items.splice(k, 1); }   // delivered coins are used up
+    $('scVerdict').textContent = sr.verdict === 'easy' ? '太簡單了，這回合沒有人得分' : sr.verdict === 'hard' ? '太難了，這回合沒有人得分' : '有人過關，有人倒下';
+    $('scWhy').textContent = sr.verdict === 'normal' ? '過關 1 分，搶先、獨走、逆襲、陷阱另外加分（每格 = 1/5 分）' : (sr.verdict === 'easy' ? '全員都到終點，關卡要更難一點' : '沒人到終點，下次放個橋吧') + (Object.values(sr.awards).some(a=>a.length) ? '（金幣照算）' : '');
+    const rows = $('scRows'); rows.replaceChildren(); let delay = 0;
+    for (let i=0;i<S.players;i++){
+      const list = sr.awards[i], before = S.scores[i], gained = RL.total(list);
+      const r = document.createElement('div'); r.className = 'srow'; r.style.setProperty('--pc', COLORS[i]);
+      const nm = document.createElement('div'); nm.className = 'nm'; nm.innerHTML = '<b></b><span></span>'; nm.querySelector('b').textContent = 'P' + (i+1); nm.querySelector('span').textContent = charName(S.kinds[i]); r.appendChild(nm);
+      const aw = document.createElement('div'); aw.className = 'aw';
+      const p = w.players[i]; if (!list.length){ const s = document.createElement('span'); s.className = 'none'; s.textContent = p.done ? '抵達' : !p.alive ? (p.cause && p.cause.type === 'item' ? '被' + (p.cause.owner === i ? '自己' : 'P' + (p.cause.owner+1)) + '的' + RL.ITEMS[p.cause.item].name + '打倒' : p.cause && p.cause.type === 'fall' ? '掉下去了' : '被葉片打中') : '時間到'; aw.appendChild(s); }
+      list.forEach((a)=>{ const s = document.createElement('span'); s.className = 'a ' + a.k; s.textContent = RL.AWARD_NAME[a.k] + ' +' + a.v + (a.k === 'trap' ? '（P' + (a.victim+1) + '）' : ''); s.style.animationDelay = (delay += .35) + 's'; aw.appendChild(s); setTimeout(()=>{ if (S.mode === 'score') SND.award(Math.min(6, Math.round(delay*2))); }, delay*1000); });
+      r.appendChild(aw); r.appendChild(bar(i, before, gained)); rows.appendChild(r);
+      S.scores[i] = before + gained;
+    }
+    const win = RL.winners(S.scores, S.round);
+    $('scNext').textContent = win.length ? '看結果' : '下一回合'; S.winners = win;
+    show('scrScore'); renderChips(); S.after = 0; S.scoreT = 0;
+  }
+  function leaveScore(){ if (S.winners.length) enterOver(); else nextRound(); }
+  // --- GAME OVER ---
+  function enterOver(){
+    S.mode = 'over'; const win = S.winners;
+    $('resTitle').textContent = win.length > 1 ? '平手！' + win.map(i=>charName(S.kinds[i])).join('、') : charName(S.kinds[win[0]]) + ' 贏了！';
+    $('resWhy').textContent = win.length > 1 ? '同分同時達標（驟死賽下一版加入）' : (S.scores[win[0]] >= RU.winFifths ? '先拿到 ' + RU.pointsToWin + ' 分' : '打完 ' + RU.roundLimit + ' 回合，分數最高');
     const rank = $('resRank'); rank.replaceChildren();
-    const rows = w.players.map((p,i)=>({p,i})).sort((a,b)=>{ const ra = a.p.done ? w.order.indexOf(a.i) : 99, rb = b.p.done ? w.order.indexOf(b.i) : 99; return ra - rb; });
-    for (const {p,i} of rows){ const d = document.createElement('div'); d.style.setProperty('--pc', COLORS[i]); d.innerHTML = '<b></b><span></span>';
-      d.querySelector('b').textContent = 'P' + (i+1);
-      d.querySelector('span').textContent = charName(S.kinds[i]) + '　' + (p.done ? '抵達第 ' + (w.order.indexOf(i)+1) + '（' + p.finishT.toFixed(2) + ' 秒）' : !p.alive ? (p.cause && p.cause.type === 'fall' ? '掉下去了' : '被葉片打中') : '時間到');
-      rank.appendChild(d); }
-    show('scrResult'); $('rRetry').focus();
+    [...Array(S.players).keys()].sort((a,b)=>S.scores[b]-S.scores[a]).forEach(i=>{ const d = document.createElement('div'); d.style.setProperty('--pc', COLORS[i]); d.innerHTML = '<b></b><span></span>'; d.querySelector('b').textContent = 'P' + (i+1); d.querySelector('span').textContent = charName(S.kinds[i]) + '　' + (S.scores[i]/5).toFixed(1).replace('.0','') + ' 分'; rank.appendChild(d); });
+    for (let i=0;i<S.players;i++){ const m = S.models[i]; m.holder.rotation.z = 0; setFace(m, win.includes(i) ? 'normal' : 'cry'); }
+    show('scrResult'); $('rRetry').focus(); SND.goal();
   }
-  function pause(on){ if (on && S.mode === 'race'){ S.mode = 'pause'; show('scrPause'); $('pResume').focus(); } else if (!on && S.mode === 'pause'){ S.mode = 'race'; show(null); } }
+  function renderChips(){
+    const L0 = $('chipsL'), R0 = $('chipsR'); L0.replaceChildren(); R0.replaceChildren(); const w = S.world;
+    for (let i=0;i<S.players;i++){ const p = w && w.players[i]; const d = document.createElement('div');
+      d.className = 'chip' + (S.mode === 'race' && p && p.done ? ' done' : S.mode === 'race' && p && !p.alive ? ' dead' : ''); d.style.setProperty('--pc', COLORS[i]);
+      d.innerHTML = '<div class="top"><b></b><span class="n"></span><span class="s"></span></div>'; d.querySelector('b').textContent = 'P' + (i+1); d.querySelector('.n').textContent = charName(S.kinds[i]);
+      d.querySelector('.s').textContent = S.mode !== 'race' || !p ? (S.scores[i]/5).toFixed(1).replace('.0','') + ' 分' : p.done ? '抵達第 ' + (w.order.indexOf(i)+1) + (p.coin ? ' ●' : '') : !p.alive ? '倒下' : (p.coin ? '帶著金幣' : '跑關中');
+      d.appendChild(bar(i, S.scores[i], 0)); (i % 2 ? R0 : L0).appendChild(d); }
+  }
+  function pause(on){ if (on && ['pick','place','race'].includes(S.mode)){ S.paused = S.mode; S.mode = 'pause'; show('scrPause'); $('pResume').focus(); } else if (!on && S.mode === 'pause'){ S.mode = S.paused; show(S.mode === 'pick' ? 'scrPick' : null); } }
 
-  // ---------- per-frame model animation ----------
+  // ---------- per-frame models ----------
   const k_ = (dt, r)=>1 - Math.exp(-dt * r);
-  function animateRace(dt, alpha){
-    const w = S.world;
-    for (const b of bladeMeshes) b.arm.rotation.z = -b.h.angle;
-    if (mapGroup && mapGroup.userData.flag) mapGroup.userData.flag.rotation.y = Math.sin(performance.now()/300) * .25;
+  function animateFighters(dt, alpha){
+    const w = S.world, now = performance.now();
     w.players.forEach((p,i)=>{
       const m = S.models[i]; if (!m) return;
+      m.holder.visible = !p.gone;
       const x = p.px + (p.x - p.px) * alpha, y = p.py + (p.y - p.py) * alpha;
       m.holder.position.set(WX(x), WY(y), 0);
       const ry = p.face * (Math.PI/2 - 0.4); let d = ry - m.holder.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.holder.rotation.y += d * k_(dt, 20);
       let pose, kk = k_(dt, 16);
-      if (!p.alive){ pose = POSE.hurt; m.holder.rotation.z += ((p.face > 0 ? 1.35 : -1.35) - m.holder.rotation.z) * k_(dt, 6); }
-      else if (p.done){ pose = Math.sin(performance.now()/180) > 0 ? POSE.thumbs : POSE.peace; m.holder.rotation.z *= .9; }
+      if (S.mode === 'over'){ pose = S.winners.includes(i) ? (Math.sin(now/170) > 0 ? POSE.thumbs : POSE.peace) : (POSE.sob || POSE.hurt); m.holder.rotation.z *= .9; }
+      else if (S.mode === 'pick' || S.mode === 'place') pose = Math.sin(now/900 + i) > .7 ? POSE.thumbs : POSE.stand;
+      else if (!p.alive){ pose = POSE.hurt; m.holder.rotation.z += ((p.face > 0 ? 1.35 : -1.35) - m.holder.rotation.z) * k_(dt, 6); }
+      else if (p.done){ pose = Math.sin(now/180) > 0 ? POSE.thumbs : POSE.peace; m.holder.rotation.z *= .9; }
       else if (p.onGround && p.crouch) pose = POSE.squat;
       else if (p.onGround && Math.abs(p.vx) > .4){ m.phase += Math.abs(p.vx) * dt * (p.run ? 1.15 : 1.4); pose = runPose(m.phase); kk = k_(dt, 24); }
       else if (p.onGround) pose = POSE.stand;
-      else if (p.wall) pose = POSE.hang || POSE.air;
+      else if (p.wall && p.vy > 0) pose = WALL_POSE;
       else pose = POSE.air;
       applyPose(m, pose, kk);
-      // squash & stretch, crouch squeezes the model down to the 1-cell hitbox
       const ty = p.crouch && p.alive ? .62 : 1, tx = p.crouch && p.alive ? 1.12 : 1, rec = Math.min(1, .16 * dt * 60);
       m.sx += (tx - m.sx) * rec; m.sy += (ty - m.sy) * rec;
       m.holder.scale.set(m.baseScale * m.sx, m.baseScale * m.sy, m.baseScale * m.sx);
       if (m.tag){ const v = new THREE.Vector3(WX(x), WY(y) + p.h + .55, 0).project(camera);
-        m.tag.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; m.tag.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; m.tag.style.opacity = p.done ? .5 : 1; }
+        m.tag.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; m.tag.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; m.tag.style.opacity = p.done || p.gone ? .45 : 1; }
     });
   }
   function animateSelect(dt){
     const n = S.models.length, t = performance.now()/1000;
     S.models.forEach((m,i)=>{ const x = n === 1 ? 0 : (i === 0 ? -7 : 7);
       m.holder.position.set(x, 4.2, 4); m.holder.rotation.set(0, (n === 1 ? 0 : (i === 0 ? .45 : -.45)) + Math.sin(t*.8 + i)*.12, 0);
-      applyPose(m, S.ready[i] ? (Math.sin(t*5) > 0 ? POSE.thumbs : POSE.peace) : POSE.stand, k_(dt, 10)); });
+      applyPose(m, S.stage[i] === 'ready' ? (Math.sin(t*5) > 0 ? POSE.thumbs : POSE.peace) : S.stage[i] === 'skin' ? (POSE.selfie || POSE.peace) : POSE.stand, k_(dt, 10)); });
   }
 
   // ---------- loop ----------
   let last = performance.now();
   function frame(now){
-    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    const dt = Math.min(.1, (now - last) / 1000); last = now; const t = now/1000;
     const codes = pressed; pressed = [];
-    for (const c of codes){
-      if (S.mode === 'select') selectKeys(c);
-      else if (S.mode === 'map') mapKeys(c);
-      else if (S.mode === 'race' && c === 'Escape') pause(true);
-      else if (S.mode === 'pause' && c === 'Escape') pause(false);
-      else if (S.mode === 'result' && (c === 'KeyR')) startRace();
-    }
-    if (S.mode === 'race'){
-      S.acc += dt; while (S.acc >= PH.DT){ stepRace(PH.DT); S.acc -= PH.DT; if (S.mode !== 'race') break; }
-      animateRace(dt, Math.min(1, S.acc / PH.DT));
-    } else if (S.mode === 'result' || S.mode === 'pause') animateRace(dt, 1);
-    else if (S.mode === 'select') animateSelect(dt);
-    if (S.mode === 'title' || S.mode === 'map'){ for (const b of bladeMeshes){ b.h.angle = now/1000 / b.h.periodSec * Math.PI*2; b.arm.rotation.z = -b.h.angle; } }
+    if (S.mode === 'select') codes.forEach(selectKeys);
+    else if (S.mode === 'map') codes.forEach(mapKeys);
+    else if (S.mode === 'pause'){ if (codes.includes('Escape')) pause(false); }
+    else if (['pick','place','race'].includes(S.mode) && codes.includes('Escape')) pause(true);
+    else if (S.mode === 'score' && codes.some(c=>['Space','Enter','KeyW','ArrowUp','NumpadEnter'].includes(c)) && S.scoreT > .8) leaveScore();
+    if (S.mode === 'pick'){ pickKeys(codes); stepPick(dt); }
+    if (S.mode === 'place'){ placeKeys(codes, dt); stepPlace(dt); drawPlace(); }
+    if (S.mode === 'race'){ S.acc += dt; while (S.acc >= PH.DT){ stepRace(PH.DT); S.acc -= PH.DT; if (S.mode !== 'race') break; } }
+    if (S.mode === 'score'){ S.scoreT += dt; }
+    if (MATCH.includes(S.mode) && S.world){
+      animateFighters(dt, S.mode === 'race' ? Math.min(1, S.acc / PH.DT) : 1);
+      ART.updateItems(dt, t, S.items);
+      const tm = Math.max(0, S.timer), sec = Math.ceil(tm); $('timer').textContent = S.mode === 'score' || S.mode === 'over' ? '' : sec; $('timer').classList.toggle('low', tm <= 5);
+    } else if (S.mode === 'select') animateSelect(dt);
+    const hz = S.world && S.mode === 'race' ? S.world.hazards[0] : null;
+    ART.update(dt, t, hz);
+    // screen shake (skipped with reduced motion)
+    if (S.shake > 0 && !reduceMotion){ S.shake -= dt; camera.position.x = (Math.random()-.5)*S.shake; camera.position.y = 9.4 + (Math.random()-.5)*S.shake; } else if (camera.position.x !== 0){ camera.position.x = 0; camera.position.y = 9.4; }
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
 
   function boot(){
     document.querySelectorAll('[data-players]').forEach(b=>b.onclick = ()=>{ audio(); S.players = +b.dataset.players; enterSelect(); });
-    $('selBack').onclick = enterTitle; $('mapBack').onclick = enterSelect;
-    $('pResume').onclick = ()=>pause(false); $('pRetry').onclick = startRace; $('pMap').onclick = enterMap; $('pChar').onclick = enterSelect; $('pTitle').onclick = enterTitle;
-    $('rRetry').onclick = startRace; $('rMap').onclick = enterMap; $('rChar').onclick = enterSelect; $('rTitle').onclick = enterTitle;
+    $('selBack').onclick = ()=>{ const i = active(); if (i > 0 || (i === 0 && S.stage[0] !== 'char')) backSel(Math.max(0, i)); else enterTitle(); };
+    $('mapBack').onclick = enterSelect;
+    $('pResume').onclick = ()=>pause(false); $('pMap').onclick = enterMap; $('pChar').onclick = enterSelect; $('pTitle').onclick = enterTitle;
+    $('pRestart').onclick = startMatch; $('scNext').onclick = leaveScore;
+    $('rRetry').onclick = startMatch; $('rMap').onclick = enterMap; $('rChar').onclick = enterSelect; $('rTitle').onclick = enterTitle;
     if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) $('touchNote').hidden = false;
     enterTitle(); $('scrTitle').querySelector('.big').focus();
     requestAnimationFrame(frame);

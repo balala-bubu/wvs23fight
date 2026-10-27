@@ -16,10 +16,9 @@ var GaoshiMaps = (function(){
     g[7][29] = 'F';
     [1,2,4,5].forEach(x=>g[9][x]='S');
     return { id:'rooftops', name:'屋頂', size:[W,H], grid:g.map(r=>r.join('')),
-      goal:{x:28.5, y:4, w:2, h:4}, hazards:[], noPlaceZones:[], killY:20, solidBounds:true,
+      hazards:[], noPlaceZones:[], killY:20, solidBounds:true,
       sky:[0x2b3a66, 0xe8946a], look:'city',
-      // 第 1 次試玩用的測試橋；第 2 次有放道具後拿掉
-      testBoxes:[{x:10,y:10,w:3,h:1},{x:15,y:9,w:3,h:1}] };
+      testBoxes:[] };
   }
   function buildFarm(){
     const W = 32, H = 18, {g, fill} = grid(W, H);
@@ -32,7 +31,6 @@ var GaoshiMaps = (function(){
     g[4][27] = 'F';
     [1,2,4,5].forEach(x=>g[7][x]='S');
     return { id:'farm', name:'農場', size:[W,H], grid:g.map(r=>r.join('')),
-      goal:{x:26.5, y:1, w:2, h:4},
       hazards:[{type:'rotating_blade', center:[16.5,13], length:4, thickness:0.4, periodSec:3.0, lethal:true}],   // TODO(verify): 對照原作 period
       noPlaceZones:[{x:0,y:8,w:8,h:8}], hideZones:[{x:0,y:15,w:32,h:1}], killY:99, solidBounds:true,
       sky:[0x5d9ad6, 0xf3d9a0], look:'farm', testBoxes:[] };
