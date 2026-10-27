@@ -226,15 +226,16 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 #touch[data-mode="pick"] .crouch,#touch[data-mode="pick"] .run,#touch[data-mode="pick"] .rot,#touch[data-mode="place"] .crouch,#touch[data-mode="place"] .run{display:none}
 #rotHint{display:none}
 @media (orientation: portrait) and (pointer: coarse){#rotHint{display:flex;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;background:rgba(18,14,12,.94);font-size:22px;font-weight:900;color:var(--gold)}}
+.logoImg{width:min(640px,86vw);height:auto;filter:drop-shadow(0 8px 0 rgba(0,0,0,.35))}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
-<div id="loading"><div class="logo" style="font-size:48px">世志土木</div><progress id="loadBar" max="1" value="0"></progress><div id="loadStatus" class="sub">正在準備…</div></div>
+<div id="loading"><img class="logoImg" src="assets/tumu-logo.webp" width="1200" height="514" alt="世志土木 WVS Civil Engineer" style="width:min(420px,70vw)"><progress id="loadBar" max="1" value="0"></progress><div id="loadStatus" class="sub">正在準備…</div></div>
 
 <section class="scr" id="scrTitle" hidden>
-  <div class="logo">世志土木</div>
+  <img class="logoImg" src="assets/tumu-logo.webp" width="1200" height="514" alt="世志土木 WVS Civil Engineer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="logo" hidden>世志土木</div>
   <div class="sub">蓋關卡、坑朋友，自己也要過得去</div>
   <div class="row">
     <button class="big" data-players="1">1 人試玩</button>
