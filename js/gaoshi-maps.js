@@ -43,21 +43,21 @@ var GaoshiMaps = (function(){
     fill(7,16,7,16,'W');           // stone step
     fill(8,15,21,16,'W');          // foundation
     g[15][14] = '.'; g[15][15] = '.';   // elevator pit, so the car sits flush at the bottom
-    fill(9,11,12,11,'H');          // porch on stilts (the glass sticks out of it)
-    fill(17,9,21,9,'H');           // middle platform
-    fill(20,10,20,12,'H');         // hanging post under it
-    fill(7,5,13,5,'R'); fill(16,5,21,5,'R');   // roof eave, elevator shaft x14–15 between
-    fill(25,6,28,6,'H');           // goal platform
+    fill(6,10,12,10,'H');          // porch on stilts; the glass stands on its left end
+    fill(17,8,21,8,'H');           // middle platform
+    fill(20,9,20,11,'H');         // hanging post under it
+    fill(7,4,13,4,'R'); fill(16,4,21,4,'R');   // roof eave, elevator shaft x14–15 between
+    fill(25,5,28,5,'H');           // goal platform
     fill(25,14,26,14,'P');         // safe wooden frame inside the thorns
-    g[5][27] = 'F';
+    g[4][27] = 'F';
     [1,2,3,4].forEach(x=>g[16][x]='S');
     return { id:'mansion', name:'老宅', size:[W,H], grid:g.map(r=>r.join('')),
       hazards:[
-        {type:'elevator', x:14, w:2, top:5, bottom:15, speed:2.6, waitSec:1.6, buttons:[{x:18.2, y:15}, {x:9.8, y:5}]},
+        {type:'elevator', x:14, w:2, top:4, bottom:15, speed:2.6, waitSec:1.6, buttons:[{x:18.2, y:15}, {x:9.8, y:4}]},
         {type:'spikes', look:'thorns', rect:{x:22.2, y:13.8, w:2.6, h:3.2}, lethal:true},
         {type:'spikes', look:'thorns', rect:{x:27.2, y:13.8, w:4.8, h:3.2}, lethal:true},
-        {type:'spikes', look:'glass', rect:{x:6.4, y:8.2, w:2.8, h:2.8}, lethal:true}],
-      noPlaceZones:[{x:14, y:5, w:2, h:11}], killY:99, solidBounds:true,
+        {type:'spikes', look:'glass', rect:{x:6.4, y:7.2, w:2.8, h:2.8}, lethal:true}],
+      noPlaceZones:[{x:14, y:4, w:2, h:12}], killY:99, solidBounds:true,
       sky:[0xd9b0b4, 0xf3cf9a], look:'mansion', testBoxes:[] };
   }
   // 原作 Waterfall（照原作截圖排）：左半是大懸崖，崖頂往右伸出去，下面挖空；玩家從崖下左邊的小平台出發；
@@ -65,11 +65,11 @@ var GaoshiMaps = (function(){
   function buildWaterfall(){
     const W = 32, H = 18, {g, fill} = grid(W, H);
     fill(0,6,21,6,'Q');                           // grassy cliff top, reaching out to the right
-    fill(0,7,16,10,'K'); fill(17,7,18,8,'K'); fill(19,7,20,7,'K');   // overhang, thinning toward the tip
-    fill(0,11,1,13,'K');                          // cliff wall behind the start
-    fill(0,14,6,15,'K'); fill(0,16,5,17,'K');    // start ledge
+    fill(0,7,16,8,'K'); fill(17,7,18,7,'K');    // thin overhang, big hollow under it (our runners are big)
+    fill(0,9,1,14,'K');                           // cliff wall behind the start
+    fill(0,15,6,15,'K'); fill(0,16,5,17,'K');    // start ledge
     g[5][3] = 'F';
-    [2,3,4,5].forEach(x=>g[13][x]='S');
+    [2,3,4,5].forEach(x=>g[14][x]='S');
     return { id:'waterfall', name:'瀑布', size:[W,H], grid:g.map(r=>r.join('')),
       hazards:[{type:'push', look:'waterfall', rect:{x:18.3, y:6.6, w:1.9, h:13}, accel:85, maxVy:30}],
       noPlaceZones:[], killY:20, solidBounds:true,

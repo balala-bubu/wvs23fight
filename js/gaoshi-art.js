@@ -254,34 +254,34 @@ var GaoshiArt = (function(){
     const back = -1.9, front = DEPTH/2 + .03;
     // torn wallpaper behind the house, with holes where the night shows through
     const paper = (x0, y0, x1, y1)=>{ const m = new THREE.Mesh(new THREE.PlaneGeometry(x1-x0, y1-y0), lam({map:repTex(T.paper, (x1-x0)/2, (y1-y0)/2)})); m.position.set(WX((x0+x1)/2), WY((y0+y1)/2), back); group.add(m); };
-    paper(10, 6, 21, 15); paper(13, 2.5, 18, 5);
+    paper(10, 5, 21, 15); paper(13, 1.5, 18, 4);
     const wood = lam({color:0x2e2018});
     // the house frame: corner posts and slanted broken roof beams
-    [[9.3, 11, 15], [10.3, 11, 15], [11.3, 11, 15], [12.4, 11, 15]].forEach(([x, y0, y1])=>{ const p = box(.4, y1-y0, .4, wood); p.position.set(WX(x + .2), WY((y0+y1)/2), back + .3); group.add(p); });
+    [[6.3, 10, 15], [8, 10, 15], [10.3, 10, 15], [12.4, 10, 15]].forEach(([x, y0, y1])=>{ const p = box(.4, y1-y0, .4, wood); p.position.set(WX(x + .2), WY((y0+y1)/2), back + .3); group.add(p); });
     // pointed roof behind the eave, chimney, and a slanted brace holding the goal platform
-    const rs = new THREE.Shape(); rs.moveTo(-7.5, 0); rs.lineTo(0, 4.4); rs.lineTo(7.5, 0); rs.closePath();
-    const roof = new THREE.Mesh(new THREE.ShapeGeometry(rs), lam({map:repTex(T.shingle, 4, 3)})); roof.position.set(WX(14.5), WY(5), back + .2); group.add(roof);
-    const chim = box(1.4, 2.2, .8, lam({map:repTex(T.brick, 1, 1)})); chim.position.set(WX(17.8), WY(1.8), back + .2); group.add(chim);
-    [[21.5, 5.6, 25.5, 6.6, -.25], [21, 9, 26, 6.8, .42]].forEach(([x0, y0, x1, y1, rz])=>{ const b = box(Math.hypot(x1-x0, y1-y0), .25, .25, wood); b.position.set(WX((x0+x1)/2), WY((y0+y1)/2), -1); b.rotation.z = rz; group.add(b); });
+    const rs = new THREE.Shape(); rs.moveTo(-7.5, 0); rs.lineTo(0, 3.4); rs.lineTo(7.5, 0); rs.closePath();
+    const roof = new THREE.Mesh(new THREE.ShapeGeometry(rs), lam({map:repTex(T.shingle, 4, 3)})); roof.position.set(WX(14.5), WY(4), back + .2); group.add(roof);
+    const chim = box(1.4, 2.2, .8, lam({map:repTex(T.brick, 1, 1)})); chim.position.set(WX(17.8), WY(1.6), back + .2); group.add(chim);
+    [[21.5, 4.6, 25.5, 5.6, -.25], [21, 8, 26, 5.8, .42]].forEach(([x0, y0, x1, y1, rz])=>{ const b = box(Math.hypot(x1-x0, y1-y0), .25, .25, wood); b.position.set(WX((x0+x1)/2), WY((y0+y1)/2), -1); b.rotation.z = rz; group.add(b); });
     // two windows with moonlight, one with broken panes
-    [[12.5, 8], [16, 12]].forEach(([x, y], k)=>{ const fr = box(2.2, 2.6, .12, wood); fr.position.set(WX(x), WY(y), back + .05); group.add(fr);
+    [[12.5, 7], [16, 11.5]].forEach(([x, y], k)=>{ const fr = box(2.2, 2.6, .12, wood); fr.position.set(WX(x), WY(y), back + .05); group.add(fr);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.2), basic({color:0x9fb2dd, transparent:true, opacity:.7})); gl.position.set(WX(x), WY(y), back + .13); group.add(gl);
       [[1.9, .1, 0, 0], [.1, 2.3, 0, 0]].forEach(([w, h])=>{ const c = box(w, h, .05, wood); c.position.set(WX(x), WY(y), back + .16); group.add(c); });
       if (k === 1){ const hole = new THREE.Mesh(new THREE.CircleGeometry(.55, 7), basic({color:0x1c1830})); hole.position.set(WX(x + .4), WY(y + .4), back + .15); group.add(hole); }
       const beam = sprite(T.glow, 3.4, 0x9fb2ff, .35); beam.position.set(WX(x), WY(y), back + .3); group.add(beam); });
     // crooked portraits
-    [[18.6, 12.4, .12, 0xb88a3a], [16.5, 7.6, -.18, 0x8a6a3a]].forEach(([x, y, rz, col])=>{ const f = box(1.3, 1.6, .1, lam({color:col})); f.position.set(WX(x), WY(y), back + .1); f.rotation.z = rz; group.add(f);
+    [[18.6, 11.6, .12, 0xb88a3a], [16.5, 6.6, -.18, 0x8a6a3a]].forEach(([x, y, rz, col])=>{ const f = box(1.3, 1.6, .1, lam({color:col})); f.position.set(WX(x), WY(y), back + .1); f.rotation.z = rz; group.add(f);
       const pic = new THREE.Mesh(new THREE.PlaneGeometry(.95, 1.25), lam({color:0x3a2c3e})); pic.position.set(0, 0, .06); f.add(pic);
       const face = new THREE.Mesh(new THREE.CircleGeometry(.25, 12), lam({color:0xb8a690})); face.position.set(0, .15, .07); f.add(face); });
     // swinging chandelier under the roof
-    const ch = new THREE.Group(); ch.position.set(WX(11), WY(6), -1); group.add(ch);
+    const ch = new THREE.Group(); ch.position.set(WX(11), WY(5), -1); group.add(ch);
     const chain = box(.05, 1.3, .05, lam({color:0x6a5a3a})); chain.position.y = -.65; ch.add(chain);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(.6, .06, 6, 16), lam({color:0x8a7444})); ring.rotation.x = Math.PI/2; ring.position.y = -1.35; ch.add(ring);
     for (let k=0;k<5;k++){ const a = k/5*Math.PI*2; const c = sprite(T.glow, .5, 0xffc070, .9); c.position.set(Math.cos(a)*.6, -1.15, Math.sin(a)*.6); ch.add(c); const ph = rr()*6; ambient.push({update(dt, t){ c.material.opacity = .65 + Math.sin(t*11 + ph)*.25; }}); }
     ambient.push({update(dt, t){ ch.rotation.z = Math.sin(t*.9)*.12; }});
     // cobwebs in the corners
     const web = basic({color:0xd8d4e0, transparent:true, opacity:.35});
-    [[10.4, 6.3, 1], [20.6, 6.3, -1], [10.4, 11.3, 1]].forEach(([x, y, sd])=>{ for (let k=0;k<4;k++){ const l = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .03), web); l.position.set(WX(x) + sd*.45, WY(y) - .45, back + .4); l.rotation.z = -sd*(.2 + k*.35); group.add(l); } });
+    [[10.4, 5.3, 1], [20.6, 5.3, -1], [10.4, 10.3, 1]].forEach(([x, y, sd])=>{ for (let k=0;k<4;k++){ const l = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .03), web); l.position.set(WX(x) + sd*.45, WY(y) - .45, back + .4); l.rotation.z = -sd*(.2 + k*.35); group.add(l); } });
     // candles on the ground floor, rubble and loose boards in front
     [[11, 15], [20.5, 15]].forEach(([x, y])=>{ const c = box(.16, .5, .16, lam({color:0xeee6d0})); c.position.set(WX(x), WY(y) + .25, -1.2); group.add(c); const fl = sprite(T.glow, .7, 0xffb050); fl.position.set(WX(x), WY(y) + .62, -1.1); group.add(fl); const ph = rr()*6; ambient.push({update(dt, t){ fl.scale.setScalar(.6 + Math.sin(t*14 + ph)*.08); }}); });
     for (let i=0;i<8;i++){ const r = box(.3 + rr()*.4, .2 + rr()*.2, .3, lam({color:[0x4a4752,0x3e2b1f][i%2]})); r.position.set(WX(8.5 + rr()*13), WY(15) + .1, 1.2 + rr()*.7); r.rotation.y = rr()*3; group.add(r); }
@@ -354,7 +354,7 @@ var GaoshiArt = (function(){
     const front = DEPTH/2 + .03;
     // the pool far below: dark water filling the gap
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(40, 10), lam({color:0x1f5a78, transparent:true, opacity:.92})); pool.rotation.x = -Math.PI/2; pool.position.set(WX(16), WY(18) - 1.2, 0); group.add(pool);
-    const cave = new THREE.Mesh(new THREE.CircleGeometry(.55, 12), basic({color:0x2a2622})); cave.scale.y = 1.5; cave.position.set(WX(1), WY(12.6), front); group.add(cave);
+    const cave = new THREE.Mesh(new THREE.CircleGeometry(.55, 12), basic({color:0x2a2622})); cave.scale.y = 1.5; cave.position.set(WX(1), WY(13.4), front); group.add(cave);
     const poolFront = new THREE.Mesh(new THREE.PlaneGeometry(26, 2.4), lam({color:0x184a66})); poolFront.position.set(WX(19), WY(18) - 2.4, 4.9); group.add(poolFront);
     for (let i=0;i<14;i++){ const sp = sprite(T.glow, .5 + rr()*.4, 0xbfe8ff, .5); sp.position.set(WX(6 + rr()*20), WY(18) - 1.1, -3 + rr()*6); group.add(sp); const ph = rr()*6; ambient.push({update(dt, t){ sp.material.opacity = .15 + Math.max(0, Math.sin(t*2 + ph))*.6; }}); }
     // rocks poking out of the pool
@@ -384,12 +384,12 @@ var GaoshiArt = (function(){
     tufts(0, 21.5, 6);
     // roots and moss hanging under the overhang, ferns on the start ledge
     const root = lam({color:0x5a4634}), moss = lam({color:0x4a7a34});
-    for (let i=0;i<12;i++){ const x = 2.5 + rr()*14, l = .5 + rr()*1.4, r = new THREE.Mesh(new THREE.CylinderGeometry(.03, .06, l, 4), i%3 ? root : moss); r.position.set(WX(x), WY(x < 17 ? 11 : 9) - l/2, .2 + rr()*1.6); group.add(r); const ph = rr()*6; ambient.push({update(dt, t){ r.rotation.z = Math.sin(t*1.3 + ph)*.08; }}); }
-    for (let i=0;i<5;i++){ const f = new THREE.Mesh(new THREE.ConeGeometry(.3, .7, 5), moss); f.position.set(WX(2.3 + i*.9), WY(14) + .3, -1.2 + rr()*.6); group.add(f); }
+    for (let i=0;i<12;i++){ const x = 2.5 + rr()*14, l = .5 + rr()*1.4, r = new THREE.Mesh(new THREE.CylinderGeometry(.03, .06, l, 4), i%3 ? root : moss); r.position.set(WX(x), WY(x < 17 ? 9 : 8) - l/2, .2 + rr()*1.6); group.add(r); const ph = rr()*6; ambient.push({update(dt, t){ r.rotation.z = Math.sin(t*1.3 + ph)*.08; }}); }
+    for (let i=0;i<5;i++){ const f = new THREE.Mesh(new THREE.ConeGeometry(.3, .7, 5), moss); f.position.set(WX(2.3 + i*.9), WY(15) + .3, -1.2 + rr()*.6); group.add(f); }
     // moss streaks on the right cliff face
     for (let i=0;i<7;i++){ const m = new THREE.Mesh(new THREE.PlaneGeometry(.5 + rr()*.8, 1 + rr()*3), lam({color:0x4f7d38})); m.position.set(WX(.3 + rr()*1.4), WY(8 + rr()*9), front); group.add(m); }
-    const sign = textPlane('瀑布', 1.8, .6, '#f4ecd8', 'rgba(70,48,30,.95)'); sign.position.set(WX(5.5), WY(14) + 1.4, -.8); sign.rotation.z = .06; group.add(sign);
-    const post = box(.15, 1.4, .15, lam({color:0x5a3f2a})); post.position.set(WX(5.5), WY(14) + .6, -.85); group.add(post);
+    const sign = textPlane('瀑布', 1.8, .6, '#f4ecd8', 'rgba(70,48,30,.95)'); sign.position.set(WX(5.5), WY(15) + 1.4, -.8); sign.rotation.z = .06; group.add(sign);
+    const post = box(.15, 1.4, .15, lam({color:0x5a3f2a})); post.position.set(WX(5.5), WY(15) + .6, -.85); group.add(post);
   }
   function flagAt(map){
     let fx = -1, fy = -1; map.grid.forEach((row,y)=>{ const x = row.indexOf('F'); if (x >= 0){ fx = x; fy = y + 1; } });
