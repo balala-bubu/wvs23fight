@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>土木道具一覽</title>
+<style>body{margin:0;background:#2a2433;color:#eee;font:13px sans-serif}#g{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;padding:8px}.c{background:#3a3346;border-radius:8px;text-align:center;padding:4px}.c canvas{width:100%;display:block}#c{position:fixed;left:-9999px}</style>
+<canvas id="c" width="8" height="8"></canvas><div id="g"></div>
+<script src="../js/vendor/three-r128.min.js"></script>
+<script src="../js/gaoshi-rules.js"></script><script src="../js/gaoshi-physics.js"></script><script src="../js/gaoshi-scene.js"></script><script src="../js/gaoshi-models.js"></script><script src="../js/gaoshi-art.js"></script>
+<script>
+// tools/gaoshi_items_view.html?big=1 : every item model, rendered with GaoshiArt.iconOf
+const big = /big/.test(location.search), W = big ? 320 : 176, H = big ? 240 : 132;
+for (const id of Object.keys(GaoshiRules.ITEMS)){ const d = document.createElement('div'); d.className = 'c'; d.appendChild(GaoshiArt.iconOf(id, W, H)); d.appendChild(document.createTextNode(id + ' ' + GaoshiRules.ITEMS[id].name)); document.getElementById('g').appendChild(d); }
+window.DONE = true;
+</script>

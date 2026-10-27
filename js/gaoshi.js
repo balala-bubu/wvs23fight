@@ -281,7 +281,12 @@ var GaoshiGame = (function(){
     S.mode = 'pick'; S.timer = RU.pickTimeSec; show('scrPick'); phaseLabel('選道具'); renderChips(); enterPickUI();
     $('pickNote').textContent = S.zero >= 2 && S.box.some(c=>RL.isBomb(c.id)) ? '連續兩回合沒人得分，這次一定有炸彈' : '同時抓同一個，兩個人都拿得到';
   }
+  // pick-screen icon: the item's own 3D model rendered off screen (falls back to the flat drawing below)
   function itemIcon(id){
+    try { const src = ART.iconOf(id, 176, 132), cv = document.createElement('canvas'); cv.width = 176; cv.height = 132; cv.getContext('2d').drawImage(src, 0, 0); return cv; }
+    catch (e){ return flatIcon(id); }
+  }
+  function flatIcon(id){
     const cv = document.createElement('canvas'), d = RL.ITEMS[id], k = 22, W = 4*k, H = 3*k; cv.width = W; cv.height = H; const g = cv.getContext('2d');
     const ox = (W - d.w*k)/2, oy = (H - d.h*k)/2;
     if (id === 'plank'){ g.fillStyle = '#b07a44'; g.fillRect(ox, oy+3, d.w*k, k-6); g.fillStyle = '#e0b070'; g.fillRect(ox, oy+3, d.w*k, 4); }

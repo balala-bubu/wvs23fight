@@ -46,7 +46,7 @@ var GaoshiRules = (function(){
     jetdisp:{name:'背包販賣機', desc:'碰它就裝滿噴射背包，可以一直拿', cat:'特殊', w:1, h:2, solid:'full', weight:1},
     // —— 危險物 ——
     wire:{name:'鐵絲網', desc:'碰到就倒下，要放在東西上面', cat:'危險物', w:2, h:1, needsSurface:true, lethal:'rect', trap:true, weight:2},
-    saw:{name:'旋轉鋸', desc:'中間是方塊，周圍的鋸片碰到就倒下', cat:'危險物', w:3, h:3, solid:'hub', lethal:'circle', radius:1.35, trap:true, weight:2},
+    saw:{name:'旋轉鋸', desc:'鋸片繞著中間的方塊轉圈，碰到就倒下', cat:'危險物', w:3, h:3, solid:'hub', lethal:'dyn', radius:1.5, trap:true, weight:2},
     linsaw:{name:'直線鋸', desc:'鋸片沿著軌道來回跑', cat:'危險物', w:5, h:1, lethal:'dyn', trap:true, weight:1},
     spikeball:{name:'刺球', desc:'全身是刺，碰到就倒下', cat:'危險物', w:1, h:1, lethal:'circle', radius:.48, trap:true, weight:2},
     trigspike:{name:'陷阱尖刺', desc:'踩上去一下就冒出尖刺', cat:'危險物', w:1, h:1, solid:'full', dyn:true, trap:true, weight:2},

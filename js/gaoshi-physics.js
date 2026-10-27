@@ -75,7 +75,7 @@ var GaoshiPhysics = (function(){
     hits = hits.filter(h=>!(h.player || h.oneway) || (dy > 0 && prevB <= h.t + 0.05));
     if (!hits.length) return;
     for (const h of hits) if (h.item) shove(w, p, h.item, 0, Math.sign(dy));
-    if (dy > 0){ const t = Math.min(...hits.map(h=>h.t)), top = hits.find(h=>h.t === t); if (top && top.bounce && p.vy > 3) p.bounce = true; p.y = t; p.vy = 0; p.onGround = true; }
+    if (dy > 0){ const t = Math.min(...hits.map(h=>h.t)), top = hits.find(h=>h.t === t); if (top && top.bounce && p.vy > 3){ p.bounce = true; ist(w, top.item).squash = .25; } p.y = t; p.vy = 0; p.onGround = true; }
     else if (dy < 0){ p.y = Math.max(...hits.map(h=>h.b)) + p.h; p.vy = 0; p.jumping = false; }
   }
   const probe = (w,p,dx,dy,players)=> solidsIn(w, (r=>({l:r.l+dx, r:r.r+dx, t:r.t+dy, b:r.b+dy}))(rectOf(p)), p, players)
@@ -338,6 +338,7 @@ var GaoshiPhysics = (function(){
         case 'flame': { s.on = ((t + phaseOf(it)*3) % 3) < 1.2; if (s.on) s.kill = [faceBand(it, AIM[r], .1, 3.4)]; if (s.on && !s.was){ w.sfx = w.sfx || []; w.sfx.push('fire'); } s.was = s.on; break; }
         case 'blackhole': s.kill = [{cx:c.x, cy:c.y, rad:.55}]; s.spin = t*4; break;
         case 'spikeball': break;
+        case 'saw': { const a = (t + phaseOf(it)*2) * Math.PI * ((it.r||0) % 2 ? -1 : 1); s.sawA = a; s.kill = [{cx:c.x + Math.cos(a)*1.0, cy:c.y - Math.sin(a)*1.0, rad:.52}]; break; }
         case 'cannon': case 'crossbow': case 'hockey': case 'tennis': case 'plane': {
           const per = {cannon:3, crossbow:2.2, hockey:3, tennis:2, plane:3}[it.type], k = Math.floor(t/per + phaseOf(it));
           if (s.last === undefined) s.last = k; else if (k > s.last){ s.last = k; fire(w, it, it.type); s.recoil = .2; }
