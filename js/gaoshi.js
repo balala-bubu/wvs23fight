@@ -279,7 +279,7 @@ var GaoshiGame = (function(){
     S.world = freshWorld(); ART.syncItems(S.items, COLOR_N); ART.placeOverlay(false); S.pend = [];
     S.picks = Array(S.players).fill(null); S.after = 0;
     S.mode = 'pick'; S.timer = RU.pickTimeSec; show('scrPick'); phaseLabel('選道具'); renderChips(); enterPickUI();
-    $('pickNote').textContent = S.zero >= 2 && S.box.some(c=>c.id === 'bomb') ? '連續兩回合沒人得分，這次一定有炸彈' : '同時抓同一個，兩個人都拿得到';
+    $('pickNote').textContent = S.zero >= 2 && S.box.some(c=>RL.isBomb(c.id)) ? '連續兩回合沒人得分，這次一定有炸彈' : '同時抓同一個，兩個人都拿得到';
   }
   function itemIcon(id){
     const cv = document.createElement('canvas'), d = RL.ITEMS[id], k = 22, W = 4*k, H = 3*k; cv.width = W; cv.height = H; const g = cv.getContext('2d');
@@ -289,6 +289,22 @@ var GaoshiGame = (function(){
     if (id === 'wire'){ g.strokeStyle = '#c3c8cf'; g.lineWidth = 2; for (let i=0;i<6;i++){ g.beginPath(); g.arc(ox + 6 + i*7, oy + k/2, 7, 0, 7); g.stroke(); } g.fillStyle = '#5a4a3a'; g.fillRect(ox, oy+2, 3, k); g.fillRect(ox+d.w*k-3, oy+2, 3, k); }
     if (id === 'saw'){ const cx = W/2, cy = H/2; g.fillStyle = '#d8dce2'; g.beginPath(); for (let i=0;i<32;i++){ const a = i/32*Math.PI*2, r = i%2 ? 26 : 31; g.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); } g.fill(); g.fillStyle = '#55585e'; g.fillRect(cx-11, cy-11, 22, 22); }
     if (id === 'bomb'){ g.fillStyle = '#222226'; g.beginPath(); g.arc(W/2, H/2+4, 18, 0, 7); g.fill(); g.strokeStyle = '#c9a36a'; g.lineWidth = 3; g.beginPath(); g.moveTo(W/2+8, H/2-12); g.quadraticCurveTo(W/2+14, H/2-24, W/2+22, H/2-20); g.stroke(); g.fillStyle = '#ffb040'; g.beginPath(); g.arc(W/2+23, H/2-21, 4, 0, 7); g.fill(); }
+    const LOOK = {wood1:['#a77443','📦'], girder:['#d9622b',''], stairs:['#b07a44',''], scaffold:['#9aa0a8','⇡'], ice:['#a8dcf4','❄'], tire:['#2a2a2e','◎'], crumble:['#b38a5a','⋰'], fallblock:['#7e7a86','↓'],
+      flipblock:['#6b6f78','⇅'], blueplat:['#3d7fe0','↔'], redplat:['#e0483d','↕'], purpleplat:['#9a55d8','↻'], dancer:['#ff6fb1','♪'], fanplat:['#4fb3a6','✣'], ferris:['#6a5a8a','🎡'], gear:['#9a8a6a','⚙'],
+      treadmill:['#3a3d44','➜'], barrel:['#c89060','🛢'], door:['#a06c3a','🚪'], onewaydoor:['#a06c3a','➜'], teleporter:['#6ad0ff','◉'], spring:['#e0483d','⤒'], fan:['#55585e','✣'], hydrant:['#e0483d','💧'],
+      magnet:['#9aa0a8','🧲'], blackhole:['#2a0a40','●'], honey:['#f0a020','🍯'], slowatch:['#d8dce2','⏱'], jetpack:['#c9ccd2','🚀'], jetdisp:['#e0483d','🚀'], linsaw:['#55585e','⚙'], spikeball:['#3a3d44','✷'],
+      trigspike:['#5c4d3e','▲'], wrecking:['#2a2a2e','●'], flame:['#55585e','🔥'], beehive:['#e8b84e','🐝'], cannon:['#2a2a2e','💣'], crossbow:['#8a5a2a','🏹'], hockey:['#3d7fe0','🏒'], tennis:['#5fd36a','🎾'],
+      plane:['#6a8ad8','✈'], glove:['#e0483d','🥊'], flower:['#ff6fb1','🌸'], minibomb:['#222226','💣'], megabomb:['#8a1a1a','💥']}[id];
+    if (LOOK){ const kk = Math.min(k, (W - 4)/d.w, (H - 4)/d.h), ox2 = (W - d.w*kk)/2, oy2 = (H - d.h*kk)/2;
+      const cells = d.solid === 'cells' ? d.cells : null;
+      if (cells){ g.fillStyle = LOOK[0]; for (const [cx, cy] of cells) g.fillRect(ox2 + cx*kk + 1, oy2 + cy*kk + 1, kk - 2, kk - 2); }
+      else if (!['spikeball','blackhole','honey','spring','jetpack','slowatch','minibomb','megabomb','teleporter','ferris','wrecking','linsaw','beehive','flower'].includes(id)){ g.fillStyle = LOOK[0]; g.fillRect(ox2, oy2, d.w*kk, d.h*kk); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(ox2, oy2, d.w*kk, 3); }
+      else if (id === 'linsaw'){ g.fillStyle = '#55585e'; g.fillRect(ox2, oy2 + d.h*kk/2 - 2, d.w*kk, 4); }
+      else if (id === 'wrecking'){ g.strokeStyle = '#6a6d74'; g.lineWidth = 2; g.beginPath(); g.moveTo(W/2, oy2 + 4); g.lineTo(W/2 + 10, oy2 + d.h*kk - 10); g.stroke(); g.fillStyle = '#55585e'; g.fillRect(W/2 - kk/2, oy2, kk, kk/1.2); }
+      else if (id === 'ferris'){ g.strokeStyle = '#e8e1d0'; g.lineWidth = 2; g.beginPath(); g.arc(W/2, H/2, Math.min(W, H)*.36, 0, 7); g.stroke(); }
+      if (LOOK[1]){ g.font = '900 ' + Math.round(Math.min(26, Math.max(d.w, d.h)*kk*.62 + 6)) + 'px "Noto Sans TC", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 3;
+        const pos = id === 'wrecking' ? [W/2 + 10, oy2 + d.h*kk - 10] : [W/2, H/2 + 1]; g.fillText(LOOK[1], pos[0], pos[1]); g.shadowBlur = 0; }
+    }
     if (id === 'coin'){ g.fillStyle = '#f2c14e'; g.beginPath(); g.arc(W/2, H/2, 20, 0, 7); g.fill(); g.fillStyle = '#fff2b0'; g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('★', W/2, H/2+1); }
     return cv;
   }
@@ -391,10 +407,10 @@ var GaoshiGame = (function(){
   }
   function doPlace(i, type, x, y, r){
     S.placed[i] = true; ART.removeObj(S.ghosts[i]); S.ghosts[i] = null;
-    if (type === 'bomb'){
-      const hits = RL.bombHits(S.world, x, y); for (const h of hits) S.items.splice(S.items.indexOf(h), 1);
+    if (RL.isBomb(type)){
+      const hits = RL.bombHits(S.world, x, y, type); for (const h of hits) S.items.splice(S.items.indexOf(h), 1);
       ART.markBombTargets([]);
-      ART.explosion(WX(x + .5), WY(y + .5)); SND.boom(); S.shake = .35; flash('炸掉 ' + hits.length + ' 個道具', COLORS[i]);
+      ART.explosion(WX(x + .5), WY(y + .5), RL.ITEMS[type].bomb); SND.boom(); S.shake = .35; flash('炸掉 ' + hits.length + ' 個道具', COLORS[i]);
       netPhase('items', {boom:{x, y, n:hits.length, i}});
     } else { const it = {type, x, y, r:type === 'coin' ? 0 : (r||0), owner:i}; if (type === 'coin'){ it.cx = x + .5; it.cy = y + .5; } S.items.push(it); SND.place(); netPhase('items'); }
     ART.syncItems(S.items, COLOR_N);
@@ -436,7 +452,7 @@ var GaoshiGame = (function(){
     }
     // anything a held bomb would blow up glows red while it is being aimed
     const doomed = [];
-    for (let i=0;i<S.players;i++){ const c = S.cursor[i]; if (c && S.picks[i] === 'bomb' && !S.placed[i]) for (const h of RL.bombHits(S.world, c.x, c.y)) if (!doomed.includes(h)) doomed.push(h); }
+    for (let i=0;i<S.players;i++){ const c = S.cursor[i]; if (c && RL.isBomb(S.picks[i]) && !S.placed[i]) for (const h of RL.bombHits(S.world, c.x, c.y, S.picks[i])) if (!doomed.includes(h)) doomed.push(h); }
     ART.markBombTargets(doomed);
   }
   // mouse helps P1 place
@@ -462,6 +478,8 @@ var GaoshiGame = (function(){
     S.time += dt; let changed = false;
     w.players.forEach(p=>{ p.px = p.x; p.py = p.y; });
     PH.stepWorld(w, w.players.map((p,i)=>readInput(i)), PH.DT);
+    for (const p of w.players) if (p.jetOn && Math.random() < .5) ART.burst(WX(p.x), WY(p.y - .6), [0xffe08a, 0xff8a3a], 1, 2, {gravity:-2, size:.35});
+    if (w.sfx && w.sfx.length){ for (const k of new Set(w.sfx)) itemSfx(k); w.sfx.length = 0; }
     w.players.forEach((p,i)=>{ if (p.remote) return; if (S.net && p.events.length) (S.evq[i] = S.evq[i] || []).push(...p.events);
       for (const e of p.events){ fx(i, p, e); if (['die','goal','coin'].includes(e)) changed = true; } });
     if (changed) renderChips();
@@ -471,6 +489,9 @@ var GaoshiGame = (function(){
     if ((PH.raceOver(w) || left <= 0) && !S.endT) S.endT = S.time;
     if (S.endT && S.time - S.endT > 1.3) enterScore();
   }
+  // sounds the placed items make during a race
+  function itemSfx(k){ if (k === 'shoot') beep(180,.12,'square',.05,-80); else if (k === 'punch') beep(140,.1,'sawtooth',.06,120); else if (k === 'fire'){ noise(.5,.12); } else if (k === 'spike') beep(900,.06,'square',.04,-300);
+    else if (k === 'crumble') noise(.25,.15); else if (k === 'splash') noise(.4,.1); else if (k === 'buzz') beep(220,.3,'sawtooth',.02,20); }
   // sounds and particles for one runner's event (local or received over the network)
   function fx(i, p, e){
     const m = S.models[i]; if (!m) return;
@@ -482,6 +503,11 @@ var GaoshiGame = (function(){
         if (e === 'die'){ SND.die(); setFace(m, 'cry'); S.shake = .18; ART.burst(WX(p.x), WY(p.y - 1), [COLOR_N[i], 0xffffff], 14, 7, {cubes:true}); flash('P' + (i+1) + ' 倒下了', COLORS[i]); }
         if (e === 'goal'){ SND.goal(); ART.burst(WX(p.x), WY(p.y - 1), [0xf2c14e, 0xff7a3d, 0x4fa3ff, 0x5fd36a, 0xd070e0], 30, 9, {cubes:true, up:4}); flash('P' + (i+1) + ' 抵達！', COLORS[i]); }
         if (e === 'coin'){ SND.coin(); }
+        if (e === 'bounce'){ SND.jump(); m.sx = .7; m.sy = 1.4; ART.burst(WX(p.x), WY(p.y), 0xffffff, 6, 3, {gravity:2, size:.35}); }
+        if (e === 'knock'){ SND.land(); m.sx = 1.3; m.sy = .7; ART.burst(WX(p.x), WY(p.y - 1), 0xffe08a, 8, 5, {gravity:4, size:.35}); }
+        if (e === 'tp'){ SND.coin(); ART.burst(WX(p.x), WY(p.y - 1), 0x7ad8ff, 12, 4, {gravity:0, size:.45}); }
+        if (e === 'jet'){ SND.coin(); }
+        if (e === 'door'){ SND.land(); }
         if (e === 'postmortem') flash('P' + (i+1) + ' 的身體飛到旗子上了！', COLORS[i]);
       }
     }
@@ -796,7 +822,7 @@ var GaoshiGame = (function(){
     netTick(dt);
     if (MATCH.includes(S.mode) && S.world){
       animateFighters(dt, S.mode === 'race' ? Math.min(1, S.acc / PH.DT) : 1);
-      ART.updateItems(dt, t, S.items);
+      ART.updateItems(dt, t, S.items, S.world, S.mode === 'race');
       const tm = Math.max(0, S.timer), sec = Math.ceil(tm); $('timer').textContent = S.mode === 'score' || S.mode === 'over' ? '' : sec; $('timer').classList.toggle('low', tm <= 5);
     } else if (S.mode === 'select') animateSelect(dt);
     const hz = S.world && S.mode === 'race' ? S.world.hazards : null;
@@ -824,5 +850,5 @@ var GaoshiGame = (function(){
     const room = (location.search.match(/[?&]room=(\d{4})(?!\d)/) || [])[1]; if (room) openOnline(room);
     requestAnimationFrame(frame);
   }
-  return { boot, S };
+  return { boot, S, startRace, enterPickUI };
 })();
