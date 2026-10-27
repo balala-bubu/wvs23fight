@@ -54,7 +54,7 @@ var GaoshiRules = (function(){
     flame:{name:'噴火器', desc:'定時噴出火焰', cat:'危險物', w:1, h:1, solid:'full', lethal:'dyn', trap:true, weight:1},
     beehive:{name:'蜂窩', desc:'蜜蜂飛出來追人', cat:'危險物', w:1, h:1, solid:'full', trap:true, weight:1},
     // —— 發射器 ——
-    cannon:{name:'大砲', desc:'定時射出砲彈', cat:'發射器', w:1, h:1, solid:'full', trap:true, weight:1},
+    cannon:{name:'大砲', desc:'走進去就被裝填，再以 45 度仰角射出去', cat:'機關', w:1, h:1, solid:'full', weight:1},
     crossbow:{name:'十字弓', desc:'定時射出很快的箭', cat:'發射器', w:1, h:1, solid:'full', trap:true, weight:1},
     hockey:{name:'冰球發射器', desc:'射出沿著地面滑的冰球', cat:'發射器', w:1, h:1, solid:'full', trap:true, weight:1},
     tennis:{name:'網球發射器', desc:'射出會彈跳的網球，打到會被撞飛', cat:'發射器', w:1, h:1, solid:'full', weight:1},

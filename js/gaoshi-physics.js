@@ -89,6 +89,11 @@ var GaoshiPhysics = (function(){
       else { p.vx = 0; p.vy = Math.min(p.vy + G*dt, PHYSICS.maxFallSpeed); }
       substep(w, p, dt); return;
     }
+    if (p.cannonT > 0){                                   // loaded in a cannon: wait, then be shot out
+      p.cannonT -= dt; p.vx = 0; p.vy = 0; p.x = p.cx; p.y = p.cy; p.onGround = false; p.wall = 0; p.crouch = false; p.h = PHYSICS.player.h;
+      if (p.cannonT <= 0){ const c = p.cannon, D = RL.dims(c.type, c.r); p.x = c.x + D.w/2 + p.cdx*1.5; p.y = c.y + D.h/2 + p.cdy*1.5 + 1; p.vx = p.cvx; p.vy = p.cvy; p.lock = .4; p.jumping = false; p.cannon = null; ist(w, c).recoil = .25; p.events.push('cannon'); w.sfx = w.sfx || []; w.sfx.push('shoot'); }
+      return;
+    }
     const P = PHYSICS, dir = (inp.right?1:0) - (inp.left?1:0), gnd = p.onGround ? groundItem(w, p) : null;
     const slick = gnd && gnd.type === 'ice', sticky = !!p.honey;
     const jumpPressed = inp.jump && !p.jumpPrev; p.jumpPrev = !!inp.jump; p.run = !!inp.run;
@@ -281,7 +286,7 @@ var GaoshiPhysics = (function(){
   }
   const shotSolid = (w, sh)=> solidsIn(w, {l:sh.x - sh.rad*.6, r:sh.x + sh.rad*.6, t:sh.y - sh.rad*.6, b:sh.y + sh.rad*.6}, null, false).filter(q=>q.item !== sh.from && !q.oneway);
   function slowAt(w, x, y){ for (const it of w.items) if (it.type === 'slowatch'){ const c = ctr(it); if (Math.hypot(x - c.x, y - c.y) < 4.5) return true; } return false; }
-  function stepItems(w, dt){
+  function stepItems(w, dt, inputs){
     const t = w.t, live = (p)=>p.alive && !p.done;
     for (const it of w.items){
       const d = IT[it.type], s = ist(w, it), r = (it.r||0) % 4, c = ctr(it); s.kill = null;
@@ -290,7 +295,19 @@ var GaoshiPhysics = (function(){
         case 'redplat': { const k = (tri(t/2.6 + phaseOf(it)) - .5) * 6; carry(w, it, s, r % 2 ? k : 0, r % 2 ? 0 : k); break; }
         case 'purpleplat': { const a = (t/6 + phaseOf(it)) * Math.PI*2 * (r >= 2 ? -1 : 1); carry(w, it, s, Math.cos(a)*2 - 2, Math.sin(a)*2); break; }
         case 'dancer': { const P8 = [[0,0],[1,0],[2,0],[2,-1],[2,-2],[1,-2],[0,-2],[0,-1]], k = Math.floor(t/.55) % 8, q = P8[r >= 2 ? (8 - k) % 8 : k]; carry(w, it, s, q[0], q[1]); break; }
-        case 'fanplat': { const ridden = w.players.some(p=>!p.remote && standingOn(w, it, p)); s.sink = Math.max(0, Math.min(3, (s.sink || 0) + (ridden ? 2.2 : -1.4) * dt)); carry(w, it, s, 0, s.sink); break; }
+        case 'fanplat': {
+          // the fans lift whoever stands on it; crouch to let it sink. Left alone it drifts back to where it was placed.
+          const riders = w.players.filter(p=>!p.remote && standingOn(w, it, p)), crouching = riders.some(p=>(inputs[w.players.indexOf(p)] || {}).crouch);
+          const cur = s.sink || 0, v = riders.length ? (crouching ? 3.2 : -3.2) : (cur > 0 ? -1.5 : cur < 0 ? 1.5 : 0);
+          let want = cur + v*dt; if (!riders.length && Math.sign(want) !== Math.sign(cur)) want = 0;
+          const lo = Math.max(-6, -it.y + .5), hi = Math.min(6, w.H - it.y - 1.5);
+          want = Math.max(lo, Math.min(hi, want));
+          const D = RL.dims(it.type, it.r), plat = {x:it.x, y:it.y + want, w:D.w, h:D.h};
+          const tileHit = (r)=>{ for (let yy=Math.floor(r.y); yy<Math.ceil(r.y + r.h - 1e-6); yy++) for (let xx=Math.floor(r.x); xx<Math.ceil(r.x + r.w - 1e-6); xx++) if (tileSolid(w, xx, yy)) return true; return false; };
+          let blocked = tileHit(plat);
+          if (!blocked && want < cur) for (const p of riders){ const head = {x:p.x - p.w/2 + .05, y:p.y - p.h + (want - cur) - .05, w:p.w - .1, h:.1}; if (tileHit(head)) blocked = true; }
+          if (blocked) want = cur;
+          s.sink = want; carry(w, it, s, 0, want); break; }
         case 'ferris': {
           const hub = RL.itemSolids(it)[0], a0 = t / 9 * Math.PI*2 * (r % 2 ? -1 : 1), seats = [];
           for (let k=0;k<4;k++){ const a = a0 + k*Math.PI/2, sx = c.x + Math.cos(a)*2, sy = c.y + Math.sin(a)*2; seats.push({x:sx, y:sy}); }
@@ -339,7 +356,8 @@ var GaoshiPhysics = (function(){
         case 'blackhole': s.kill = [{cx:c.x, cy:c.y, rad:.55}]; s.spin = t*4; break;
         case 'spikeball': break;
         case 'saw': { const a = (t + phaseOf(it)*2) * Math.PI * ((it.r||0) % 2 ? -1 : 1); s.sawA = a; s.kill = [{cx:c.x + Math.cos(a)*1.0, cy:c.y - Math.sin(a)*1.0, rad:.52}]; break; }
-        case 'cannon': case 'crossbow': case 'hockey': case 'tennis': case 'plane': {
+        case 'cannon': { if (s.cool > 0) s.cool -= dt; if (s.recoil > 0) s.recoil -= dt; break; }
+        case 'crossbow': case 'hockey': case 'tennis': case 'plane': {
           const per = {cannon:3, crossbow:2.2, hockey:3, tennis:2, plane:3}[it.type], k = Math.floor(t/per + phaseOf(it));
           if (s.last === undefined) s.last = k; else if (k > s.last){ s.last = k; fire(w, it, it.type); s.recoil = .2; }
           if (s.recoil > 0) s.recoil -= dt; break; }
@@ -384,6 +402,9 @@ var GaoshiPhysics = (function(){
     for (const it of w.items){
       const s = ist(w, it), c = ctr(it), box = toBox({x:it.x, y:it.y, w:c.w, h:c.h}), ro = (it.r||0) % 4;
       switch (it.type){
+        case 'cannon': if (!(s.cool > 0) && !(p.cannonT > 0) && overlap(r, {l:box.l - .2, r:box.r + .2, t:box.t - .2, b:box.b + .2})){
+          const a = AIM[ro], dx = (a[0] + a[1]) * Math.SQRT1_2, dy = (a[1] - a[0]) * Math.SQRT1_2;   // the aim turned 45° towards "up"
+          p.cannonT = .55; p.cannon = it; p.cx = c.x; p.cy = c.y + 1; p.cvx = dx*24; p.cvy = dy*24; p.cdx = dx; p.cdy = dy; s.recoil = 0; s.cool = 1.2; p.vx = 0; p.vy = 0; p.events.push('load'); } break;
         case 'spring': if (!(p.springCD > 0) && overlap(r, {l:box.l + .1, r:box.r - .1, t:box.t + .3, b:box.b})){ const v = UP[ro]; p.springCD = .25; s.pop = .3;
           if (v[1]) { p.vy = v[1] * PHYSICS.springSpeed; p.onGround = false; p.jumping = false; } else { p.vx = v[0] * 17; p.vy = -9; p.lock = .3; }
           p.events.push('bounce'); } break;
@@ -420,7 +441,7 @@ var GaoshiPhysics = (function(){
     // waterfall: anyone in the water is pushed down (falls faster, jumps lower)
     for (const h of w.hazards) if (h.type === 'push') for (const p of w.players) if (!p.remote && p.alive && !p.done && overlap(rectOf(p), rectBox(h.rect))) p.vy = Math.min(p.vy + h.accel*dt, Math.max(p.vy, h.maxVy));
     // online: other people's runners are puppets driven by the network, only local runners are simulated here
-    stepItems(w, dt);
+    stepItems(w, dt, inputs);
     // a slowatch nearby runs a runner at half speed
     w.players.forEach((p,i)=>{ if (!p.remote){ const slow = p.alive && !p.done && slowAt(w, p.x, p.y - 1); p.slow = slow; stepPlayer(w, p, inputs[i] || {}, slow ? dt*.5 : dt); if (p.alive && !p.done) itemEffects(w, p, dt); } else p.events.length = 0; });
     separatePlayers(w);

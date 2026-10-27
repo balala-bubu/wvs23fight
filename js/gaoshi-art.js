@@ -652,7 +652,7 @@ var GaoshiArt = (function(){
         at2(box(.06, .3, .06, M(0x6e4a28)), .5, -.02); break; }
       case 'cannon': case 'tennis': {
         const col = {cannon:0x2a2a2e, crossbow:0x8a5a2a, hockey:0x3d7fe0, tennis:0x4fae5a, plane:0x6a8ad8}[type], body = new THREE.Group(); body.position.set(.5, -.5, 0); g.add(body); g.userData.gun = body;
-        if (type === 'cannon'){ const brl = cylX(.26, .36, .95, M(col), 16); brl.position.set(.08, .05, 0); body.add(brl); const lip = cylX(.3, .3, .1, M(0x3a3a40), 16); lip.position.set(.55, .05, 0); body.add(lip); const bk = ball(.3, M(col), 12); bk.position.x = -.36; body.add(bk);
+        if (type === 'cannon'){ const bar = new THREE.Group(); bar.rotation.z = Math.PI/4; body.add(bar); g.userData.barrel = bar; const brl = cylX(.26, .36, .95, M(col), 16); brl.position.set(.08, .05, 0); bar.add(brl); const lip = cylX(.3, .3, .1, M(0x3a3a40), 16); lip.position.set(.55, .05, 0); bar.add(lip); const bk = ball(.3, M(col), 12); bk.position.x = -.36; bar.add(bk);
           for (const z of [-.42, .42]){ const wh = cylZ(.28, .28, .1, M(0x8a5a2a), 12); wh.position.set(-.05, -.25, z); body.add(wh); for (let k=0;k<3;k++){ const sp = box(.5, .05, .04, M(0x5a3a1a)); sp.rotation.z = k*Math.PI/3; sp.position.set(-.05, -.25, z + Math.sign(z)*.06); body.add(sp); } } }
         else if (type === 'crossbow'){ const st = box(.95, .16, .22, M(col)); body.add(st); const grip = box(.16, .35, .2, M(0x6e4a28)); grip.position.set(-.3, -.22, 0); body.add(grip);
           const arc = new THREE.Mesh(new THREE.TorusGeometry(.45, .05, 6, 16, Math.PI), M(0x4a3020)); arc.rotation.z = -Math.PI/2; arc.position.x = .22; body.add(arc);
@@ -765,7 +765,7 @@ var GaoshiArt = (function(){
       if (u.squash){ s && s.squash > 0 && (s.squash -= dt); const k_ = s && s.squash > 0 ? Math.sin(s.squash/.25*Math.PI)*.3 : 0; u.squash.scale.set(1 + k_*.5, 1 - k_, 1); }
       if (u.pick){ u.pick.visible = !(s && s.taken); u.pick.position.y = -.5 + Math.sin(t*3)*.08; u.pick.rotation.y = t*1.5; }
       if (u.pop){ s && s.pop > 0 && (s.pop -= dt); u.pop.scale.y = 1 + (s && s.pop > 0 ? Math.sin(s.pop/.3*Math.PI)*.6 : 0); }
-      if (u.gun){ u.gun.position.x = .5 - (s && s.recoil > 0 ? s.recoil*.8 : 0); }
+      if (u.barrel){ const rc = s && s.recoil > 0 ? s.recoil/.25 : 0; u.barrel.position.set(-rc*.2*Math.SQRT1_2, -rc*.2*Math.SQRT1_2, 0); } else if (u.gun){ u.gun.position.x = .5 - (s && s.recoil > 0 ? s.recoil*.8 : 0); }
       if (u.fist && u.arm){ const e = s ? s.ext || 0 : 0; u.fist.position.x = .55 + e*2; u.sprg.scale.x = .55 + e*2; }
       if (u.head && u.fist){ const e = s ? s.ext || 0 : 0, f = s && s.face ? s.face : 1; u.fist.position.set(f*(.2 + e*1.8), 0, .2); u.head.rotation.z = s && s.wind > 0 ? Math.sin(t*40)*.2 : 0; }
       const fr = u.free;
@@ -822,7 +822,8 @@ var GaoshiArt = (function(){
     const reach = {fan:[0,7.5,'up'], hydrant:[0,5,'up'], flame:[0,3.4,'aim'], glove:[0,2,'aim']}[type];
     if (reach){ const ar = basic({color:0xffb040, transparent:true, opacity:.18, depthWrite:false}), up_ = reach[2] === 'up';
       const m = new THREE.Mesh(new THREE.PlaneGeometry(up_ ? d.w : reach[1], up_ ? reach[1] : d.h), ar); m.position.set(up_ ? d.w/2 : d.w + reach[1]/2, up_ ? reach[1]/2 : -d.h/2, 2.25); g.add(m); }
-    if (['cannon','crossbow','hockey','tennis','plane'].includes(type)){ const a = new THREE.Mesh(new THREE.ConeGeometry(.18, .4, 3), basic({color:0xffb040})); a.rotation.z = -Math.PI/2; a.position.set(1.35, -.5, 2.3); g.add(a); }
+    if (type === 'cannon'){ const a = new THREE.Mesh(new THREE.ConeGeometry(.18, .4, 3), basic({color:0xffb040})); a.rotation.z = -Math.PI/4; a.position.set(1.25, -1.25, 2.3); g.add(a); }
+    if (['crossbow','hockey','tennis','plane'].includes(type)){ const a = new THREE.Mesh(new THREE.ConeGeometry(.18, .4, 3), basic({color:0xffb040})); a.rotation.z = -Math.PI/2; a.position.set(1.35, -.5, 2.3); g.add(a); }
     if (type === 'linsaw'){ const c = new THREE.Mesh(new THREE.RingGeometry(.8, .85, 24), basic({color:0xff5a4f, transparent:true, opacity:.7})); c.position.set(.5, -.5, 2.3); g.add(c); }
     if (type === 'wrecking'){ const c = new THREE.Mesh(new THREE.RingGeometry(2.6, 2.7, 32, 1, -Math.PI*.85, Math.PI*.7), basic({color:0xff5a4f, transparent:true, opacity:.6})); c.position.set(2.5, -.5, 2.3); g.add(c); }
     if (type === 'blackhole' || type === 'magnet' || type === 'slowatch'){ const rad = {blackhole:6.5, magnet:6, slowatch:4.5}[type], c = new THREE.Mesh(new THREE.RingGeometry(rad - .06, rad, 40), basic({color:type === 'slowatch' ? 0x9ad0ff : 0xb37aff, transparent:true, opacity:.5})); c.position.set(d.w/2, -d.h/2, 2.3); g.add(c); }

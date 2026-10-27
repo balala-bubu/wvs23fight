@@ -513,6 +513,8 @@ var GaoshiGame = (function(){
         if (e === 'tp'){ SND.coin(); ART.burst(WX(p.x), WY(p.y - 1), 0x7ad8ff, 12, 4, {gravity:0, size:.45}); }
         if (e === 'jet'){ SND.coin(); }
         if (e === 'door'){ SND.land(); }
+        if (e === 'load'){ SND.land(); ART.burst(WX(p.x), WY(p.y - 1), 0xdddddd, 6, 3, {gravity:2, size:.4}); }
+        if (e === 'cannon'){ SND.boom(); S.shake = .2; ART.burst(WX(p.x), WY(p.y - 1), [0xff8a3a, 0xffd27a, 0x777777], 14, 7, {cubes:true, gravity:6}); }
         if (e === 'postmortem') flash('P' + (i+1) + ' 的身體飛到旗子上了！', COLORS[i]);
       }
     }
@@ -778,7 +780,7 @@ var GaoshiGame = (function(){
     const w = S.world, now = performance.now();
     w.players.forEach((p,i)=>{
       const m = S.models[i]; if (!m) return;
-      m.holder.visible = !p.gone;
+      m.holder.visible = !p.gone && !(p.cannonT > 0);
       const x = p.px + (p.x - p.px) * alpha, y = p.py + (p.y - p.py) * alpha;
       m.holder.position.set(WX(x), WY(y), 0);
       const ry = p.face * (Math.PI/2 - 0.4); let d = ry - m.holder.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.holder.rotation.y += d * k_(dt, 20);
