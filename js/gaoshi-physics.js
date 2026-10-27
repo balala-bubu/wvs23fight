@@ -197,8 +197,14 @@ var GaoshiPhysics = (function(){
       if (!rider){ if (!overlap(rectOf(p), car)) continue; if (dy > 0){ p.y = car.b + p.h; p.vy = Math.max(p.vy, h.speed); } else { p.y = car.t; p.vy = 0; } }
       const pushedUp = rider || dy < 0, r = rectOf(p), hits = solidsIn(w, r, p, false).filter(q=>!isCar(q));
       if (!hits.length) continue;
-      const depth = pushedUp ? Math.max(...hits.map(q=>q.b)) - r.t : r.b - Math.min(...hits.map(q=>q.t));
-      if (depth > p.h/2) kill(p, {type:'hazard', id:'crush'});
+      const edge = pushedUp ? Math.max(...hits.map(q=>q.b)) : Math.min(...hits.map(q=>q.t));   // ceiling above us / floor under us
+      const depth = pushedUp ? edge - r.t : r.b - edge, gap = p.h - depth;
+      if (gap >= PHYSICS.player.h/2){                 // squeezed but alive: crouch to fit, feet on the car or the floor
+        p.crouch = true; p.h = Math.min(p.h, PHYSICS.player.crouchH); if (!pushedUp) p.y = edge;
+      } else {                                        // flattened: crouched, then shoved out of the shaft sideways
+        p.crouch = true; p.h = Math.max(0.3, Math.min(PHYSICS.player.crouchH, gap - 0.02)); if (!pushedUp) p.y = edge;
+        kill(p, {type:'hazard', id:'crush'}); p.vx = (p.x < h.x + h.w/2 ? -1 : 1) * 8; p.vy = 0; p.face = p.vx > 0 ? -1 : 1;
+      }
     }
   }
   const touchesGoal = (w, r)=> w.goalRects.some(g=>overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h}));
