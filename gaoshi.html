@@ -194,6 +194,38 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 @keyframes stamp{from{transform:translate(-50%,-50%) rotate(-9deg) scale(2.2);opacity:0}to{transform:translate(-50%,-50%) rotate(-9deg) scale(1);opacity:1}}
 @media (max-width:640px){.board{--pad:14px;--who:110px;--tail:56px;--gap:8px}.brow .who .por{width:40px;height:40px}.brow .nm b{font-size:14px}.lane{height:40px}.pitem canvas{width:60px;height:45px}.pcur{width:44px;height:44px}}
 @media (prefers-reduced-motion: reduce){.seg.new,.stamp,.smoke i,.pcur.got{animation:none}}
+
+/* online */
+.msg{min-height:1.4em;color:var(--gold);font-size:14px;text-align:center}
+.joinRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+.joinRow input{font:inherit;font-family:var(--pixel);font-size:32px;width:5ch;text-align:center;letter-spacing:.2em;background:#1d1714;color:var(--ink);border:2px solid var(--line);border-radius:12px;padding:4px 8px}
+.joinRow input:focus-visible{outline:2px solid var(--gold)}
+.lobby{gap:10px}
+.lbTop{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}
+.lbCode{font-family:var(--pixel);font-size:72px;line-height:1;letter-spacing:.15em;color:var(--gold)}
+#lbQR{width:132px;height:132px;image-rendering:pixelated;border-radius:8px;background:#fff}
+.lbLinkRow{display:flex;gap:8px;align-items:center;max-width:100%;font-size:12px;color:var(--dim)}
+.lbLinkRow span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.lbList{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;width:100%}
+.lbRow{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-left:6px solid var(--pc);border-radius:12px;padding:6px 10px;background:#1d1714}
+.lbRow .por{width:48px;height:48px;border-radius:10px;background:#2a211c}
+.lbRow b{display:block;font-size:15px}
+.lbRow span{font-size:13px;color:var(--dim)}
+.lbRow.ready span{color:var(--gold);font-weight:700}
+/* touch controls: thumbs at the bottom corners, info stays out of those corners */
+#touch{position:fixed;inset:auto 0 0 0;height:0;z-index:20;pointer-events:none}
+.tpad{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;pointer-events:auto;touch-action:none}
+.tpad.tl{left:calc(14px + env(safe-area-inset-left,0px));grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,64px)}
+.tpad.tr{right:calc(14px + env(safe-area-inset-right,0px));grid-template-columns:repeat(2,auto);align-items:end}
+.tb{width:64px;height:64px;border-radius:50%;border:2px solid rgba(246,238,223,.35);background:rgba(20,15,12,.55);color:var(--ink);font-size:22px;font-weight:900;-webkit-user-select:none;user-select:none;touch-action:none}
+.tb.on{background:rgba(242,193,78,.55);border-color:var(--gold)}
+.tl .up{grid-column:2;grid-row:1}.tl .lf{grid-column:1;grid-row:2}.tl .rt{grid-column:3;grid-row:2}.tl .dn{grid-column:2;grid-row:2}
+.tr .act{width:88px;height:88px;font-size:26px;grid-column:2;grid-row:1/3}
+.tr .run.on{background:rgba(79,163,255,.55);border-color:#4fa3ff}
+#touch[data-mode="race"] .up,#touch[data-mode="race"] .dn,#touch[data-mode="race"] .rot{display:none}
+#touch[data-mode="pick"] .crouch,#touch[data-mode="pick"] .run,#touch[data-mode="pick"] .rot,#touch[data-mode="place"] .crouch,#touch[data-mode="place"] .run{display:none}
+#rotHint{display:none}
+@media (orientation: portrait) and (pointer: coarse){#rotHint{display:flex;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;background:rgba(18,14,12,.94);font-size:22px;font-weight:900;color:var(--gold)}}
 </style>
 </head>
 <body>
@@ -207,7 +239,9 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
   <div class="row">
     <button class="big" data-players="1">1 人試玩</button>
     <button class="big" data-players="2">2 人同一台</button>
+    <button class="big" id="goOnline">跟朋友連線</button>
   </div>
+  <div class="msg" id="titleMsg" role="status"></div>
   <div class="keys">
     <b>P1</b>　<kbd>A</kbd><kbd>D</kbd> 移動　<kbd>W</kbd>/<kbd>空白</kbd> 跳　<kbd>左 Shift</kbd> 加速跑　<kbd>S</kbd> 蹲<br>
     <b>P2</b>　<kbd>←</kbd><kbd>→</kbd> 移動　<kbd>↑</kbd>/<kbd>Enter</kbd> 跳　<kbd>右 Shift</kbd> 加速跑　<kbd>↓</kbd> 蹲<br>
@@ -266,7 +300,42 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
   </div>
 </section>
 
-<div id="touchNote" hidden>這一版先用鍵盤和滑鼠玩；手機當手把之後加入</div>
+<section class="scr dimmer" id="scrOnline" hidden>
+  <div class="sheet"><div class="res">跟朋友連線</div>
+    <div class="why">每個人用自己的手機或電腦，各自看完整畫面、操作自己的角色</div>
+    <div class="row"><button class="big" id="onHost">開房間</button></div>
+    <div class="joinRow"><label for="onCode">房號</label><input id="onCode" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 位數"><button class="big" id="onJoin">加入房間</button></div>
+    <div class="msg" id="onMsg" role="status"></div>
+    <button class="ghost" id="onBack">返回</button>
+  </div>
+</section>
+
+<section class="scr dimmer" id="scrLobby" hidden>
+  <div class="sheet wide lobby">
+    <div class="lbTop"><div><div class="why">房號</div><div class="lbCode" id="lbCode">····</div></div><canvas id="lbQR" width="10" height="10" aria-label="加入房間的 QR code"></canvas></div>
+    <div class="lbLinkRow"><span id="lbLink"></span><button class="ghost" id="lbCopy">複製連結</button></div>
+    <div class="lbList" id="lbList"></div>
+    <div class="msg" id="lbStatus" role="status"></div>
+    <div class="row"><button class="big" id="lbStart" hidden>開始遊戲</button></div>
+    <div class="row"><button class="ghost" id="lbChar">換角色</button><button class="ghost" id="lbLeave">離開房間</button></div>
+  </div>
+</section>
+
+<div id="touch" hidden>
+  <div class="tpad tl">
+    <button class="tb up" data-k="KeyW" aria-label="上">▲</button>
+    <button class="tb lf" data-k="KeyA" aria-label="左">◀</button>
+    <button class="tb rt" data-k="KeyD" aria-label="右">▶</button>
+    <button class="tb dn" data-k="KeyS" aria-label="下">▼</button>
+  </div>
+  <div class="tpad tr">
+    <button class="tb act" id="tAct" data-k="Space">跳</button>
+    <button class="tb crouch" data-k="KeyS">蹲</button>
+    <button class="tb run" id="tRun" aria-pressed="true">跑</button>
+    <button class="tb rot" data-k="KeyE">轉</button>
+  </div>
+</div>
+<div id="rotHint">請把手機轉成橫向</div>
 
 <script>
 (async()=>{
@@ -275,6 +344,8 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
   const script = (src)=>new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = src.startsWith('http') ? src : src + version; s.onload = ok; s.onerror = ()=>no(new Error('無法載入 ' + src)); document.head.appendChild(s); });
   try{
     await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+    try { await script('https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'); } catch(e){ console.warn(e); }   // online play only
+    try { await script('js/qrcode.js'); } catch(e){ console.warn(e); }
     await script('js/gaoshi-rules.js'); await script('js/gaoshi-physics.js'); await script('js/gaoshi-maps.js');
     await script('js/gaoshi-scene.js'); await script('js/gaoshi-models.js');
     // roster follows 世志大亂鬥: read its character list so new characters show up here too
@@ -282,7 +353,7 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
     try { const html = await (await fetch('brawl.html' + version, {cache:'no-cache'})).text(); const found = [...html.matchAll(/S\('characters\/([a-z]+)\.js'\)/g)].map(m=>m[1]); if (found.length) names = found; } catch(_){}
     bar.max = names.length + 1; status.textContent = '正在準備角色…';
     for (const n of names){ try { await script('characters/' + n + '.js'); } catch(e){ console.warn(e); } bar.value++; }
-    await script('js/gaoshi-art.js'); await script('js/gaoshi.js'); bar.value++;
+    await script('js/gaoshi-art.js'); await script('js/gaoshi-net.js'); await script('js/gaoshi.js'); bar.value++;
     GaoshiGame.boot(); document.getElementById('loading').hidden = true;
   }catch(e){ status.textContent = '載入失敗：' + e.message + '，請重新整理'; console.error(e); }
 })();

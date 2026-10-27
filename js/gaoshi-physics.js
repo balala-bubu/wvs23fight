@@ -149,7 +149,9 @@ var GaoshiPhysics = (function(){
       const vOver = Math.min(ra.b, rb.b) - Math.max(ra.t, rb.t);
       if (vOver < 0.3) continue;                      // stacked: handled by landing
       const push = (Math.min(ra.r, rb.r) - Math.max(ra.l, rb.l)) / 2 + EPS, s = A.x < B.x ? -1 : 1;
-      moveX(w, A, s*push); moveX(w, B, -s*push);
+      if (A.remote && B.remote) continue;
+      const kA = B.remote ? 2 : 1, kB = A.remote ? 2 : 1;
+      if (!A.remote) moveX(w, A, s*push*kA); if (!B.remote) moveX(w, B, -s*push*kB);
     }
   }
 
@@ -176,9 +178,11 @@ var GaoshiPhysics = (function(){
   function stepWorld(w, inputs, dt){
     dt = dt || DT; w.t += dt;
     for (const h of w.hazards) if (h.type === 'rotating_blade') h.angle = w.t / h.periodSec * Math.PI * 2;
-    w.players.forEach((p,i)=>stepPlayer(w, p, inputs[i] || {}, dt));
+    // online: other people's runners are puppets driven by the network, only local runners are simulated here
+    w.players.forEach((p,i)=>{ if (!p.remote) stepPlayer(w, p, inputs[i] || {}, dt); else p.events.length = 0; });
     separatePlayers(w);
     for (const p of w.players){
+      if (p.remote) continue;
       const r = rectOf(p);
       if (!p.alive){
         // 原作：屍體被彈到旗子上也算碰到旗子（死後碰旗）；掉出畫面的屍體就消失
