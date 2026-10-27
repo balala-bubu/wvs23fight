@@ -57,7 +57,7 @@ var GaoshiMaps = (function(){
         {type:'spikes', look:'thorns', rect:{x:22.2, y:13.8, w:2.6, h:3.2}, lethal:true},
         {type:'spikes', look:'thorns', rect:{x:27.2, y:13.8, w:4.8, h:3.2}, lethal:true},
         {type:'spikes', look:'glass', rect:{x:6.4, y:7.2, w:2.8, h:2.8}, lethal:true}],
-      noPlaceZones:[{x:14, y:4, w:2, h:12}], killY:99, solidBounds:true,
+      noPlaceZones:[], killY:99, solidBounds:true,
       sky:[0xd9b0b4, 0xf3cf9a], look:'mansion', testBoxes:[] };
   }
   // 原作 Waterfall（照原作截圖排）：左半是大懸崖，崖頂往右伸出去，下面挖空；玩家從崖下左邊的小平台出發；

@@ -189,6 +189,17 @@ var GaoshiPhysics = (function(){
     const riders = w.players.filter(p=>!p.remote && p.x + p.w/2 > h.x + EPS && p.x - p.w/2 < h.x + h.w - EPS && Math.abs(p.y - h.y) < 0.08 && p.vy >= 0);
     h.y += dy; w.boxes[h.bi].y = h.y;
     for (const p of riders){ p.y = h.y; if (dy < 0) p.vy = 0; }
+    // the car shoves anyone it moves into; squeezed to less than half a body against something solid = crushed
+    const car = {l:h.x, r:h.x + h.w, t:h.y, b:h.y + 0.5}, isCar = (q)=>Math.abs(q.l - car.l) < 1e-6 && Math.abs(q.t - car.t) < 1e-6;
+    for (const p of w.players){
+      if (p.remote || !p.alive || p.done) continue;
+      const rider = riders.includes(p);
+      if (!rider){ if (!overlap(rectOf(p), car)) continue; if (dy > 0){ p.y = car.b + p.h; p.vy = Math.max(p.vy, h.speed); } else { p.y = car.t; p.vy = 0; } }
+      const pushedUp = rider || dy < 0, r = rectOf(p), hits = solidsIn(w, r, p, false).filter(q=>!isCar(q));
+      if (!hits.length) continue;
+      const depth = pushedUp ? Math.max(...hits.map(q=>q.b)) - r.t : r.b - Math.min(...hits.map(q=>q.t));
+      if (depth > p.h/2) kill(p, {type:'hazard', id:'crush'});
+    }
   }
   const touchesGoal = (w, r)=> w.goalRects.some(g=>overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h}));
 
