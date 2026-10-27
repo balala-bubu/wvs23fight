@@ -95,6 +95,9 @@ ok('屋頂：不放道具過不去', !rooftopRun(false).done);
 { const w = P.makeWorld(room()); w.items = [{type:'saw', x:10, y:13, owner:1}]; const p = P.addPlayer(w, 0, {x:5, y:16});
   for (let f=0; f<90; f++) P.stepWorld(w, [{right:true}], P.DT);
   ok('碰到旋轉鋸會倒下', !p.alive); }
+{ const w = P.makeWorld(room(g=>{ for (let y=0;y<16;y++) g[y][12] = '#'; })); w.items = [{type:'plank', x:9, y:13, r:1, owner:1}]; const p = P.addPlayer(w, 0, {x:5, y:16});
+  for (let f=0; f<90; f++) P.stepWorld(w, [{right:true}], P.DT);
+  ok('轉成直的木板會擋住路', p.x < 9.01, p.x.toFixed(2)); }
 // coin
 { const w = P.makeWorld(room()); const c = {type:'coin', x:8, y:15, owner:0, cx:8.5, cy:15.5}; w.items = [c]; const p = P.addPlayer(w, 0, {x:5, y:16});
   for (let f=0; f<40; f++) P.stepWorld(w, [{right:true}], P.DT);
@@ -111,6 +114,9 @@ ok('屋頂：不放道具過不去', !rooftopRun(false).done);
   w.items.push({type:'plank', x:10, y:10}); ok('放置：和道具重疊不行', R.canPlace(w, 'hay', 11, 9).why === '和道具重疊');
   ok('放置：鐵絲網可以放在木板上', R.canPlace(w, 'wire', 10, 9).ok);
   ok('炸彈炸到 3×3 內的道具', R.bombHits(w, 13, 11).length === 1 && R.bombHits(w, 15, 11).length === 0);
+  ok('旋轉 90 度：木板變成 1×3 直的', R.dims('plank',1).w === 1 && R.dims('plank',1).h === 3 && R.canPlace(w, 'plank', 12, 1, 1).ok && !R.canPlace(w, 'plank', 6, 7, 1).ok);
+  ok('旋轉的鐵絲網要貼著牆', R.canPlace(w, 'wire', 7, 10, 1).ok && !R.canPlace(w, 'wire', 12, 3, 1).ok);
+  ok('鐵絲網轉 90 度後危險區在貼牆那側', (q=>q.x === 7 && q.w > 0.6 && q.h > 1.8)(R.itemLethalRect({type:'wire', r:1, x:7, y:10})));
   const n = R.nearestLegal(w, 'plank', 0, 12); ok('逾時會找最近的合法位置', n && R.canPlace(w, 'plank', n.x, n.y).ok); }
 // scoring §5.1
 { const sc = (ps, st)=>{ const r = R.scoreRound(ps, st || {}); const o = {}; for (const id in r.awards) o[id] = R.total(r.awards[id]); return o; };

@@ -29,40 +29,55 @@ var GaoshiRules = (function(){
 
   // ---------- placement ----------
   const rectsOverlap = (a,b)=> a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  // rotation r = number of 90° clockwise turns (0–3); odd turns swap width and height
+  const dims = (type, r)=>{ const d = ITEMS[type]; return (r||0) % 2 ? {w:d.h, h:d.w} : {w:d.w, h:d.h}; };
+  // turn a rect given in the item's unrotated local cells into world cells
+  function rotRect(type, r, q, ox, oy){
+    let W = ITEMS[type].w, H = ITEMS[type].h, x = q.x, y = q.y, w = q.w, h = q.h;
+    for (let k=0; k<((r||0)%4); k++){ [x, y, w, h] = [H - y - h, x, h, w]; [W, H] = [H, W]; }
+    return {x:ox + x, y:oy + y, w, h};
+  }
   function itemSolids(it){
-    const d = ITEMS[it.type];
-    if (d.solid === 'full') return [{x:it.x, y:it.y, w:d.w, h:d.h}];
-    if (d.solid === 'hub') return [{x:it.x+Math.floor(d.w/2), y:it.y+Math.floor(d.h/2), w:1, h:1}];
+    const d = ITEMS[it.type], D = dims(it.type, it.r);
+    if (d.solid === 'full') return [{x:it.x, y:it.y, w:D.w, h:D.h}];
+    if (d.solid === 'hub') return [{x:it.x+Math.floor(D.w/2), y:it.y+Math.floor(D.h/2), w:1, h:1}];
     return [];
   }
+  // barbed wire: the coil sits on its base side; the lethal strip is the coil, not the air above it
+  const itemLethalRect = (it)=> rotRect(it.type, it.r, {x:0.05, y:0.3, w:ITEMS[it.type].w - 0.1, h:ITEMS[it.type].h - 0.3}, it.x, it.y);
   // world: {W,H,solid[y][x], items:[{type,x,y}], spawns, goalRects, map.noPlaceZones}
-  function canPlace(world, type, x, y){
-    const d = ITEMS[type], fp = {x, y, w:d.w, h:d.h};
+  function canPlace(world, type, x, y, r){
+    const d0 = ITEMS[type], D = dims(type, r), d = Object.assign({}, d0, D), fp = {x, y, w:d.w, h:d.h};
     if (x < 0 || y < 0 || x + d.w > world.W || y + d.h > world.H) return {ok:false, why:'超出場地'};
     if (d.bomb) return {ok:true};
     for (let yy=y; yy<y+d.h; yy++) for (let xx=x; xx<x+d.w; xx++) if (world.solid[yy][xx]) return {ok:false, why:'和場景重疊'};
-    for (const it of world.items){ const e = ITEMS[it.type]; if (rectsOverlap(fp, {x:it.x, y:it.y, w:e.w, h:e.h})) return {ok:false, why:'和道具重疊'}; }
+    for (const it of world.items){ const e = dims(it.type, it.r); if (rectsOverlap(fp, {x:it.x, y:it.y, w:e.w, h:e.h})) return {ok:false, why:'和道具重疊'}; }
     for (const z of (world.map.noPlaceZones || [])) if (rectsOverlap(fp, z)) return {ok:false, why:'這裡不能放'};
     for (const s of world.spawns) if (rectsOverlap(fp, {x:Math.floor(s.x)-1, y:s.y-3, w:3, h:3})) return {ok:false, why:'太靠近起點'};
     for (const g of world.goalRects) if (rectsOverlap(fp, {x:Math.floor(g.x)-1, y:Math.floor(g.y)-1, w:Math.ceil(g.w)+2, h:Math.ceil(g.h)+2})) return {ok:false, why:'太靠近終點旗'};
     if (d.needsSurface){
-      const under = (xx)=> y + d.h >= world.H ? false : (world.solid[y+d.h][xx] || world.items.some(it=>itemSolids(it).some(r=>rectsOverlap({x:xx, y:y+d.h, w:1, h:1}, r))));
-      let any = false; for (let xx=x; xx<x+d.w; xx++) if (under(xx)) any = true;
-      if (!any) return {ok:false, why:'要放在東西上面'};
+      // the base side turns with the item: 0 below, 1 left, 2 above, 3 right
+      const solidCell = (cx, cy)=> cx < 0 || cx >= world.W || cy < 0 || cy >= world.H ? false : (world.solid[cy][cx] || world.items.some(it=>itemSolids(it).some(q=>rectsOverlap({x:cx, y:cy, w:1, h:1}, q))));
+      const side = (r||0) % 4, cells = [];
+      if (side === 0) for (let xx=x; xx<x+d.w; xx++) cells.push([xx, y+d.h]);
+      if (side === 2) for (let xx=x; xx<x+d.w; xx++) cells.push([xx, y-1]);
+      if (side === 1) for (let yy=y; yy<y+d.h; yy++) cells.push([x-1, yy]);
+      if (side === 3) for (let yy=y; yy<y+d.h; yy++) cells.push([x+d.w, yy]);
+      if (!cells.some(([cx,cy])=>solidCell(cx, cy))) return {ok:false, why: side === 0 ? '要放在東西上面' : '要貼著東西'};
     }
     return {ok:true};
   }
-  function nearestLegal(world, type, x, y){
+  function nearestLegal(world, type, x, y, rot){
     for (let r=0; r<40; r++) for (let dy=-r; dy<=r; dy++) for (let dx=-r; dx<=r; dx++){
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      if (canPlace(world, type, x+dx, y+dy).ok) return {x:x+dx, y:y+dy};
+      if (canPlace(world, type, x+dx, y+dy, rot).ok) return {x:x+dx, y:y+dy};
     }
     return null;
   }
   // returns the items removed by a bomb at (x,y): everything touching the 3×3 around it
   function bombHits(world, x, y){
     const area = {x:x-1, y:y-1, w:3, h:3};
-    return world.items.filter(it=>{ const d = ITEMS[it.type]; return rectsOverlap(area, {x:it.x, y:it.y, w:d.w, h:d.h}); });
+    return world.items.filter(it=>{ const d = dims(it.type, it.r); return rectsOverlap(area, {x:it.x, y:it.y, w:d.w, h:d.h}); });
   }
 
   // ---------- scoring (§5) ----------
@@ -101,6 +116,6 @@ var GaoshiRules = (function(){
     return [];
   }
   const AWARD_NAME = {goal:'過關', first:'搶先', solo:'獨走', coin:'金幣', comeback:'逆襲', trap:'陷阱'};
-  return { RULES, ITEMS, partyBox, canPlace, nearestLegal, bombHits, itemSolids, scoreRound, nextStreak, total, winners, AWARD_NAME, rectsOverlap };
+  return { RULES, ITEMS, dims, rotRect, itemLethalRect, partyBox, canPlace, nearestLegal, bombHits, itemSolids, scoreRound, nextStreak, total, winners, AWARD_NAME, rectsOverlap };
 })();
 if (typeof module !== 'undefined') module.exports = GaoshiRules;

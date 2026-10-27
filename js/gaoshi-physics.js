@@ -166,8 +166,8 @@ var GaoshiPhysics = (function(){
   function itemKills(it, r){
     const d = RL.ITEMS[it.type]; if (!d.lethal) return false;
     const sh = {l:r.l + (r.r-r.l)*0.1, r:r.r - (r.r-r.l)*0.1, t:r.t + (r.b-r.t)*0.1, b:r.b - (r.b-r.t)*0.05};   // ~80% damage box
-    if (d.lethal === 'rect') return overlap(sh, {l:it.x+0.05, r:it.x+d.w-0.05, t:it.y+0.3, b:it.y+d.h});
-    const cx = it.x + d.w/2, cy = it.y + d.h/2, nx = Math.max(sh.l, Math.min(cx, sh.r)), ny = Math.max(sh.t, Math.min(cy, sh.b));
+    if (d.lethal === 'rect'){ const q = RL.itemLethalRect(it); return overlap(sh, {l:q.x, r:q.x+q.w, t:q.y, b:q.y+q.h}); }
+    const D = RL.dims(it.type, it.r), cx = it.x + D.w/2, cy = it.y + D.h/2, nx = Math.max(sh.l, Math.min(cx, sh.r)), ny = Math.max(sh.t, Math.min(cy, sh.b));
     return (nx-cx)*(nx-cx) + (ny-cy)*(ny-cy) < d.radius*d.radius;
   }
   const touchesGoal = (w, r)=> w.goalRects.some(g=>overlap(r, {l:g.x, r:g.x+g.w, t:g.y, b:g.y+g.h}));

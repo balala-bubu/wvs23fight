@@ -287,12 +287,15 @@ var GaoshiArt = (function(){
   function syncItems(items, colors){
     const live = new Set(items);
     for (const [it, v] of itemViews) if (!live.has(it)){ itemsGroup.remove(v); itemViews.delete(it); }
-    for (const it of items) if (!itemViews.has(it)){ const v = itemModel(it.type, it.owner !== undefined ? colors[it.owner] : undefined); v.position.set(WX(it.x), WY(it.y), 0); itemsGroup.add(v); itemViews.set(it, v); popIn(v); }
+    for (const it of items) if (!itemViews.has(it)){ const v = pivotOf(itemModel(it.type, it.owner !== undefined ? colors[it.owner] : undefined), it.type); placePivot(v, it.type, it.x, it.y, it.r); itemsGroup.add(v); itemViews.set(it, v); popIn(v); }
   }
+  // items turn about their own centre: the pivot sits at the centre of the (rotated) footprint
+  function pivotOf(model, type){ const d = IT[type], pv = new THREE.Group(); model.position.set(-d.w/2, d.h/2, 0); pv.add(model); pv.userData = model.userData; return pv; }
+  function placePivot(pv, type, x, y, r){ const D = GaoshiRules.dims(type, r); pv.position.set(WX(x + D.w/2), WY(y + D.h/2), 0); pv.rotation.z = -(r||0) * Math.PI/2; }
   function popIn(v){ v.scale.setScalar(.2); let t = 0; const a = {update(dt){ t += dt; const k = Math.min(1, t/.25); v.scale.setScalar(.2 + .8*k + Math.sin(k*Math.PI)*.25); if (k >= 1){ v.scale.setScalar(1); a.done = true; } }}; ambient.push(a); }
   function updateItems(dt, t, items){
     for (const [it, v] of itemViews){ if (v.userData.update) v.userData.update(dt, t);
-      if (it.type === 'coin' && v.userData.coin){ const c = v.userData.coin; const cx = it.cx !== undefined ? it.cx : it.x + .5, cy = it.cy !== undefined ? it.cy : it.y + .5; c.position.set(cx - it.x, -(cy - it.y), it.carrier !== undefined ? 1.2 : .3); } }
+      if (it.type === 'coin' && v.userData.coin){ const c = v.userData.coin; const cx = it.cx !== undefined ? it.cx : it.x + .5, cy = it.cy !== undefined ? it.cy : it.y + .5; c.position.set(cx - it.x, -(cy - it.y), it.carrier !== undefined ? 1.2 : .3); v.rotation.z = 0; } }
   }
 
   // ---------- placement overlay ----------
@@ -314,9 +317,12 @@ var GaoshiArt = (function(){
     const bad = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), basic({color:0xff3b30, transparent:true, opacity:.28, depthWrite:false})); bad.position.set(d.w/2, -d.h/2, 2.28); g.add(bad); g.userData.bad = bad;
     if (type === 'bomb'){ const r = outline(3, 3, 0xffb040); r.position.set(-1, 1, 2.3); g.add(r); }
     if (type === 'saw'){ const c = new THREE.Mesh(new THREE.RingGeometry(d.radius - .05, d.radius, 32), basic({color:0xff5a4f, transparent:true, opacity:.7})); c.position.set(1.5, -1.5, 2.3); g.add(c); }
-    group.add(g); return g;
+    // a small arrow shows which way the base faces once it is turned
+    if (d.needsSurface){ const ar = new THREE.Mesh(new THREE.ConeGeometry(.16, .3, 3), basic({color})); ar.rotation.z = Math.PI; ar.position.set(d.w/2, -d.h - .25, 2.3); g.add(ar); }
+    g.userData.type = type;
+    const pv = pivotOf(g, type); group.add(pv); return pv;
   }
-  function setGhost(g, x, y, ok){ g.position.set(WX(x), WY(y), 0); g.userData.bad.visible = !ok; g.visible = true; }
+  function setGhost(g, x, y, ok, r){ placePivot(g, g.userData.type, x, y, r); g.userData.bad.visible = !ok; g.visible = true; }
   const removeObj = (o)=>{ if (o && o.parent) o.parent.remove(o); };
 
   // ---------- particles ----------

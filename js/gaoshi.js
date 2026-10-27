@@ -27,14 +27,40 @@ var GaoshiGame = (function(){
   };
 
   // ---------- fighters ----------
+  // bounding box of what is actually shown (props held for brawl moves stay hidden and must not count)
+  function visibleBox(obj){ const box = new THREE.Box3(), b = new THREE.Box3(); obj.updateMatrixWorld(true);
+    obj.traverseVisible(o=>{ if (o.isMesh && o.geometry){ if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); box.union(b); } }); return box; }
   function makeFighterModel(kind, height, skin){
     const m = makeModel(kind, skin || 0);
-    m.holder.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(m.body), size = box.getSize(new THREE.Vector3());
+    const box = visibleBox(m.body), size = box.getSize(new THREE.Vector3());
     m.body.position.y -= box.min.y; m.baseScale = height / Math.max(.5, size.y);
     m.holder.scale.setScalar(m.baseScale); m.sx = 1; m.sy = 1; m.phase = 0;
     return m;
   }
+  // select-screen portraits: render each character's real head (with costume) once into a small image
+  const PORT = {}; let portR = null, portScene = null, portCam = null;
+  function portrait(kind, skin){
+    const key = kind + ':' + (skin||0); if (PORT[key]) return PORT[key];
+    try {
+      if (!portR){
+        const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+        portR = new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true, preserveDrawingBuffer:true}); portR.outputEncoding = THREE.sRGBEncoding; portR.setClearColor(0x000000, 0);
+        portScene = new THREE.Scene(); portScene.add(new THREE.HemisphereLight(0xfff0e0, 0x504038, 1)); const l = new THREE.DirectionalLight(0xffffff, .7); l.position.set(-3, 4, 6); portScene.add(l);
+        portCam = new THREE.PerspectiveCamera(28, 1, .05, 100);
+      }
+      const m = makeModel(kind, skin || 0); scene.remove(m.holder); portScene.add(m.holder);
+      applyPose(m, POSE.stand, 1); m.holder.rotation.y = .28; m.holder.updateMatrixWorld(true);
+      // frame on the face block itself so long hair, hats or props never shrink the face
+      const face = m.head && m.head.children[0] ? m.head.children[0] : m.body;
+      const box = visibleBox(face), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+      const span = sz.y * 1.9, dist = span / (2 * Math.tan(portCam.fov * Math.PI / 360));
+      c.y += sz.y * .08; portCam.position.set(c.x, c.y, c.z + dist); portCam.lookAt(c);
+      portR.render(portScene, portCam); PORT[key] = portR.domElement.toDataURL('image/png');
+      portScene.remove(m.holder);
+    } catch(e){ console.warn('portrait', kind, e); PORT[key] = ''; }
+    return PORT[key];
+  }
+  function portraitEl(kind, skin){ const im = new Image(); im.alt = ''; im.className = 'por'; const src = portrait(kind, skin); if (src) im.src = src; return im; }
   const disposeModel = (m)=>{ if (m && m.holder) scene.remove(m.holder); };
   const charName = (k)=> (CHARS[k] && CHARS[k].stats && CHARS[k].stats.name) || k;
   const charTag = (k)=> (CHARS[k] && CHARS[k].stats && CHARS[k].stats.tag) || '';
@@ -45,8 +71,8 @@ var GaoshiGame = (function(){
   // ---------- input ----------
   const keys = new Set(); let pressed = [];
   const BIND = [
-    {left:['KeyA'], right:['KeyD'], up:['KeyW'], down:['KeyS'], jump:['KeyW','Space'], run:['ShiftLeft'], crouch:['KeyS'], ok:['Space','KeyW'], back:['KeyS','Escape'], place:['Space','KeyF']},
-    {left:['ArrowLeft'], right:['ArrowRight'], up:['ArrowUp'], down:['ArrowDown'], jump:['ArrowUp','Enter','NumpadEnter'], run:['ShiftRight'], crouch:['ArrowDown'], ok:['ArrowUp','Enter','NumpadEnter'], back:['ArrowDown'], place:['Enter','NumpadEnter','Slash']},
+    {left:['KeyA'], right:['KeyD'], up:['KeyW'], down:['KeyS'], jump:['KeyW','Space'], run:['ShiftLeft'], crouch:['KeyS'], ok:['Space','KeyW'], back:['KeyS','Escape'], place:['Space','KeyF'], rot:['KeyE'], rotL:['KeyQ']},
+    {left:['ArrowLeft'], right:['ArrowRight'], up:['ArrowUp'], down:['ArrowDown'], jump:['ArrowUp','Enter','NumpadEnter'], run:['ShiftRight'], crouch:['ArrowDown'], ok:['ArrowUp','Enter','NumpadEnter'], back:['ArrowDown'], place:['Enter','NumpadEnter','Slash'], rot:['Period','ShiftRight'], rotL:['Comma']},
   ];
   const sets = (i)=> S.players === 1 && i === 0 ? [BIND[0], BIND[1]] : [BIND[i]];
   const held = (i, a)=> sets(i).some(b=>b[a].some(k=>keys.has(k)));
@@ -116,7 +142,9 @@ var GaoshiGame = (function(){
     $('selH').textContent = skinStep ? 'P' + (a+1) + ' 選造型' : '選角色';
     if (!skinStep){
       roster.replaceChildren();
-      ROSTER().forEach((k, j)=>{ const b = document.createElement('button'); b.className = 'rc' + (k === 'random' ? ' rnd' : ''); b.textContent = k === 'random' ? '？隨機' : charName(k);
+      ROSTER().forEach((k, j)=>{ const b = document.createElement('button'); b.className = 'rc' + (k === 'random' ? ' rnd' : ''); b.setAttribute('aria-label', k === 'random' ? '隨機' : charName(k));
+        if (k === 'random'){ const q = document.createElement('div'); q.className = 'por q'; q.textContent = '?'; b.appendChild(q); } else b.appendChild(portraitEl(k, 0));
+        const nm = document.createElement('span'); nm.className = 'cn'; nm.textContent = k === 'random' ? '隨機' : charName(k); b.appendChild(nm);
         const mk = document.createElement('span'); mk.className = 'mk';
         S.cur.forEach((c,i)=>{ if (c === j){ const t = document.createElement('i'); t.textContent = 'P' + (i+1); t.style.background = COLORS[i]; mk.appendChild(t); b.style.borderColor = COLORS[i]; } });
         b.appendChild(mk);
@@ -124,7 +152,7 @@ var GaoshiGame = (function(){
         roster.appendChild(b); });
     } else {
       skins.replaceChildren(); const k = S.kinds[a], n = skinCount(k);
-      for (let s=0;s<n;s++){ const b = document.createElement('button'); b.className = 'rc' + (s === S.skins[a] ? ' on' : ''); b.textContent = skinName(k, s); b.style.setProperty('--pc', COLORS[a]);
+      for (let s=0;s<n;s++){ const b = document.createElement('button'); b.className = 'rc' + (s === S.skins[a] ? ' on' : ''); b.style.setProperty('--pc', COLORS[a]); b.appendChild(portraitEl(k, s)); const sn = document.createElement('span'); sn.className = 'cn'; sn.textContent = skinName(k, s); b.appendChild(sn);
         b.onclick = ()=>{ if (S.skins[a] === s) confirmSel(a); else moveSkin(a, s - S.skins[a]); }; skins.appendChild(b); }
       const ok = document.createElement('button'); ok.className = 'rc okb'; ok.textContent = '決定造型'; ok.onclick = ()=>confirmSel(a); skins.appendChild(ok);
     }
@@ -255,8 +283,8 @@ var GaoshiGame = (function(){
   function enterPlace(){
     S.mode = 'place'; S.timer = RU.placeTimeSec; S.after = 0; show(null); phaseLabel('放道具'); ART.placeOverlay(true, S.world);
     S.placed = Array(S.players).fill(false); clearGhosts();
-    for (let i=0;i<S.players;i++){ const d = RL.ITEMS[S.picks[i]]; S.cursor[i] = {x:Math.round(13 + i*4 - d.w/2), y:Math.round(5 - d.h/2), rep:0, why:''}; S.ghosts[i] = ART.makeGhost(S.picks[i], COLOR_N[i]); }
-    $('hint').textContent = S.players === 1 ? '方向鍵或 WASD 移動，空白鍵或 Enter 放下；也可以用滑鼠點' : 'P1：WASD 移動、空白鍵放下　P2：方向鍵移動、Enter 放下　滑鼠可以幫 P1 放';
+    for (let i=0;i<S.players;i++){ const d = RL.ITEMS[S.picks[i]]; S.cursor[i] = {x:Math.round(13 + i*4 - d.w/2), y:Math.round(5 - d.h/2), r:0, rep:0, why:''}; S.ghosts[i] = ART.makeGhost(S.picks[i], COLOR_N[i]); }
+    $('hint').textContent = S.players === 1 ? 'WASD 或方向鍵移動、Q／E 旋轉、空白鍵放下；滑鼠點一下放、右鍵或滾輪旋轉' : 'P1：WASD 移動、Q／E 旋轉、空白鍵放下　P2：方向鍵移動、. 旋轉、Enter 放下　滑鼠幫 P1（右鍵旋轉）';
     renderPlaceTags();
   }
   function renderPlaceTags(){
@@ -265,24 +293,29 @@ var GaoshiGame = (function(){
   }
   function confirmPlace(i){
     if (S.placed[i]) return;
-    const c = S.cursor[i], type = S.picks[i], v = RL.canPlace(S.world, type, c.x, c.y);
+    const c = S.cursor[i], type = S.picks[i], v = RL.canPlace(S.world, type, c.x, c.y, c.r);
     if (!v.ok){ c.why = v.why; c.whyT = 1.4; SND.no(); return; }
-    doPlace(i, type, c.x, c.y);
+    doPlace(i, type, c.x, c.y, c.r);
   }
-  function doPlace(i, type, x, y){
+  function doPlace(i, type, x, y, r){
     S.placed[i] = true; ART.removeObj(S.ghosts[i]); S.ghosts[i] = null;
     if (type === 'bomb'){
       const hits = RL.bombHits(S.world, x, y); for (const h of hits) S.items.splice(S.items.indexOf(h), 1);
       ART.explosion(WX(x + .5), WY(y + .5)); SND.boom(); S.shake = .35; flash('炸掉 ' + hits.length + ' 個道具', COLORS[i]);
-    } else { const it = {type, x, y, owner:i}; if (type === 'coin'){ it.cx = x + .5; it.cy = y + .5; } S.items.push(it); SND.place(); }
+    } else { const it = {type, x, y, r:type === 'coin' ? 0 : (r||0), owner:i}; if (type === 'coin'){ it.cx = x + .5; it.cy = y + .5; } S.items.push(it); SND.place(); }
     ART.syncItems(S.items, COLOR_N);
     if (S.placed.every(Boolean) && !S.after) S.after = .7;
   }
-  function moveCursor(i, dx, dy){ const c = S.cursor[i], d = RL.ITEMS[S.picks[i]]; c.x = Math.max(0, Math.min(32 - d.w, c.x + dx)); c.y = Math.max(0, Math.min(18 - d.h, c.y + dy)); }
+  function rotateCursor(i, d){
+    const c = S.cursor[i], A = RL.dims(S.picks[i], c.r); c.r = (c.r + d + 4) % 4; const B = RL.dims(S.picks[i], c.r);
+    c.x += Math.round((A.w - B.w)/2); c.y += Math.round((A.h - B.h)/2); moveCursor(i, 0, 0); SND.pick();   // keep it turning about its centre
+  }
+  function moveCursor(i, dx, dy){ const c = S.cursor[i], d = RL.dims(S.picks[i], c.r); c.x = Math.max(0, Math.min(32 - d.w, c.x + dx)); c.y = Math.max(0, Math.min(18 - d.h, c.y + dy)); }
   function placeKeys(codes, dt){
     for (const code of codes) for (let i=0;i<S.players;i++){ if (S.placed[i]) continue;
       if (is(i, 'left', code)) moveCursor(i, -1, 0); if (is(i, 'right', code)) moveCursor(i, 1, 0);
       if (is(i, 'up', code)) moveCursor(i, 0, -1); if (is(i, 'down', code)) moveCursor(i, 0, 1);
+      if (is(i, 'rot', code)) rotateCursor(i, 1); if (is(i, 'rotL', code)) rotateCursor(i, -1);
       if (is(i, 'place', code)) confirmPlace(i); }
     // hold to keep moving
     for (let i=0;i<S.players;i++){ if (S.placed[i]) continue; const c = S.cursor[i];
@@ -293,26 +326,28 @@ var GaoshiGame = (function(){
     for (const c of S.cursor) if (c && c.whyT) { c.whyT -= dt; if (c.whyT <= 0) c.why = ''; }
     if (S.after){ S.after -= dt; if (S.after <= 0){ ART.placeOverlay(false); startRace(); } return; }
     S.timer -= dt;
-    if (S.timer <= 0){ for (let i=0;i<S.players;i++) if (!S.placed[i]){ const c = S.cursor[i], n = RL.nearestLegal(S.world, S.picks[i], c.x, c.y); if (n) doPlace(i, S.picks[i], n.x, n.y); else { S.placed[i] = true; ART.removeObj(S.ghosts[i]); } }
+    if (S.timer <= 0){ for (let i=0;i<S.players;i++) if (!S.placed[i]){ const c = S.cursor[i], n = RL.nearestLegal(S.world, S.picks[i], c.x, c.y, c.r); if (n) doPlace(i, S.picks[i], n.x, n.y, c.r); else { S.placed[i] = true; ART.removeObj(S.ghosts[i]); } }
       flash('時間到，自動放下'); S.after = S.after || .7; }
   }
   function drawPlace(){
     const tags = $('tags').querySelectorAll('.ptag');
     for (let i=0;i<S.players;i++){
       const c = S.cursor[i], g = S.ghosts[i], t = tags[i];
-      if (g){ const ok = RL.canPlace(S.world, S.picks[i], c.x, c.y).ok; ART.setGhost(g, c.x, c.y, ok); }
-      if (t){ if (S.placed[i]){ t.hidden = true; continue; } t.hidden = false; const d = RL.ITEMS[S.picks[i]]; const v = new THREE.Vector3(WX(c.x + d.w/2), WY(c.y) + .3, 2.3).project(camera);
+      if (g){ const ok = RL.canPlace(S.world, S.picks[i], c.x, c.y, c.r).ok; ART.setGhost(g, c.x, c.y, ok, c.r); }
+      if (t){ if (S.placed[i]){ t.hidden = true; continue; } t.hidden = false; const d = Object.assign({}, RL.ITEMS[S.picks[i]], RL.dims(S.picks[i], c.r)); const v = new THREE.Vector3(WX(c.x + d.w/2), WY(c.y) + .3, 2.3).project(camera);
         t.style.left = ((v.x + 1)/2*innerWidth) + 'px'; t.style.top = ((1 - v.y)/2*innerHeight) + 'px';
-        const bad = RL.canPlace(S.world, S.picks[i], c.x, c.y); t.textContent = 'P' + (i+1) + ' ' + d.name + (c.why ? '　✕ ' + c.why : (!bad.ok ? '　✕ ' + bad.why : ''));
+        const bad = RL.canPlace(S.world, S.picks[i], c.x, c.y, c.r); t.textContent = 'P' + (i+1) + ' ' + d.name + (c.why ? '　✕ ' + c.why : (!bad.ok ? '　✕ ' + bad.why : ''));
         t.classList.toggle('bad', !!c.why || !bad.ok); }
     }
   }
   // mouse helps P1 place
   const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0), hitP = new THREE.Vector3();
   function mouseCell(e){ const v = new THREE.Vector2(e.clientX/innerWidth*2 - 1, -(e.clientY/innerHeight)*2 + 1); ray.setFromCamera(v, camera); if (!ray.ray.intersectPlane(plane, hitP)) return null; return {x:hitP.x + 16, y:18 - hitP.y}; }
-  canvas.addEventListener('pointermove', (e)=>{ if (S.mode !== 'place' || S.placed[0]) return; const m = mouseCell(e); if (!m) return; const d = RL.ITEMS[S.picks[0]]; S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0, 0, 0); });
-  canvas.addEventListener('click', (e)=>{ if (S.mode === 'place' && !S.placed[0]){ const m = mouseCell(e); if (m){ const d = RL.ITEMS[S.picks[0]]; S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0,0,0); } confirmPlace(0); } });
+  canvas.addEventListener('pointermove', (e)=>{ if (S.mode !== 'place' || S.placed[0]) return; const m = mouseCell(e); if (!m) return; const d = RL.dims(S.picks[0], S.cursor[0].r); S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0, 0, 0); });
+  canvas.addEventListener('click', (e)=>{ if (S.mode === 'place' && !S.placed[0]){ const m = mouseCell(e); if (m){ const d = RL.dims(S.picks[0], S.cursor[0].r); S.cursor[0].x = Math.round(m.x - d.w/2); S.cursor[0].y = Math.round(m.y - d.h/2); moveCursor(0,0,0); } confirmPlace(0); } });
 
+  canvas.addEventListener('contextmenu', (e)=>{ if (S.mode === 'place'){ e.preventDefault(); if (!S.placed[0]) rotateCursor(0, 1); } });
+  canvas.addEventListener('wheel', (e)=>{ if (S.mode === 'place' && !S.placed[0]){ e.preventDefault(); rotateCursor(0, e.deltaY > 0 ? 1 : -1); } }, {passive:false});
   // --- RACE ---
   function startRace(){
     clearGhosts(); $('tags').querySelectorAll('.ptag').forEach(e=>e.remove());
