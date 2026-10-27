@@ -93,21 +93,41 @@ var GaoshiGame = (function(){
 
   // ---------- touch controls (phones): press-and-hold buttons that feed the same key codes as P1 ----------
   const isTouchDev = matchMedia('(pointer: coarse)').matches || /[?&]touch=1/.test(location.search);
+  document.documentElement.classList.toggle('isTouch', isTouchDev);   // CSS hides the keyboard instructions on phones
+  // no pinch zoom / double-tap zoom (iOS ignores user-scalable=no, so block the gesture events too)
+  ['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t, (e)=>e.preventDefault()));
+  document.addEventListener('dblclick', (e)=>{ if (!(e.target.closest && e.target.closest('input,textarea'))) e.preventDefault(); });
+  document.addEventListener('touchmove', (e)=>{ if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, {passive:false});
+  if (isTouchDev) document.addEventListener('contextmenu', (e)=>e.preventDefault());
+  // a pad button counts as held only while its own finger is down; every way a finger can go away releases it
+  const padDown = new Map();   // button -> pointerId
+  function padBusy(code){ for (const b of padDown.keys()) if (b.dataset.k === code) return true; return false; }
+  function padRelease(b){ b.classList.remove('on'); if (!padDown.delete(b)) return; if (!padBusy(b.dataset.k)) keys.delete(b.dataset.k); }
+  function padReleaseAll(){ for (const b of [...padDown.keys()]) padRelease(b); }
   function initTouch(){
     const T = $('touch'); if (!T) return;
     T.querySelectorAll('[data-k]').forEach(b=>{
       const code = b.dataset.k;
-      const down = (e)=>{ e.preventDefault(); audio(); try { b.setPointerCapture(e.pointerId); } catch(_){} if (!keys.has(code)) pressed.push(code); keys.add(code); b.classList.add('on'); };
-      const up = ()=>{ keys.delete(code); b.classList.remove('on'); };
+      const down = (e)=>{ e.preventDefault(); audio(); if (padDown.has(b)) padRelease(b); try { b.setPointerCapture(e.pointerId); } catch(_){} padDown.set(b, e.pointerId); if (!keys.has(code)) pressed.push(code); keys.add(code); b.classList.add('on'); };
+      const up = (e)=>{ if (e && padDown.has(b) && e.pointerId !== padDown.get(b)) return; padRelease(b); };
       b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
+      b.addEventListener('pointerleave', (e)=>{ let cap = false; try { cap = b.hasPointerCapture(e.pointerId); } catch(_){} if (!cap) up(e); });
       b.addEventListener('contextmenu', (e)=>e.preventDefault());
     });
+    // safety nets: a lost pointerup (system gesture, call, app switch, button hidden mid-press) must never leave a key stuck
+    const sweep = (e)=>{ for (const [b, id] of [...padDown]) if (id === e.pointerId) padRelease(b); };
+    addEventListener('pointerup', sweep, true); addEventListener('pointercancel', sweep, true);
+    const noFingers = (e)=>{ if (!e.touches || e.touches.length === 0) padReleaseAll(); };
+    addEventListener('touchend', noFingers, true); addEventListener('touchcancel', noFingers, true);
+    addEventListener('blur', padReleaseAll); addEventListener('pagehide', padReleaseAll);
+    document.addEventListener('visibilitychange', ()=>{ if (document.hidden) padReleaseAll(); });
     // 跑 is a toggle on phones: holding three buttons with two thumbs is too much
     S.autoRun = isTouchDev; const run = $('tRun'); run.classList.toggle('on', S.autoRun);
     run.addEventListener('pointerdown', (e)=>{ e.preventDefault(); S.autoRun = !S.autoRun; run.classList.toggle('on', S.autoRun); run.setAttribute('aria-pressed', String(S.autoRun)); if (!S.autoRun) keys.delete('ShiftLeft'); });
   }
   function updateTouch(){
     const T = $('touch'); if (!T) return; const m = S.mode, on = isTouchDev && ['pick','place','race'].includes(m);
+    if (!on) padReleaseAll();
     T.hidden = !on; T.dataset.mode = m; $('tAct').textContent = m === 'race' ? '跳' : m === 'pick' ? '抓' : '放下';
   }
 
@@ -349,11 +369,13 @@ var GaoshiGame = (function(){
   }
   // --- PLACE ---
   function clearGhosts(){ S.ghosts.forEach(ART.removeObj); S.ghosts = []; }
+  function setHint(text){ const h = $('hint'); h.textContent = text; h.hidden = !text; }
   function enterPlace(){
     S.mode = 'place'; S.timer = RU.placeTimeSec; S.after = 0; show(null); phaseLabel('放道具'); ART.placeOverlay(true, S.world);
     S.placed = S.picks.map((_, i)=>!!S.left[i]); clearGhosts();
     for (let i=0;i<S.players;i++){ const d = RL.ITEMS[S.picks[i]]; S.cursor[i] = {x:Math.round(13 + i*4 - d.w/2), y:Math.round(5 - d.h/2), r:0, rep:0, why:''}; S.ghosts[i] = S.placed[i] ? null : ART.makeGhost(S.picks[i], COLOR_N[i]); }
-    $('hint').textContent = (S.net || S.players === 1) ? 'WASD 或方向鍵移動、Q／E 旋轉、空白鍵放下；滑鼠點一下放、右鍵或滾輪旋轉' : 'P1：WASD 移動、Q／E 旋轉、空白鍵放下　P2：方向鍵移動、. 旋轉、Enter 放下　滑鼠幫 P1（右鍵旋轉）';
+    setHint(isTouchDev ? '拖曳畫面移動道具，按「轉」旋轉、「放下」確定' : (S.net || S.players === 1) ? 'WASD 或方向鍵移動、Q／E 旋轉、空白鍵放下；滑鼠點一下放、右鍵或滾輪旋轉' : 'P1：WASD 移動、Q／E 旋轉、空白鍵放下　P2：方向鍵移動、. 旋轉、Enter 放下　滑鼠幫 P1（右鍵旋轉）');
+    ART.markBombTargets([]);
     renderPlaceTags();
   }
   function renderPlaceTags(){
@@ -371,6 +393,7 @@ var GaoshiGame = (function(){
     S.placed[i] = true; ART.removeObj(S.ghosts[i]); S.ghosts[i] = null;
     if (type === 'bomb'){
       const hits = RL.bombHits(S.world, x, y); for (const h of hits) S.items.splice(S.items.indexOf(h), 1);
+      ART.markBombTargets([]);
       ART.explosion(WX(x + .5), WY(y + .5)); SND.boom(); S.shake = .35; flash('炸掉 ' + hits.length + ' 個道具', COLORS[i]);
       netPhase('items', {boom:{x, y, n:hits.length, i}});
     } else { const it = {type, x, y, r:type === 'coin' ? 0 : (r||0), owner:i}; if (type === 'coin'){ it.cx = x + .5; it.cy = y + .5; } S.items.push(it); SND.place(); netPhase('items'); }
@@ -411,6 +434,10 @@ var GaoshiGame = (function(){
         const bad = RL.canPlace(S.world, S.picks[i], c.x, c.y, c.r); t.textContent = 'P' + (i+1) + ' ' + d.name + (c.wait ? '　…' : '') + (c.why ? '　✕ ' + c.why : (!bad.ok ? '　✕ ' + bad.why : ''));
         t.classList.toggle('bad', !!c.why || !bad.ok); }
     }
+    // anything a held bomb would blow up glows red while it is being aimed
+    const doomed = [];
+    for (let i=0;i<S.players;i++){ const c = S.cursor[i]; if (c && S.picks[i] === 'bomb' && !S.placed[i]) for (const h of RL.bombHits(S.world, c.x, c.y)) if (!doomed.includes(h)) doomed.push(h); }
+    ART.markBombTargets(doomed);
   }
   // mouse helps P1 place
   const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0), hitP = new THREE.Vector3();
@@ -425,9 +452,9 @@ var GaoshiGame = (function(){
   // --- RACE ---
   function startRace(){
     clearGhosts(); $('tags').querySelectorAll('.ptag').forEach(e=>e.remove());
-    S.world = freshWorld(); ART.syncItems(S.items, COLOR_N);
+    S.world = freshWorld(); ART.syncItems(S.items, COLOR_N); ART.markBombTargets([]);
     S.mode = 'race'; S.after = 0; S.time = 0; S.endT = 0; S.count = 1.6; S.acc = 0; S.lastTick = 6; S.timer = RU.raceTimeSec; show(null);
-    phaseLabel('跑到終點旗！'); $('hint').textContent = 'P1：A D 移動、W 跳、左 Shift 跑、S 蹲　P2：方向鍵、↑ 跳、右 Shift 跑、↓ 蹲'; renderChips(); flash('預備…');
+    phaseLabel('跑到終點旗！'); setHint(isTouchDev ? '' : 'P1：A D 移動、W 跳、左 Shift 跑、S 蹲　P2：方向鍵、↑ 跳、右 Shift 跑、↓ 蹲'); renderChips(); flash('預備…');
   }
   function stepRace(dt){
     const w = S.world;
@@ -462,6 +489,8 @@ var GaoshiGame = (function(){
   // --- SCORE: a paper board, one row per player, hatched blocks stacked to the win line ---
   const AW_COLOR = {goal:'#2f3c6e', first:'#3f9d4c', solo:'#2b8fd8', trap:'#ef7d2c', coin:'#d9a414', comeback:'#8c8f2a'};
   const AW_RANK = ['trap','comeback','solo','coin','first','goal'];
+  const AW_DESC = {goal:'抵達終點旗', first:'第一個抵達', solo:'只有你一個人過關', coin:'帶著金幣到終點', comeback:'連續兩回合沒過關，這次過了'};
+  const WHY_STEP = .85, fmtPt = (v)=>'+' + +(v/5).toFixed(1);
   function seg(a, isNew, delay){
     const s = document.createElement('i'); s.className = 'seg' + (isNew ? ' new' : ''); s.style.setProperty('--c', AW_COLOR[a.k]); s.style.setProperty('--w', (a.v / RU.winFifths * 100) + '%');
     s.title = RL.AWARD_NAME[a.k]; if (isNew) s.style.animationDelay = delay + 's'; return s;
@@ -489,9 +518,26 @@ var GaoshiGame = (function(){
       nm.querySelector('span').textContent = p.done ? '' : !p.alive ? '倒下' : '沒到'; who.appendChild(nm); row.appendChild(who);
       const lane = document.createElement('div'); lane.className = 'lane';
       (S.segs[i] || []).forEach(a=>lane.appendChild(seg(a, false)));
-      list.forEach(a=>{ lane.appendChild(seg(a, true, delay)); setTimeout(()=>{ if (S.mode === 'score') SND.award(AW_RANK.length - AW_RANK.indexOf(a.k)); }, delay*1000); delay += .45; });
-      const top = list.slice().sort((a,b)=>AW_RANK.indexOf(a.k) - AW_RANK.indexOf(b.k))[0];
-      if (top){ const t = document.createElement('em'); t.className = 'awbig'; t.textContent = RL.AWARD_NAME[top.k]; t.style.color = AW_COLOR[top.k]; t.style.animationDelay = (delay - .2) + 's'; lane.appendChild(t); }
+      // each point is explained in turn (players take turns too): block grows, its reason shows, then the next one
+      const box = document.createElement('span'); box.className = 'whybox';
+      const why = (title, desc, color, at, dur, last, zero)=>{
+        const e = document.createElement('em'); e.className = 'why' + (last ? ' last' : '') + (zero ? ' zero' : '');
+        e.style.setProperty('--c', color); e.style.setProperty('--delay', at + 's'); e.style.setProperty('--d', dur + 's');
+        const b = document.createElement('span'); b.textContent = title; e.appendChild(b);
+        if (desc){ const s = document.createElement('small'); s.textContent = desc; e.appendChild(s); }
+        box.appendChild(e);
+      };
+      if (list.length){
+        list.forEach(a=>{
+          lane.appendChild(seg(a, true, delay));
+          why(RL.AWARD_NAME[a.k] + ' ' + fmtPt(a.v), a.k === 'trap' ? (typeof a.victim === 'number' ? '你的道具讓 P' + (a.victim + 1) + ' 倒下' : '你的道具讓人倒下') : AW_DESC[a.k], AW_COLOR[a.k], delay, WHY_STEP, false);
+          setTimeout(()=>{ if (S.mode === 'score') SND.award(AW_RANK.length - AW_RANK.indexOf(a.k)); }, delay*1000); delay += WHY_STEP;
+        });
+        why('本回合 ' + fmtPt(RL.total(list)) + ' 分', '', '#2b2f4a', delay - .05, 0, true); delay += .25;
+      } else {
+        why(sr.verdict === 'easy' ? '大家都過關，不計分' : sr.verdict === 'hard' ? '沒有人過關，不計分' : (!p.alive ? '倒下了' : p.done ? '沒有加分' : '沒跑到終點') + '，0 分', '', '#7a6f86', delay, 0, true, true); delay += .5;
+      }
+      lane.appendChild(box);
       row.appendChild(lane); board.appendChild(row);
       S.segs[i] = (S.segs[i] || []).concat(list); S.scores[i] += RL.total(list);
     }
@@ -742,7 +788,7 @@ var GaoshiGame = (function(){
     else if (S.mode === 'score' && codes.some(c=>['Space','Enter','KeyW','ArrowUp','NumpadEnter'].includes(c)) && S.scoreT > .8) leaveScore();
     if (S.mode === 'pick'){ pickKeys(codes, dt); stepPick(dt); }
     if (S.mode === 'place'){ placeKeys(codes, dt); stepPlace(dt); drawPlace(); }
-    if (S.autoRun && S.mode === 'race') keys.add('ShiftLeft');
+    if (S.autoRun) { if (S.mode === 'race') keys.add('ShiftLeft'); else keys.delete('ShiftLeft'); }
     if (S.mode === 'race'){ S.acc += dt; while (S.acc >= PH.DT){ stepRace(PH.DT); S.acc -= PH.DT; if (S.mode !== 'race') break; } }
     if (S.mode === 'score'){ S.scoreT += dt; }
     // other people's runners glide toward their latest network position

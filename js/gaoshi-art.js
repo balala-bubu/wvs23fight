@@ -489,6 +489,24 @@ var GaoshiArt = (function(){
       if (it.type === 'coin' && v.userData.coin){ const c = v.userData.coin; const cx = it.cx !== undefined ? it.cx : it.x + .5, cy = it.cy !== undefined ? it.cy : it.y + .5; c.position.set(cx - it.x, -(cy - it.y), it.carrier !== undefined ? 1.2 : .3); v.rotation.z = 0; } }
   }
 
+  // red glow on every item a bomb would destroy (the 3×3 around the cursor); pass [] to clear
+  function markBombTargets(list){
+    const want = new Set(list || []), t = performance.now()/1000, pulse = .5 + .5*Math.sin(t*8);
+    for (const [it, v] of itemViews){
+      let m = v.userData.bombMark;
+      if (want.has(it)){
+        if (!m){
+          const d = IT[it.type]; m = new THREE.Group();
+          const fill = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), basic({color:0xff2a1a, transparent:true, opacity:.4, depthWrite:false})); fill.position.z = 1.3; m.add(fill);
+          const frame = outline(d.w, d.h, 0xff3a2a); frame.position.set(-d.w/2, d.h/2, 1.35); m.add(frame);
+          const glow = sprite(T.glow, Math.max(d.w, d.h) * 1.8 + .6, 0xff2a1a, .6); glow.position.z = 1.4; m.add(glow);
+          m.userData = {fill, glow}; v.add(m); v.userData.bombMark = m;
+        }
+        m.userData.fill.material.opacity = .28 + .3*pulse; m.userData.glow.material.opacity = .45 + .4*pulse;
+      } else if (m){ v.remove(m); v.userData.bombMark = null; m.traverse(o=>{ if (o.isMesh){ o.geometry.dispose(); o.material.dispose(); } }); }
+    }
+  }
+
   // ---------- placement overlay ----------
   function placeOverlay(on, world){
     if (overlay){ group.remove(overlay); overlay = null; }
@@ -550,5 +568,5 @@ var GaoshiArt = (function(){
     for (const v of hzViews) v.update(dt, t, hz ? hz[v.i] : null);
     updateParts(dt);
   }
-  return { WX, WY, buildMap, syncItems, updateItems, update, placeOverlay, makeGhost, setGhost, removeObj, burst, explosion, itemModel, itemIcon:null };
+  return { WX, WY, buildMap, syncItems, updateItems, update, markBombTargets, placeOverlay, makeGhost, setGhost, removeObj, burst, explosion, itemModel, itemIcon:null };
 })();

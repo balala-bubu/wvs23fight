@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <title>世志土木</title>
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+TC:wght@400;700;900&display=swap">
@@ -14,11 +14,12 @@
   --ui:"Noto Sans TC", system-ui, "PingFang TC", sans-serif;
   color-scheme:dark;
 }
-html,body{height:100%;margin:0;overflow:hidden}
+html,body{height:100%;margin:0;overflow:hidden;touch-action:none;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
-button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:none;-webkit-touch-callout:none}
+img{-webkit-user-drag:none;-webkit-touch-callout:none}
 .scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;box-sizing:border-box;pointer-events:none}
 .scr[hidden]{display:none}
 .scr > *{pointer-events:auto}
@@ -226,7 +227,20 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 #touch[data-mode="pick"] .crouch,#touch[data-mode="pick"] .run,#touch[data-mode="pick"] .rot,#touch[data-mode="place"] .crouch,#touch[data-mode="place"] .run{display:none}
 #rotHint{display:none}
 @media (orientation: portrait) and (pointer: coarse){#rotHint{display:flex;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;background:rgba(18,14,12,.94);font-size:22px;font-weight:900;color:var(--gold)}}
-.logoImg{width:min(640px,86vw);height:auto;filter:drop-shadow(0 8px 0 rgba(0,0,0,.35))}
+.logoImg{width:min(640px,86vw);max-width:86vw;height:auto;max-height:32vh;object-fit:contain;filter:drop-shadow(0 8px 0 rgba(0,0,0,.35))}
+/* phones: no keyboard instructions; shorter screens get tighter spacing so nothing runs off the page */
+@media (pointer:coarse){.keys:not(.keep),.keys .kb{display:none}}
+.isTouch .keys:not(.keep),.isTouch .keys .kb{display:none}
+@media (max-height:520px){.scr{gap:8px;padding:8px 12px}.logoImg{max-height:26vh}.sub{font-size:14px;padding:2px 12px}.big{min-width:120px;min-height:44px;padding:6px 16px;font-size:17px}.ghost{min-height:34px}.keys{font-size:12px;padding:6px 10px;line-height:1.5}}
+/* score board: the reason for each point, shown one at a time */
+.lane .whybox{display:inline-grid;margin-left:12px;min-width:0}
+.lane .why{grid-area:1/1;align-self:center;display:flex;flex-direction:column;line-height:1.15;font-style:normal;font-weight:900;font-size:clamp(16px,2.6vw,30px);color:var(--c);white-space:nowrap;opacity:0;pointer-events:none;animation:whyShow var(--d,.9s) var(--delay,0s) both}
+.lane .why small{font-weight:700;font-size:clamp(10px,1.3vw,14px);color:#2b2f4a}
+.lane .why.last{animation:whyLast .3s var(--delay,0s) both}
+.lane .why.zero{color:#7a6f86}
+@keyframes whyShow{0%{opacity:0;transform:translateY(6px)}12%,82%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes whyLast{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.lane .why{animation:none;opacity:0}.lane .why.last{opacity:1}}
 </style>
 </head>
 <body>
@@ -267,7 +281,7 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 <section class="scr" id="scrPick" hidden>
   <div class="pickWrap">
     <div class="pbox" id="pbox"><div class="lid"></div><div class="plabel">派對盒</div></div>
-    <div class="keys">P1 <kbd>WASD</kbd> 移動、<kbd>空白鍵</kbd> 抓　P2 <kbd>方向鍵</kbd> 移動、<kbd>Enter</kbd> 抓　滑鼠可以幫 P1 抓　<span id="pickNote"></span></div>
+    <div class="keys keep"><span class="kb">P1 <kbd>WASD</kbd> 移動、<kbd>空白鍵</kbd> 抓　P2 <kbd>方向鍵</kbd> 移動、<kbd>Enter</kbd> 抓　滑鼠可以幫 P1 抓　</span><span id="pickNote"></span></div>
   </div>
 </section>
 
@@ -340,7 +354,7 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 
 <script>
 (async()=>{
-  const V = (location.search.match(/[?&]v=([^&]*)/)||[])[1], version = '?v=' + (V || '20261027b');
+  const V = (location.search.match(/[?&]v=([^&]*)/)||[])[1], version = '?v=' + (V || '20261027c');
   const bar = document.getElementById('loadBar'), status = document.getElementById('loadStatus');
   const script = (src)=>new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = src.startsWith('http') ? src : src + version; s.onload = ok; s.onerror = ()=>no(new Error('無法載入 ' + src)); document.head.appendChild(s); });
   try{
