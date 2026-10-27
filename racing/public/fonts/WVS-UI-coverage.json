@@ -1,0 +1,23 @@
+{
+  "Regular": {
+    "glyphs": 1654,
+    "cjkRequired": 1483,
+    "missingCJK": [],
+    "bytes": 749804
+  },
+  "Bold": {
+    "glyphs": 1654,
+    "cjkRequired": 1483,
+    "missingCJK": [],
+    "bytes": 773024
+  },
+  "Symbols": {
+    "glyphs": 1,
+    "bytes": 2924
+  },
+  "Symbols2": {
+    "glyphs": 3,
+    "bytes": 924
+  },
+  "requiredSymbolsMissing": []
+}

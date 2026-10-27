@@ -1,0 +1,31 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>世志賽車｜建立地圖的方法</title><style>@font-face{font-family:WVS;src:url('fonts/WVS-UI-Regular.woff')}*{box-sizing:border-box}body{margin:0;background:#120e0c;color:#f6eedf;font:16px/1.9 WVS,'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif}main{max-width:960px;margin:auto;padding:30px 22px 80px}a{color:#f2c14e}h1{font-size:clamp(30px,6vw,52px);line-height:1.3}h2{margin-top:50px;font-size:25px;border-left:4px solid #ff7a3d;padding-left:14px}h3{font-size:18px}p,li{color:#d8c9b5}code{font-family:ui-monospace,monospace;background:#2b221c;padding:2px 5px;border-radius:4px;color:#ffe6a5;font-size:13px}pre{background:#211a16;border:1px solid #ffffff25;padding:20px;border-radius:12px;overflow:auto;line-height:1.7}pre code{background:none;padding:0}.lead{font-size:19px}.card{padding:20px;background:#211a16;border:1px solid #ffffff25;border-radius:14px;margin:20px 0}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:12px;border-bottom:1px solid #ffffff25;vertical-align:top}.steps{padding-left:25px}.download{display:inline-block;background:#f2c14e;color:#24170d;padding:10px 18px;border-radius:9px;text-decoration:none;font-weight:bold}small{color:#bfae95}@media(max-width:600px){table{font-size:12px}td,th{padding:8px}pre{padding:12px}}</style></head><body><main><p class="note"><b>目前可玩：臺大總圖男八巡遊、糖果山谷、恐龍失落火山谷</b>。以校門、椰林大道、總圖書館、傅鐘與醉月湖為靈感的原創低面數賽道；距離、位置與路線為競速重新編排，並非導航用的臺大實測地圖。臺大採大門→總圖→男八→回門口的路線試作，已取消體育館跳台。沒有遊戲內編輯器。</p><a href="./">← 回世志賽車</a><small>　WVS MAP WORKSHOP</small><h1>建立你自己的賽道</h1><p class="lead">賽道已拆成資料檔。先複製範例、改控制點與設施，再啟用新地圖；不用重寫物理、AI、小地圖或車手。</p><div class="card"><b>目前這是「程式碼製圖」流程。</b><p>不是在遊戲畫面內拖拉的編輯器，也不會自動把街景照片變成道路。線上版已啟用臺大椰林巡遊；要換成自己的新賽道，需要修改專案並重新建置。</p><a class="download" href="examples/myTrack.ts" download="myTrack.ts">下載地圖範例 myTrack.ts</a></div>
+<h2>1. 準備檔案</h2><ol class="steps"><li>在現有 repo 中開啟 <code>racing/</code>。它是獨立賽車專案；排球、大亂鬥與 <code>characters/</code> 不需要修改。</li><li>下載上方範例，放成 <code>racing/src/maps/myTrack.ts</code>。</li><li>編輯 <code>racing/src/maps/active.ts</code>，保留驗證段落，把匯入與啟用的地圖改成：</li></ol><pre><code>import { MY_TRACK } from './myTrack'
+import { validateTrack } from './definition'
+export const ACTIVE_MAP = MY_TRACK
+const errors = validateTrack(ACTIVE_MAP)
+if (errors.length) throw Error('地圖設定錯誤：' + errors.join('；'))</code></pre><p>範例會把糖果山谷西側拓寬一些，保留東側捷徑。先跑通這個版本，再改成完整的新路線。每場載入一張完整地圖；選完車輛後可選擇三張地圖；連線由全部玩家準備後的房主選圖。</p>
+<h2>2. 畫出賽道</h2><p>在 <code>points</code> 依行駛方向排列控制點；系統會把最後一點接回第一點，生成封閉曲線。第一點附近是起終點。座標單位約為公尺，格式特別注意是 <b>[x, z, 高度 y]</b>：</p><pre><code>points: [
+  [-40,   0, 0], // 左右 x、前後 z、高度 y
+  [ 30,   0, 0],
+  [ 75, -10, 0],
+  [ 98, -45, 0.5],
+  // ...至少 8 點，最後一點自然接回第一點
+]</code></pre><ul><li>先做平面地圖，確定能跑完，再加坡道。相鄰點通常間隔 20～60 公尺。</li><li>避免道路交叉或兩段道路過近。這個引擎用最近路段判斷進度；立體交叉需要額外設計，不能只讓兩段路重疊。</li><li>彎道留夠半徑，寬路急彎容易內側重疊。高度逐漸變化，不要在很短距離內突然升降。</li><li>建議先維持原地圖尺度與原點附近範圍；目前驗證器限制控制點在 ±2000 公尺內，超大的場景還要重新調整鏡頭、霧與地景範圍。</li></ul>
+<h2>3. 設定路寬、捷徑與設施</h2><table><tr><th>欄位</th><th>用途與範例</th></tr><tr><td><code>halfWidth</code></td><td>主路半寬；8 代表總寬約 16 公尺。路寬變小，道具橫向位置也要縮小。</td></tr><tr><td><code>shoulder</code></td><td>路肩寬，原本為 2.4。</td></tr><tr><td><code>shortHalfWidth</code></td><td>捷徑半寬，原本為 4.6。</td></tr><tr><td><code>shortcut</code></td><td><code>from</code>／<code>to</code> 是主路附近的 [x,z]，<code>via</code> 是中間 [x,z,y]。入口與出口要能順接主路。這版仍需要有效捷徑設定；不能直接刪掉。</td></tr><tr><td><code>pads</code></td><td>加速墊，包含路徑、位置、橫向偏移、長與寬。</td></tr><tr><td><code>ramps</code></td><td>跳台，目前只支援主路。<code>lip</code> 是台口抬升量；先用原本 1.35。</td></tr><tr><td><code>itemRows</code></td><td>道具箱排；<code>lanes</code> 是相對路中心的橫向公尺數，必須在道路內。</td></tr><tr><td><code>fluff</code></td><td>捷徑減速區段，<code>from</code> 和 <code>to</code> 是捷徑長度的比例。</td></tr><tr><td><code>arch</code></td><td>裝飾拱門位置，目前放在主路。起終點仍由主路起點生成。</td></tr></table>
+<p>每個設施擇一使用 <code>at: [x,z]</code>（投影到最近道路）或 <code>fraction: 0.25</code>（該路徑長度的 25%）。可再加 <code>offset</code>，沿行駛方向前後移動公尺數。</p><pre><code>pads: [
+  {path:'main', at:[10,-78], lateral:-3, length:5, width:4.5},
+  {path:'short', fraction:0.25, lateral:0, length:5, width:5},
+],
+ramps: [
+  {path:'main', at:[-72,-100], offset:9, length:8, width:7.2, lip:1.35},
+],
+itemRows: [
+  {path:'main', fraction:0.2, lanes:[-5.4,-1.8,1.8,5.4]},
+]</code></pre><p><code>lateral</code> 的正負會沿道路法向分到兩側；先放 ±2 公尺到預覽中確認哪一側符合你的行駛視角，再調整。<code>pads</code>、<code>ramps</code>、<code>itemRows</code> 可以用空陣列停用；捷徑需保留。</p>
+<h2>4. 預覽與檢查</h2><pre><code>cd racing
+npm ci        # 第一次安裝
+npm run dev   # 終端機會顯示本機網址
+npm run typecheck
+npm test
+npm run build</code></pre><ul><li>遊戲啟動會檢查地圖格式、路寬、設施定位與道具橫向範圍；錯誤訊息會指出要修正的項目。</li><li>設定合法不等於道路可玩。一定要手動完整跑一圈，檢查起終點、急彎、坡道、護欄、捷徑入口與出口、掉落後重生。</li><li>觀察五位 AI 能否跑完、是否卡牆；測試跳台、加速墊、每種道具及小地圖。不要只看鳥瞰形狀。</li><li>連線時每台裝置需要使用同一個建置版本、同一張地圖。變更地圖後重新建置、部署，所有人重新整理後再開房；版本或地圖不一致時，加入房間會顯示提示。</li><li>臺大校園地景位於 <code>src/game/campusScenery.ts</code>，原糖果場景保留在 <code>src/game/scenery.ts</code>；路色在 <code>track.ts</code> 的色彩常數。</li></ul>
+<h2>5. Google 街景能變成地圖嗎？</h2><p><b>可以研究「實景風格賽道」，但不是直接下載街景照片就能完成。</b> <a href="https://developers.google.com/maps/documentation/tile/streetview" target="_blank" rel="noopener">Street View API</a> 提供全景影像；它沒有直接給這個遊戲需要的可行駛路面、碰撞、AI 路線與檢查點。</p><p><a href="https://developers.google.com/maps/documentation/tile/3d-tiles" target="_blank" rel="noopener">Photorealistic 3D Tiles</a> 是不同的 3D 地理資料服務，要串流載入、API 金鑰、帳務與署名，並另外做遊戲碰撞和路線；手機效能與流量也要重新評估。不能把它當成可任意匯出的離線素材。</p><p><a href="https://cloud.google.com/maps-platform/terms" target="_blank" rel="noopener">Google Maps Platform 條款</a> 對抓取、儲存與依內容建立衍生資料有明確限制，不能假設能把街景抓下來重建成自己的模型再打包。實作前要確認所用服務與用途符合授權。</p><p>對這個輕量手機賽車專案，我建議先用你自己的照片／拍攝素材，或有明確可用授權的道路資料，做一張低面數的「校園／街區風格」賽道，再用上述控制點加上可玩路線。這樣比較容易控制碰撞、流量與效能。</p><small>這份說明對應目前的賽車程式。未啟動街景 API，也沒有產生費用。</small></main></body></html>
