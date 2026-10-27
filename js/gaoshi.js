@@ -93,7 +93,7 @@ var GaoshiGame = (function(){
     time:0, endT:0, count:0, acc:0, rand:Math.random };
   const SCREENS = ['scrTitle','scrSelect','scrMap','scrPick','scrScore','scrPause','scrResult'];
   const MATCH = ['pick','place','race','score','over','pause'];
-  function show(id){ for (const s of SCREENS) $(s).hidden = s !== id; $('hud').hidden = !MATCH.includes(S.mode); }
+  function show(id){ for (const s of SCREENS) $(s).hidden = s !== id; $('hud').hidden = !MATCH.includes(S.mode); $('tags').hidden = !['pick','place','race'].includes(S.mode); }
   function flash(text, color){ const d = document.createElement('div'); d.className = 'flash'; d.textContent = text; if (color) d.style.color = color; $('flashBox').replaceChildren(d); setTimeout(()=>{ if (d.parentNode) d.remove(); }, 1300); }
   function clearModels(){ S.models.forEach(disposeModel); S.models = []; $('tags').replaceChildren(); }
 
@@ -208,7 +208,7 @@ var GaoshiGame = (function(){
   function startMatch(){
     let id = MAP_CARDS()[S.mapPick]; if (id === 'random') id = GaoshiMaps.LIST[Math.floor(Math.random()*GaoshiMaps.LIST.length)].id;
     S.mapId = id; ART.buildMap(GaoshiMaps.byId[id]); clearModels(); clearGhosts();
-    S.items = []; S.scores = {}; S.streak = {}; S.zero = 0; S.round = 0;
+    S.items = []; S.scores = {}; S.segs = {}; S.streak = {}; S.zero = 0; S.round = 0;
     for (let i=0;i<S.players;i++){ S.scores[i] = 0;
       const m = makeFighterModel(S.kinds[i], MODEL_H, S.skins[i]); S.models[i] = m;
       const t = document.createElement('div'); t.className = 'tagl'; t.style.setProperty('--pc', COLORS[i]); t.textContent = 'P' + (i+1); $('tags').appendChild(t); m.tag = t; }
@@ -224,11 +224,10 @@ var GaoshiGame = (function(){
   function nextRound(){
     S.round++; S.world = freshWorld(); ART.syncItems(S.items, COLOR_N); ART.placeOverlay(false);
     S.box = RL.partyBox(S.rand, {guaranteeBomb: S.zero >= 2}).map(id=>({id, takers:[]}));
-    S.picks = Array(S.players).fill(null); S.focus = [...Array(S.players)].map((_,i)=>Math.min(i, S.box.length-1)); S.after = 0;
-    S.mode = 'pick'; S.timer = RU.pickTimeSec; show('scrPick'); phaseLabel('選道具'); renderChips(); renderPick();
-    if (S.zero >= 2 && S.box.some(c=>c.id === 'bomb')) $('pickNote').textContent = '連續兩回合沒人得分，這次一定有炸彈'; else $('pickNote').textContent = '同時拿同一個，兩個人都拿得到';
+    S.picks = Array(S.players).fill(null); S.after = 0;
+    S.mode = 'pick'; S.timer = RU.pickTimeSec; show('scrPick'); phaseLabel('選道具'); renderChips(); enterPickUI();
+    $('pickNote').textContent = S.zero >= 2 && S.box.some(c=>c.id === 'bomb') ? '連續兩回合沒人得分，這次一定有炸彈' : '同時抓同一個，兩個人都拿得到';
   }
-  // --- PICK ---
   function itemIcon(id){
     const cv = document.createElement('canvas'), d = RL.ITEMS[id], k = 22, W = 4*k, H = 3*k; cv.width = W; cv.height = H; const g = cv.getContext('2d');
     const ox = (W - d.w*k)/2, oy = (H - d.h*k)/2;
@@ -240,43 +239,73 @@ var GaoshiGame = (function(){
     if (id === 'coin'){ g.fillStyle = '#f2c14e'; g.beginPath(); g.arc(W/2, H/2, 20, 0, 7); g.fill(); g.fillStyle = '#fff2b0'; g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('★', W/2, H/2+1); }
     return cv;
   }
-  function renderPick(){
-    const box = $('cards'); box.replaceChildren();
-    S.box.forEach((c, j)=>{ const d = RL.ITEMS[c.id], b = document.createElement('button'); b.className = 'card' + (c.takers.length ? ' taken' : '');
-      b.appendChild(itemIcon(c.id));
-      const nm = document.createElement('b'); nm.textContent = d.name; b.appendChild(nm);
-      const ds = document.createElement('span'); ds.className = 'ds'; ds.textContent = d.desc; b.appendChild(ds);
-      const tg = document.createElement('span'); tg.className = 'cat'; tg.textContent = d.cat + (d.trap ? '　⚠ 陷阱' : ''); if (d.trap) tg.classList.add('trap'); b.appendChild(tg);
-      const fr = document.createElement('span'); fr.className = 'mk';
-      S.focus.forEach((f,i)=>{ if (f === j && !S.picks[i]){ const t = document.createElement('i'); t.textContent = 'P' + (i+1); t.style.background = COLORS[i]; fr.appendChild(t); b.style.borderColor = COLORS[i]; } });
-      b.appendChild(fr);
-      if (c.takers.length){ const tk = document.createElement('span'); tk.className = 'tk'; tk.textContent = c.takers.map(i=>'P' + (i+1)).join('、') + (c.takers.length > 1 ? ' 複製！' : ' 拿走了'); b.appendChild(tk); }
-      b.onclick = ()=>{ const i = S.picks.findIndex(p=>!p); if (i >= 0) tryPick([[i, j]]); };
-      box.appendChild(b); });
+  // --- PICK: the party box. Every player steers a cursor with their face and grabs an item; a taken item vanishes in a puff ---
+  const SLOTS = [[20,38],[40,64],[60,36],[80,62],[30,58],[70,48]];
+  function enterPickUI(){
+    const box = $('pbox'); box.querySelectorAll('.pitem,.pcur,.smoke').forEach(e=>e.remove());
+    S.box.forEach((c, j)=>{ const d = RL.ITEMS[c.id], s = SLOTS[j % SLOTS.length];
+      c.x = s[0] + (Math.random()-.5)*6; c.y = s[1] + (Math.random()-.5)*6;
+      const el = document.createElement('div'); el.className = 'pitem'; el.style.left = c.x + '%'; el.style.top = c.y + '%'; el.style.setProperty('--tilt', ((Math.random()-.5)*16).toFixed(1) + 'deg');
+      el.appendChild(itemIcon(c.id));
+      const nm = document.createElement('b'); nm.textContent = d.name; el.appendChild(nm);
+      if (d.trap){ const t = document.createElement('i'); t.className = 'trap'; t.textContent = '陷阱'; el.appendChild(t); }
+      const ds = document.createElement('span'); ds.className = 'ds'; ds.textContent = d.desc; el.appendChild(ds);
+      box.appendChild(el); c.el = el; });
+    S.pc = [];
+    for (let i=0;i<S.players;i++){
+      S.pc[i] = {x: 50 + (i - (S.players-1)/2) * 14, y: 88};
+      const cu = document.createElement('div'); cu.className = 'pcur'; cu.style.setProperty('--pc', COLORS[i]);
+      cu.appendChild(portraitEl(S.kinds[i], S.skins[i])); const tg = document.createElement('b'); tg.textContent = 'P' + (i+1); cu.appendChild(tg);
+      const hold = document.createElement('div'); hold.className = 'hold'; cu.appendChild(hold);
+      box.appendChild(cu); S.pc[i].el = cu; S.pc[i].hold = hold;
+    }
+    drawPick();
+  }
+  const itemUnder = (i)=>{ const p = S.pc[i]; let best = -1, bd = 1e9; S.box.forEach((c,j)=>{ if (c.takers.length) return; const d = Math.hypot((c.x - p.x)*1.6, c.y - p.y); if (d < 13 && d < bd){ bd = d; best = j; } }); return best; };
+  function drawPick(){
+    const hot = S.box.map(()=>[]);
+    S.pc.forEach((p,i)=>{ p.el.style.left = p.x + '%'; p.el.style.top = p.y + '%'; if (!S.picks[i]){ const j = itemUnder(i); if (j >= 0) hot[j].push(i); } });
+    S.box.forEach((c,j)=>{ if (!c.el) return; c.el.classList.toggle('hot', hot[j].length > 0); c.el.style.setProperty('--pc', hot[j].length ? COLORS[hot[j][0]] : 'transparent'); });
   }
   function tryPick(list){
-    // everyone confirming the same card in the same frame gets a copy (PLAN §6)
-    const byCard = {}; for (const [i, j] of list) if (!S.picks[i]) (byCard[j] = byCard[j] || []).push(i);
+    // everyone grabbing the same item in the same frame gets a copy (PLAN §6)
+    const byCard = {}; for (const [i, j] of list) if (!S.picks[i] && j >= 0) (byCard[j] = byCard[j] || []).push(i);
     for (const j in byCard){ const c = S.box[j];
       if (c.takers.length){ SND.no(); continue; }
-      for (const i of byCard[j]){ S.picks[i] = c.id; c.takers.push(i); }
-      SND.pick(); if (byCard[j].length > 1) flash('複製！'); }
-    renderPick();
-    if (S.picks.every(Boolean) && !S.after) S.after = .7;
+      for (const i of byCard[j]){ S.picks[i] = c.id; c.takers.push(i); const h = S.pc[i].hold; h.replaceChildren(itemIcon(c.id)); S.pc[i].el.classList.add('got'); }
+      poof(c); SND.pick(); if (byCard[j].length > 1) flash('複製！'); }
+    if (S.picks.every(Boolean) && !S.after) S.after = .8;
   }
-  function pickKeys(codes){
-    const list = [];
-    for (const code of codes) for (let i=0;i<S.players;i++){ if (S.picks[i]) continue;
-      if (is(i, 'left', code)){ S.focus[i] = (S.focus[i] + S.box.length - 1) % S.box.length; SND.pick(); renderPick(); }
-      if (is(i, 'right', code)){ S.focus[i] = (S.focus[i] + 1) % S.box.length; SND.pick(); renderPick(); }
-      if (is(i, 'ok', code)) list.push([i, S.focus[i]]); }
+  function poof(c){
+    c.el.classList.add('gone');
+    const sm = document.createElement('div'); sm.className = 'smoke'; sm.style.left = c.x + '%'; sm.style.top = c.y + '%';
+    for (let k=0;k<9;k++){ const s = document.createElement('i'); const a = k/9*Math.PI*2; s.style.setProperty('--dx', (Math.cos(a)*46).toFixed(0) + 'px'); s.style.setProperty('--dy', (Math.sin(a)*34 - 10).toFixed(0) + 'px'); s.style.animationDelay = (k%3)*.04 + 's'; sm.appendChild(s); }
+    $('pbox').appendChild(sm); setTimeout(()=>sm.remove(), 900);
+    if (AC){ noise(.25, .12); }
+  }
+  function pickKeys(codes, dt){
+    const list = [], sp = 62;
+    for (let i=0;i<S.players;i++){ if (S.picks[i]) continue; const p = S.pc[i];
+      const dx = (held(i,'right')?1:0) - (held(i,'left')?1:0), dy = (held(i,'down')?1:0) - (held(i,'up')?1:0), n = Math.hypot(dx, dy) || 1;
+      p.x = Math.max(4, Math.min(96, p.x + dx/n*sp*dt*.62)); p.y = Math.max(8, Math.min(94, p.y + dy/n*sp*dt));
+      for (const code of codes) if (is(i, 'place', code)) list.push([i, itemUnder(i)]); }
     if (list.length) tryPick(list);
+    drawPick();
+  }
+  function pickPointer(e, click){
+    if (S.mode !== 'pick' || !S.pc || !S.pc[0] || S.picks[0]) return;
+    const r = $('pbox').getBoundingClientRect(); S.pc[0].x = Math.max(4, Math.min(96, (e.clientX - r.left)/r.width*100)); S.pc[0].y = Math.max(8, Math.min(94, (e.clientY - r.top)/r.height*100));
+    if (click) tryPick([[0, itemUnder(0)]]);
   }
   function stepPick(dt){
     if (S.after){ S.after -= dt; if (S.after <= 0) enterPlace(); return; }
     S.timer -= dt;
-    if (S.timer <= 0){ for (let i=0;i<S.players;i++) if (!S.picks[i]){ const free = S.box.filter(c=>!c.takers.length), c = free.length ? free[Math.floor(Math.random()*free.length)] : S.box[Math.floor(Math.random()*S.box.length)]; S.picks[i] = c.id; c.takers.push(i); }
-      renderPick(); flash('時間到，已替你隨機選擇'); S.after = .9; }
+    if (S.timer <= 0){
+      const list = [];
+      for (let i=0;i<S.players;i++) if (!S.picks[i]){ const free = S.box.map((c,j)=>j).filter(j=>!S.box[j].takers.length && !list.some(l=>l[1] === j)); list.push([i, free.length ? free[Math.floor(Math.random()*free.length)] : -1]); }
+      tryPick(list);
+      for (let i=0;i<S.players;i++) if (!S.picks[i]){ const c = S.box[Math.floor(Math.random()*S.box.length)]; S.picks[i] = c.id; S.pc[i].hold.replaceChildren(itemIcon(c.id)); }
+      flash('時間到，已替你隨機選擇'); S.after = .9; }
   }
   // --- PLACE ---
   function clearGhosts(){ S.ghosts.forEach(ART.removeObj); S.ghosts = []; }
@@ -377,32 +406,40 @@ var GaoshiGame = (function(){
     if ((PH.raceOver(w) || left <= 0) && !S.endT) S.endT = S.time;
     if (S.endT && S.time - S.endT > 1.3) enterScore();
   }
-  // --- SCORE ---
-  function bar(i, before, gained){
-    const b = document.createElement('div'); b.className = 'bar';
-    for (let k=0;k<RU.winFifths;k++){ const s = document.createElement('i'); if (k < before) s.className = 'f'; else if (k < before + gained){ s.className = 'n'; s.style.animationDelay = (.35 + (k - before)*.08) + 's'; } if ((k+1) % 5 === 0) s.classList.add('pt'); b.appendChild(s); }
-    b.style.setProperty('--pc', COLORS[i]); return b;
+  // --- SCORE: a paper board, one row per player, hatched blocks stacked to the win line ---
+  const AW_COLOR = {goal:'#2f3c6e', first:'#3f9d4c', solo:'#2b8fd8', trap:'#ef7d2c', coin:'#d9a414', comeback:'#8c8f2a'};
+  const AW_RANK = ['trap','comeback','solo','coin','first','goal'];
+  function seg(a, isNew, delay){
+    const s = document.createElement('i'); s.className = 'seg' + (isNew ? ' new' : ''); s.style.setProperty('--c', AW_COLOR[a.k]); s.style.setProperty('--w', (a.v / RU.winFifths * 100) + '%');
+    s.title = RL.AWARD_NAME[a.k]; if (isNew) s.style.animationDelay = delay + 's'; return s;
   }
   function enterScore(){
     S.mode = 'score'; const w = S.world, res = PH.roundResult(w), sr = RL.scoreRound(res, S.streak);
     S.streak = RL.nextStreak(res, S.streak);
     const anyPts = Object.values(sr.awards).some(a=>a.length); S.zero = anyPts && sr.verdict === 'normal' ? 0 : S.zero + 1;
     for (const p of w.players) if (p.done && p.coin){ const k = S.items.indexOf(p.coin); if (k >= 0) S.items.splice(k, 1); }   // delivered coins are used up
-    $('scVerdict').textContent = sr.verdict === 'easy' ? '太簡單了，這回合沒有人得分' : sr.verdict === 'hard' ? '太難了，這回合沒有人得分' : '有人過關，有人倒下';
-    $('scWhy').textContent = sr.verdict === 'normal' ? '過關 1 分，搶先、獨走、逆襲、陷阱另外加分（每格 = 1/5 分）' : (sr.verdict === 'easy' ? '全員都到終點，關卡要更難一點' : '沒人到終點，下次放個橋吧') + (Object.values(sr.awards).some(a=>a.length) ? '（金幣照算）' : '');
-    const rows = $('scRows'); rows.replaceChildren(); let delay = 0;
+    const board = $('board'); board.querySelectorAll('.brow,.stamp').forEach(e=>e.remove());
+    const grid = $('bgrid'); grid.replaceChildren();
+    for (let k=0;k<=RU.pointsToWin;k++){ const l = document.createElement('i'); l.className = 'gl' + (k === 0 || k === RU.pointsToWin ? ' solid' : ''); l.style.left = (k/RU.pointsToWin*100) + '%'; if (k > 0 && k < RU.pointsToWin){ const n = document.createElement('span'); n.textContent = k; l.appendChild(n); } grid.appendChild(l); }
+    let delay = .3;
     for (let i=0;i<S.players;i++){
-      const list = sr.awards[i], before = S.scores[i], gained = RL.total(list);
-      const r = document.createElement('div'); r.className = 'srow'; r.style.setProperty('--pc', COLORS[i]);
-      const nm = document.createElement('div'); nm.className = 'nm'; nm.innerHTML = '<b></b><span></span>'; nm.querySelector('b').textContent = 'P' + (i+1); nm.querySelector('span').textContent = charName(S.kinds[i]); r.appendChild(nm);
-      const aw = document.createElement('div'); aw.className = 'aw';
-      const p = w.players[i]; if (!list.length){ const s = document.createElement('span'); s.className = 'none'; s.textContent = p.done ? '抵達' : !p.alive ? (p.cause && p.cause.type === 'item' ? '被' + (p.cause.owner === i ? '自己' : 'P' + (p.cause.owner+1)) + '的' + RL.ITEMS[p.cause.item].name + '打倒' : p.cause && p.cause.type === 'fall' ? '掉下去了' : '被葉片打中') : '時間到'; aw.appendChild(s); }
-      list.forEach((a)=>{ const s = document.createElement('span'); s.className = 'a ' + a.k; s.textContent = RL.AWARD_NAME[a.k] + ' +' + a.v + (a.k === 'trap' ? '（P' + (a.victim+1) + '）' : ''); s.style.animationDelay = (delay += .35) + 's'; aw.appendChild(s); setTimeout(()=>{ if (S.mode === 'score') SND.award(Math.min(6, Math.round(delay*2))); }, delay*1000); });
-      r.appendChild(aw); r.appendChild(bar(i, before, gained)); rows.appendChild(r);
-      S.scores[i] = before + gained;
+      const list = sr.awards[i], p = w.players[i];
+      const row = document.createElement('div'); row.className = 'brow'; row.style.setProperty('--pc', COLORS[i]);
+      const who = document.createElement('div'); who.className = 'who'; who.appendChild(portraitEl(S.kinds[i], S.skins[i]));
+      const nm = document.createElement('div'); nm.className = 'nm'; nm.innerHTML = '<b></b><span></span>'; nm.querySelector('b').textContent = charName(S.kinds[i]);
+      nm.querySelector('span').textContent = p.done ? '' : !p.alive ? '倒下' : '沒到'; who.appendChild(nm); row.appendChild(who);
+      const lane = document.createElement('div'); lane.className = 'lane';
+      (S.segs[i] || []).forEach(a=>lane.appendChild(seg(a, false)));
+      list.forEach(a=>{ lane.appendChild(seg(a, true, delay)); setTimeout(()=>{ if (S.mode === 'score') SND.award(AW_RANK.length - AW_RANK.indexOf(a.k)); }, delay*1000); delay += .45; });
+      const top = list.slice().sort((a,b)=>AW_RANK.indexOf(a.k) - AW_RANK.indexOf(b.k))[0];
+      if (top){ const t = document.createElement('em'); t.className = 'awbig'; t.textContent = RL.AWARD_NAME[top.k]; t.style.color = AW_COLOR[top.k]; t.style.animationDelay = (delay - .2) + 's'; lane.appendChild(t); }
+      row.appendChild(lane); board.appendChild(row);
+      S.segs[i] = (S.segs[i] || []).concat(list); S.scores[i] += RL.total(list);
     }
+    if (sr.verdict !== 'normal'){ const st = document.createElement('div'); st.className = 'stamp'; st.textContent = (sr.verdict === 'easy' ? '太簡單了！' : '太難了！') + (anyPts ? '只有金幣算分' : '沒有人得分！'); board.appendChild(st); }
     const win = RL.winners(S.scores, S.round);
     $('scNext').textContent = win.length ? '看結果' : '下一回合'; S.winners = win;
+    $('bWin').textContent = win.length ? (win.length > 1 ? '平手！' : charName(S.kinds[win[0]]) + ' 獲勝！') : '獲勝！';
     show('scrScore'); renderChips(); S.after = 0; S.scoreT = 0;
   }
   function leaveScore(){ if (S.winners.length) enterOver(); else nextRound(); }
@@ -415,6 +452,12 @@ var GaoshiGame = (function(){
     [...Array(S.players).keys()].sort((a,b)=>S.scores[b]-S.scores[a]).forEach(i=>{ const d = document.createElement('div'); d.style.setProperty('--pc', COLORS[i]); d.innerHTML = '<b></b><span></span>'; d.querySelector('b').textContent = 'P' + (i+1); d.querySelector('span').textContent = charName(S.kinds[i]) + '　' + (S.scores[i]/5).toFixed(1).replace('.0','') + ' 分'; rank.appendChild(d); });
     for (let i=0;i<S.players;i++){ const m = S.models[i]; m.holder.rotation.z = 0; setFace(m, win.includes(i) ? 'normal' : 'cry'); }
     show('scrResult'); $('rRetry').focus(); SND.goal();
+  }
+  // small HUD bar: one cell per 1/5 point
+  function bar(i, before, gained){
+    const b = document.createElement('div'); b.className = 'bar';
+    for (let k=0;k<RU.winFifths;k++){ const c = document.createElement('i'); if (k < before) c.className = 'f'; else if (k < before + gained) c.className = 'n'; if ((k+1) % 5 === 0) c.classList.add('pt'); b.appendChild(c); }
+    b.style.setProperty('--pc', COLORS[i]); return b;
   }
   function renderChips(){
     const L0 = $('chipsL'), R0 = $('chipsR'); L0.replaceChildren(); R0.replaceChildren(); const w = S.world;
@@ -471,7 +514,7 @@ var GaoshiGame = (function(){
     else if (S.mode === 'pause'){ if (codes.includes('Escape')) pause(false); }
     else if (['pick','place','race'].includes(S.mode) && codes.includes('Escape')) pause(true);
     else if (S.mode === 'score' && codes.some(c=>['Space','Enter','KeyW','ArrowUp','NumpadEnter'].includes(c)) && S.scoreT > .8) leaveScore();
-    if (S.mode === 'pick'){ pickKeys(codes); stepPick(dt); }
+    if (S.mode === 'pick'){ pickKeys(codes, dt); stepPick(dt); }
     if (S.mode === 'place'){ placeKeys(codes, dt); stepPlace(dt); drawPlace(); }
     if (S.mode === 'race'){ S.acc += dt; while (S.acc >= PH.DT){ stepRace(PH.DT); S.acc -= PH.DT; if (S.mode !== 'race') break; } }
     if (S.mode === 'score'){ S.scoreT += dt; }
@@ -494,6 +537,7 @@ var GaoshiGame = (function(){
     $('mapBack').onclick = enterSelect;
     $('pResume').onclick = ()=>pause(false); $('pMap').onclick = enterMap; $('pChar').onclick = enterSelect; $('pTitle').onclick = enterTitle;
     $('pRestart').onclick = startMatch; $('scNext').onclick = leaveScore;
+    $('pbox').addEventListener('pointermove', (e)=>pickPointer(e, false)); $('pbox').addEventListener('pointerdown', (e)=>pickPointer(e, true));
     $('rRetry').onclick = startMatch; $('rMap').onclick = enterMap; $('rChar').onclick = enterSelect; $('rTitle').onclick = enterTitle;
     if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) $('touchNote').hidden = false;
     enterTitle(); $('scrTitle').querySelector('.big').focus();

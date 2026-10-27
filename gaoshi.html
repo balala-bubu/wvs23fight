@@ -139,6 +139,61 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 @keyframes pop2{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 @media (max-width:640px){.roster .rc{width:60px;min-width:60px}.roster .rc .por{width:50px;height:50px}.card{width:44vw;min-height:170px}.srow{grid-template-columns:1fr}.srow .nm{grid-row:auto}.srow .bar{grid-column:1}}
 @media (prefers-reduced-motion: reduce){.bar i.n,.srow .aw .a,.flash{animation:none}}
+
+/* party box: a wooden crate the cursors reach into */
+#scrPick{justify-content:center}
+.pickWrap{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(860px,100%)}
+.pbox{position:relative;width:100%;height:min(46vh,380px);border-radius:14px;border:6px solid #4a2e18;
+  background:repeating-linear-gradient(90deg,#9a6a3c 0 70px,#8d5f34 70px 74px,#a5743f 74px 150px,#8d5f34 150px 154px);
+  box-shadow:inset 0 18px 40px rgba(0,0,0,.45),inset 0 -8px 0 rgba(0,0,0,.25),0 14px 30px rgba(0,0,0,.5);overflow:visible;touch-action:none}
+.pbox .lid{position:absolute;left:-2%;right:-2%;top:-34px;height:30px;border-radius:8px;background:repeating-linear-gradient(90deg,#b07a44 0 90px,#9a6a3c 90px 94px);border:4px solid #4a2e18;transform:rotate(-2.2deg);transform-origin:left bottom}
+.pbox .plabel{position:absolute;left:50%;top:-30px;transform:translateX(-50%) rotate(-2deg);font-weight:900;font-size:20px;color:#fff3dc;text-shadow:2px 2px 0 #4a2e18;letter-spacing:.2em;pointer-events:none}
+.pitem{position:absolute;transform:translate(-50%,-50%) rotate(var(--tilt));display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px 4px;border-radius:14px;background:rgba(255,243,220,.9);box-shadow:0 6px 0 rgba(0,0,0,.25);border:3px solid var(--pc,transparent);transition:transform .12s,opacity .25s;color:#2a1a10}
+.pitem canvas{width:84px;height:63px}
+.pitem b{font-size:16px}
+.pitem .trap{font-style:normal;font-size:11px;font-weight:700;color:#fff;background:#d4552c;border-radius:999px;padding:0 6px;position:absolute;top:-8px;right:-6px}
+.pitem .ds{position:absolute;top:100%;margin-top:8px;width:180px;font-size:12px;line-height:1.35;text-align:center;background:var(--panel);color:var(--ink);border-radius:8px;padding:4px 6px;opacity:0;pointer-events:none;transition:opacity .15s}
+.pitem.hot{transform:translate(-50%,-50%) rotate(0) scale(1.1);z-index:2}
+.pitem.hot .ds{opacity:1}
+.pitem.gone{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+.pcur{position:absolute;transform:translate(-50%,-50%);width:58px;height:58px;border-radius:50%;border:4px solid var(--pc);background:#211915;box-shadow:0 4px 0 rgba(0,0,0,.4);z-index:5;pointer-events:none}
+.pcur .por{width:100%;height:100%;border-radius:50%}
+.pcur > b{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font-family:var(--pixel);font-size:18px;line-height:1;background:var(--pc);color:#000;padding:1px 6px;border-radius:5px}
+.pcur::after{content:"";position:absolute;left:-9px;top:-6px;border:9px solid transparent;border-right-color:var(--pc);transform:rotate(45deg)}
+.pcur .hold{position:absolute;right:-30px;bottom:-14px;width:44px;height:33px}
+.pcur .hold canvas{width:100%;height:100%;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+.pcur.got{animation:grab .3s}
+@keyframes grab{50%{transform:translate(-50%,-50%) scale(1.25)}}
+.smoke{position:absolute;width:0;height:0;z-index:4;pointer-events:none}
+.smoke i{position:absolute;left:-22px;top:-22px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,#fffaf0 0 40%,rgba(255,250,240,.6) 60%,rgba(255,250,240,0) 72%);animation:puff .75s ease-out forwards}
+@keyframes puff{0%{transform:translate(0,0) scale(.3);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1.7);opacity:0}}
+/* score board: paper sheet, hatched blocks per award, dashed line per point, solid win line */
+#scrScore{gap:12px}
+.board{--pad:26px;--who:190px;--tail:120px;--gap:16px;position:relative;width:min(1000px,100%);box-sizing:border-box;padding:18px var(--pad) 40px;background:#e7dcc2;color:#2b2f4a;
+  clip-path:polygon(0 1%,3% 0,40% .6%,70% 0,100% 1.2%,99.4% 30%,100% 62%,99.2% 100%,60% 99.2%,30% 100%,.6% 99.4%,0 70%,.8% 35%);box-shadow:0 20px 40px rgba(0,0,0,.4)}
+.bhead{display:flex;align-items:baseline;justify-content:center;position:relative;margin-bottom:14px}
+.bhead h2{margin:0;font-size:clamp(28px,4vw,44px);font-weight:900;letter-spacing:.12em}
+.bwin{position:absolute;right:calc(var(--tail) - 20px);font-weight:900;font-size:clamp(14px,1.8vw,20px)}
+.bgrid{position:absolute;left:calc(var(--pad) + var(--who) + var(--gap));right:calc(var(--pad) + var(--tail) + var(--gap));top:76px;bottom:18px;pointer-events:none}
+.bgrid .gl{position:absolute;top:0;bottom:0;border-left:2px dashed rgba(43,47,74,.55)}
+.bgrid .gl.solid{border-left:4px solid #2b2f4a}
+.bgrid .gl span{position:absolute;bottom:-20px;left:-4px;font-size:13px}
+.brow{display:grid;grid-template-columns:var(--who) 1fr var(--tail);gap:var(--gap);align-items:center;min-height:78px;position:relative}
+.brow + .brow{margin-top:8px}
+.brow .who{display:flex;align-items:center;gap:10px}
+.brow .who .por{width:64px;height:64px;border-radius:12px;border:3px solid var(--pc);background:#2a211c}
+.brow .nm{display:flex;flex-direction:column;line-height:1.2}
+.brow .nm b{font-size:18px}
+.brow .nm span{font-size:13px;font-weight:700;color:#a42cc4}
+.lane{display:flex;align-items:center;height:56px;position:relative;grid-column:2;overflow:visible;white-space:nowrap}
+.seg{flex:0 0 var(--w);height:100%;box-sizing:border-box;border:3px solid var(--c);border-radius:3px;background:repeating-linear-gradient(-45deg,var(--c) 0 3px,transparent 3px 8px);margin-right:1px}
+.seg.new{animation:grow .4s ease-out both}
+@keyframes grow{from{flex-basis:0;opacity:0}to{flex-basis:var(--w);opacity:1}}
+.lane .awbig{font-style:normal;font-weight:900;font-size:clamp(24px,3.4vw,42px);margin-left:12px;animation:pop2 .35s both}
+.stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-9deg);background:#ec6a6a;color:#fff;font-weight:900;font-size:clamp(22px,3.6vw,40px);padding:12px 28px;box-shadow:0 8px 0 rgba(0,0,0,.15);animation:stamp .4s .3s both;white-space:nowrap}
+@keyframes stamp{from{transform:translate(-50%,-50%) rotate(-9deg) scale(2.2);opacity:0}to{transform:translate(-50%,-50%) rotate(-9deg) scale(1);opacity:1}}
+@media (max-width:640px){.board{--pad:14px;--who:110px;--tail:56px;--gap:8px}.brow .who .por{width:40px;height:40px}.brow .nm b{font-size:14px}.lane{height:40px}.pitem canvas{width:60px;height:45px}.pcur{width:44px;height:44px}}
+@media (prefers-reduced-motion: reduce){.seg.new,.stamp,.smoke i,.pcur.got{animation:none}}
 </style>
 </head>
 <body>
@@ -175,13 +230,18 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 </section>
 
 <section class="scr" id="scrPick" hidden>
-  <div class="pickBox"><h2 class="scrH">派對盒</h2><div class="cards" id="cards"></div>
-    <div class="keys">P1 <kbd>A</kbd><kbd>D</kbd> 選、<kbd>W</kbd> 拿　P2 <kbd>←</kbd><kbd>→</kbd> 選、<kbd>↑</kbd> 拿　也可以直接點　<span id="pickNote"></span></div></div>
+  <div class="pickWrap">
+    <div class="pbox" id="pbox"><div class="lid"></div><div class="plabel">派對盒</div></div>
+    <div class="keys">P1 <kbd>WASD</kbd> 移動、<kbd>空白鍵</kbd> 抓　P2 <kbd>方向鍵</kbd> 移動、<kbd>Enter</kbd> 抓　滑鼠可以幫 P1 抓　<span id="pickNote"></span></div>
+  </div>
 </section>
 
 <section class="scr dimmer" id="scrScore" hidden>
-  <div class="sheet wide"><div class="res" id="scVerdict"></div><div class="why" id="scWhy"></div><div class="srows" id="scRows"></div>
-    <button class="big" id="scNext">下一回合</button></div>
+  <div class="board" id="board">
+    <div class="bhead"><h2>世志搞事</h2><span class="bwin" id="bWin">獲勝！</span></div>
+    <div class="bgrid" id="bgrid"></div>
+  </div>
+  <button class="big" id="scNext">下一回合</button>
 </section>
 
 <div id="hud" hidden>
