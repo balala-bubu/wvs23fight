@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>世志搞事</title>
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<style>
+:root{
+  --bg:#120e0c; --ink:#f6eedf; --dim:#bfae95; --panel:rgba(20,15,12,.86); --line:rgba(246,238,223,.16);
+  --p1:#ff7a3d; --p2:#4fa3ff; --p3:#5fd36a; --p4:#d070e0; --gold:#f2c14e; --bad:#ff5a4f;
+  --pixel:"VT323", ui-monospace, "Courier New", monospace;
+  --ui:"Noto Sans TC", system-ui, "PingFang TC", sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;box-sizing:border-box;pointer-events:none}
+.scr[hidden]{display:none}
+.scr > *{pointer-events:auto}
+.logo{font-weight:900;font-size:clamp(46px,11vw,104px);letter-spacing:.08em;line-height:1;text-shadow:4px 4px 0 #000,0 0 30px rgba(242,193,78,.35);color:var(--gold)}
+.sub{font-size:clamp(15px,2.4vw,20px);color:var(--ink);background:var(--panel);padding:4px 16px;border-radius:999px}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.big{min-width:150px;min-height:56px;padding:10px 22px;border-radius:14px;border:2px solid var(--line);background:var(--panel);font-size:20px;font-weight:700}
+.big:hover,.big:focus-visible,.big.on{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgba(242,193,78,.25)}
+.ghost{background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 16px;min-height:40px}
+.keys{font-size:14px;color:var(--dim);background:var(--panel);border-radius:12px;padding:10px 14px;line-height:1.7;text-align:center}
+.keys b{color:var(--ink)}
+kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid var(--line);border-radius:5px;padding:0 6px;color:var(--ink)}
+.scrH{font-family:var(--pixel);font-weight:400;font-size:34px;letter-spacing:.2em;margin:0;text-shadow:2px 2px 0 #000}
+/* select */
+#scrSelect{justify-content:space-between}
+#selBack{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top,0px))}
+.selTop{display:flex;flex-direction:column;align-items:center;gap:8px}
+.plates{display:flex;justify-content:space-between;width:min(980px,100%);gap:12px}
+.plate{background:var(--panel);border:3px solid var(--pc);border-radius:16px;padding:10px 14px;min-width:200px;text-align:center}
+.plate .who{font-family:var(--pixel);font-size:24px;color:var(--pc);letter-spacing:.15em}
+.plate .nm{font-size:28px;font-weight:900}
+.plate .tag{font-size:13px;color:var(--dim);min-height:1.4em}
+.plate .st{font-size:14px;margin-top:4px}
+.plate.ready{box-shadow:0 0 0 4px rgba(242,193,78,.4)}
+.plate.ready .st{color:var(--gold);font-weight:700}
+.roster{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:min(980px,100%);background:var(--panel);padding:8px;border-radius:14px}
+.roster button{min-height:48px;min-width:64px;padding:4px 10px;border-radius:10px;border:2px solid var(--line);background:#1d1714;font-size:15px;position:relative}
+.roster button .mk{display:flex;gap:2px;position:absolute;top:-8px;right:-4px}
+.roster button .mk i{font-style:normal;font-family:var(--pixel);font-size:14px;line-height:1;padding:1px 4px;border-radius:4px;color:#000}
+/* map select */
+.maps{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.mapc{width:220px;min-height:150px;border-radius:16px;border:3px solid var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px}
+.mapc canvas{width:192px;height:108px;border-radius:8px;image-rendering:pixelated;background:#000}
+.mapc b{font-size:22px}
+.mapc .q{font-size:72px;font-weight:900;line-height:108px;color:var(--gold)}
+.mapc.on{border-color:var(--gold);box-shadow:0 0 0 4px rgba(242,193,78,.3)}
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none}
+#hud[hidden]{display:none}
+.hudTop{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:0;right:0;display:flex;justify-content:center;align-items:flex-start;gap:10px;padding:0 10px}
+.phase{background:var(--panel);border-radius:999px;padding:4px 18px;font-weight:700;display:flex;gap:10px;align-items:center}
+.phase .t{font-family:var(--pixel);font-size:28px;color:var(--gold);min-width:2ch;text-align:right}
+.phase .t.low{color:var(--bad)}
+.chips{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px}
+.chips.l{left:10px}.chips.r{right:10px;align-items:flex-end}
+.chip{background:var(--panel);border-left:6px solid var(--pc);border-radius:10px;padding:4px 10px;font-size:14px;display:flex;gap:8px;align-items:center}
+.chip b{font-family:var(--pixel);font-size:20px;color:var(--pc)}
+.chip .s{color:var(--dim)}
+.chip.done .s{color:var(--gold);font-weight:700}
+.chip.dead .s{color:var(--bad)}
+.tagl{position:absolute;transform:translate(-50%,-100%);font-family:var(--pixel);font-size:20px;line-height:1;color:#000;background:var(--pc);padding:1px 6px;border-radius:6px;white-space:nowrap}
+.tagl::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:var(--pc)}
+.hint{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);font-size:13px;color:var(--dim);background:var(--panel);border-radius:999px;padding:4px 14px;white-space:nowrap}
+.flash{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);font-weight:900;font-size:clamp(34px,7vw,72px);text-shadow:4px 4px 0 #000;color:var(--gold);white-space:nowrap;animation:pop .5s ease-out}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}70%{transform:translate(-50%,-50%) scale(1.12);opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
+/* sheets */
+.sheet{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:min(560px,100%)}
+.sheet .res{font-size:clamp(24px,4.6vw,36px);font-weight:900;text-align:center}
+.sheet .why{color:var(--dim);font-size:15px;text-align:center}
+.rank{display:flex;flex-direction:column;gap:6px;width:100%}
+.rank div{display:flex;gap:10px;align-items:center;border-left:6px solid var(--pc);padding:4px 10px;background:#1d1714;border-radius:8px}
+.rank b{font-family:var(--pixel);font-size:22px;color:var(--pc);min-width:2.2em}
+.dimmer{background:rgba(10,8,7,.55)}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:9}
+#loading progress{width:min(320px,70vw);height:12px;accent-color:var(--gold)}
+#loading[hidden]{display:none}
+#touchNote{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:13px;color:var(--dim);background:var(--panel);padding:6px 12px;border-radius:10px;text-align:center}
+@media (max-width:640px){.plate{min-width:0;flex:1}.plate .nm{font-size:20px}.mapc{width:46vw}.mapc canvas{width:100%;height:auto;aspect-ratio:16/9}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="loading"><div class="logo" style="font-size:48px">世志搞事</div><progress id="loadBar" max="1" value="0"></progress><div id="loadStatus" class="sub">正在準備…</div></div>
+
+<section class="scr" id="scrTitle" hidden>
+  <div class="logo">世志搞事</div>
+  <div class="sub">蓋關卡、坑朋友，自己也要過得去</div>
+  <div class="row">
+    <button class="big" data-players="1">1 人試玩</button>
+    <button class="big" data-players="2">2 人同一台</button>
+  </div>
+  <div class="keys">
+    <b>P1</b>　<kbd>A</kbd><kbd>D</kbd> 移動　<kbd>W</kbd>/<kbd>空白</kbd> 跳　<kbd>左 Shift</kbd> 加速跑　<kbd>S</kbd> 蹲<br>
+    <b>P2</b>　<kbd>←</kbd><kbd>→</kbd> 移動　<kbd>↑</kbd>/<kbd>Enter</kbd> 跳　<kbd>右 Shift</kbd> 加速跑　<kbd>↓</kbd> 蹲<br>
+    跳躍按越久跳越高；貼著牆按跳可以蹬牆　<kbd>Esc</kbd> 暫停
+  </div>
+  <a class="ghost" href="index.html" style="text-decoration:none">← 回遊戲首頁</a>
+</section>
+
+<section class="scr" id="scrSelect" hidden>
+  <div class="selTop"><h2 class="scrH">選角色</h2><div class="roster" id="roster"></div></div>
+  <div class="plates" id="plates" style="margin-bottom:env(safe-area-inset-bottom,0px)"></div>
+  <button class="ghost" id="selBack">← 返回</button>
+</section>
+
+<section class="scr dimmer" id="scrMap" hidden>
+  <h2 class="scrH">選地圖</h2>
+  <div class="maps" id="maps"></div>
+  <div class="keys">P1 用 <kbd>A</kbd><kbd>D</kbd> 選、<kbd>W</kbd> 確定；或直接點地圖</div>
+  <button class="ghost" id="mapBack">返回選角</button>
+</section>
+
+<div id="hud" hidden>
+  <div class="hudTop"><div class="phase"><span id="phaseName">跑到終點旗！</span><span class="t" id="timer">60</span></div></div>
+  <div class="chips l" id="chipsL"></div><div class="chips r" id="chipsR"></div>
+  <div id="tags"></div>
+  <div class="hint" id="hint">第 1 次試玩：只有跑關，選道具和放道具在下一版加入</div>
+  <div id="flashBox"></div>
+</div>
+
+<section class="scr dimmer" id="scrPause" hidden>
+  <div class="sheet"><div class="res">暫停</div>
+    <div class="row"><button class="big" id="pResume">繼續</button><button class="big" id="pRetry">重跑</button></div>
+    <div class="row"><button class="ghost" id="pMap">換地圖</button><button class="ghost" id="pChar">換角色</button><button class="ghost" id="pTitle">回標題</button></div>
+  </div>
+</section>
+
+<section class="scr dimmer" id="scrResult" hidden>
+  <div class="sheet"><div class="res" id="resTitle"></div><div class="why" id="resWhy"></div><div class="rank" id="resRank"></div>
+    <div class="row"><button class="big" id="rRetry">再跑一次</button></div>
+    <div class="row"><button class="ghost" id="rMap">換地圖</button><button class="ghost" id="rChar">換角色</button><button class="ghost" id="rTitle">回標題</button></div>
+  </div>
+</section>
+
+<div id="touchNote" hidden>這一版先用鍵盤玩；手機當手把會在第 3 次加入</div>
+
+<script>
+(async()=>{
+  const V = (location.search.match(/[?&]v=([^&]*)/)||[])[1], version = '?v=' + (V || '20261027a');
+  const bar = document.getElementById('loadBar'), status = document.getElementById('loadStatus');
+  const script = (src)=>new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = src.startsWith('http') ? src : src + version; s.onload = ok; s.onerror = ()=>no(new Error('無法載入 ' + src)); document.head.appendChild(s); });
+  try{
+    await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+    await script('js/gaoshi-physics.js'); await script('js/gaoshi-maps.js');
+    await script('js/gaoshi-scene.js'); await script('js/gaoshi-models.js');
+    // roster follows 世志大亂鬥: read its character list so new characters show up here too
+    let names = ['waffle','tommy','karl','seafood','bear','serene','kiafes','newton','kattisbbb','jackson','janice','masterogway','kelsey','wxinyy','jennie','pudding','xuan','ichung'];
+    try { const html = await (await fetch('brawl.html' + version, {cache:'no-cache'})).text(); const found = [...html.matchAll(/S\('characters\/([a-z]+)\.js'\)/g)].map(m=>m[1]); if (found.length) names = found; } catch(_){}
+    bar.max = names.length + 1; status.textContent = '正在準備角色…';
+    for (const n of names){ try { await script('characters/' + n + '.js'); } catch(e){ console.warn(e); } bar.value++; }
+    await script('js/gaoshi.js'); bar.value++;
+    GaoshiGame.boot(); document.getElementById('loading').hidden = true;
+  }catch(e){ status.textContent = '載入失敗：' + e.message + '，請重新整理'; console.error(e); }
+})();
+</script>
+</body>
+</html>
