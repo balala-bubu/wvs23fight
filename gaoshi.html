@@ -340,7 +340,7 @@ kbd{font-family:var(--pixel);font-size:18px;background:#2a221d;border:1px solid 
 
 <script>
 (async()=>{
-  const V = (location.search.match(/[?&]v=([^&]*)/)||[])[1], version = '?v=' + (V || '20261027a');
+  const V = (location.search.match(/[?&]v=([^&]*)/)||[])[1], version = '?v=' + (V || '20261027b');
   const bar = document.getElementById('loadBar'), status = document.getElementById('loadStatus');
   const script = (src)=>new Promise((ok, no)=>{ const s = document.createElement('script'); s.src = src.startsWith('http') ? src : src + version; s.onload = ok; s.onerror = ()=>no(new Error('無法載入 ' + src)); document.head.appendChild(s); });
   try{
