@@ -1,4 +1,4 @@
-// 世志搞事 logic tests: node tools/gaoshi_test.cjs
+// 世志土木 logic tests: node tools/gaoshi_test.cjs
 const P = require('../js/gaoshi-physics.js');
 const M = require('../js/gaoshi-maps.js');
 let fail = 0;

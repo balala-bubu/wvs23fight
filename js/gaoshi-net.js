@@ -1,4 +1,4 @@
-/* 世志搞事 — online rooms over PeerJS, the 阿瓦隆 way: every device shows the whole game and plays one character;
+/* 世志土木 — online rooms over PeerJS, the 阿瓦隆 way: every device shows the whole game and plays one character;
  * the room host runs the rules. No screen sharing. 4-digit room code, QR and ?room= link. */
 'use strict';
 var GaoshiNet = (function(){

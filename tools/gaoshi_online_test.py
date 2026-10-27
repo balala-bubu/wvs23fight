@@ -1,4 +1,4 @@
-"""世志搞事 online check: two separate browsers (host + guest) join a room and play one round.
+"""世志土木 online check: two separate browsers (host + guest) join a room and play one round.
 Needs a local PeerJS server:  npx peerjs --port 9000 --path /   (npm i peer)
 Run: python3 tools/gaoshi_online_test.py [outdir]"""
 import sys, os, glob, asyncio, threading, http.server, functools, json

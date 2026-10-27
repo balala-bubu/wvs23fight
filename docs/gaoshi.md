@@ -1,10 +1,10 @@
-# 世志搞事：修改指引
+# 世志土木：修改指引
 
 派對平台建造遊戲：每回合大家先從派對盒抓道具、放到場上坑人，再一起跑到終點旗。遊戲是自己獨立的一組檔案，**不讀取也不修改**大亂鬥、排球、阿 Wa 隆的程式。開始修改前，請先讀 [AGENTS.md](../AGENTS.md)。
 
 ## 給新對話的開場白（直接複製）
 
-> 我要改世志搞事（GitHub repo balala-bubu/wvs23fight 的 `gaoshi.html`）。請先讀 `docs/gaoshi.md`，只讀要改的那個檔案的相關段落，不要整份讀。不要動其他遊戲。改完跑 `node tools/gaoshi_test.cjs`，回覆用三句話說明改了什麼。
+> 我要改世志土木（GitHub repo balala-bubu/wvs23fight 的 `gaoshi.html`）。請先讀 `docs/gaoshi.md`，只讀要改的那個檔案的相關段落，不要整份讀。不要動其他遊戲。改完跑 `node tools/gaoshi_test.cjs`，回覆用三句話說明改了什麼。
 > 這次要改的是：____
 
 ## 檔案在哪裡
@@ -31,7 +31,7 @@
 - 要新增造型：同上，在大亂鬥角色檔的 `skins:[...]` 加就好。
 - 角色在場上的身高固定是 2 格，由 `gaoshi.js` 的 `MODEL_H` 控制。
 - 動作用的是 `POSE`（站、跑、跳、蹲、倒下、比讚）。貼牆的動作是 `gaoshi.js` 裡的 `WALL_POSE`。
-- 角色要在搞事裡做特別的動作，例如勝利舞，請改 `gaoshi.js` 的 `animateFighters`。**不要**去改角色檔，以免影響大亂鬥。
+- 角色要在土木裡做特別的動作，例如勝利舞，請改 `gaoshi.js` 的 `animateFighters`。**不要**去改角色檔，以免影響大亂鬥。
 
 ## 地圖
 
@@ -116,6 +116,6 @@ python3 tools/gaoshi_shot.py /tmp/gs    # 跑完一回合並截圖（改畫面�
 ```
 
 - **發佈時換版本號**：每次發佈，都要把 `gaoshi.html` 載入程式裡的 `'20261027a'` 改成新的版本號，避免瀏覽器把新版 html 和舊的 js 混在一起用。
-- **首頁入口**：`index.html` 的第 4 張卡片「世志搞事」。
-- **不要動的東西**：其他遊戲的檔案，以及 `brawl.html`、`js/core.js`、`characters/*`。搞事只「讀」大亂鬥的角色清單。
-- **推送前**：照 AGENTS.md 先 fetch，檢查 `git diff --name-status origin/main...HEAD`，只能出現搞事的檔案、`index.html` 和這份文件。
+- **首頁入口**：`index.html` 的第 4 張卡片「世志土木」。
+- **不要動的東西**：其他遊戲的檔案，以及 `brawl.html`、`js/core.js`、`characters/*`。土木只「讀」大亂鬥的角色清單。
+- **推送前**：照 AGENTS.md 先 fetch，檢查 `git diff --name-status origin/main...HEAD`，只能出現土木的檔案、`index.html` 和這份文件。

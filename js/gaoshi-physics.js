@@ -1,4 +1,4 @@
-/* 世志搞事 — pure 2D logic (no THREE). 1 unit = 1 grid cell, origin top-left, y grows downward.
+/* 世志土木 — pure 2D logic (no THREE). 1 unit = 1 grid cell, origin top-left, y grows downward.
  * Numbers follow PLAN.md §7.2. Loaded by gaoshi.html and by tools/gaoshi_test.cjs. */
 'use strict';
 var GaoshiPhysics = (function(){

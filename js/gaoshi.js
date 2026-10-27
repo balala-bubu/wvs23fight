@@ -1,4 +1,4 @@
-/* 世志搞事 — game flow, input and HUD.
+/* 世志土木 — game flow, input and HUD.
  * Flow follows 世志大亂鬥: title → character (+ costume) select → map select → match → results.
  * A match is rounds of PICK → PLACE → RACE → SCORE (PLAN.md §6). */
 'use strict';

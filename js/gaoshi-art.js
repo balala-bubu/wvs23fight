@@ -1,4 +1,4 @@
-/* 世志搞事 — scenery, item models, ghosts and particles. Uses helpers from gaoshi-models.js (tex, speckle, rbox, cyl, L). */
+/* 世志土木 — scenery, item models, ghosts and particles. Uses helpers from gaoshi-models.js (tex, speckle, rbox, cyl, L). */
 'use strict';
 var GaoshiArt = (function(){
   const WX = (x)=>x - 16, WY = (y)=>18 - y;

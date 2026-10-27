@@ -1,4 +1,4 @@
-/* 世志搞事 — rules (PLAN.md §4, §5, §6, §8, §12.2). Pure logic, no THREE; tested by tools/gaoshi_test.cjs. */
+/* 世志土木 — rules (PLAN.md §4, §5, §6, §8, §12.2). Pure logic, no THREE; tested by tools/gaoshi_test.cjs. */
 'use strict';
 var GaoshiRules = (function(){
   const RULES = {

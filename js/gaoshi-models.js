@@ -1,5 +1,5 @@
-/* 世志搞事 model adapter: a snapshot of js/volleyball-models.js (itself a snapshot of the brawl texture/model/pose helpers).
- * Kept as its own copy so 世志搞事 never depends on volleyball or brawl runtimes; only appearance and poses are used. */
+/* 世志土木 model adapter: a snapshot of js/volleyball-models.js (itself a snapshot of the brawl texture/model/pose helpers).
+ * Kept as its own copy so 世志土木 never depends on volleyball or brawl runtimes; only appearance and poses are used. */
 'use strict';
 let seed = 11;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;

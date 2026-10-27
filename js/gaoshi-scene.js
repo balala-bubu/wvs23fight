@@ -1,4 +1,4 @@
-/* 世志搞事 — renderer, scene and camera. Loaded before gaoshi-models.js, whose makeModel() adds to `scene`. */
+/* 世志土木 — renderer, scene and camera. Loaded before gaoshi-models.js, whose makeModel() adds to `scene`. */
 'use strict';
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true});

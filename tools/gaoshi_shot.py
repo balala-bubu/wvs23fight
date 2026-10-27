@@ -1,4 +1,4 @@
-"""世志搞事 headless check: python3 tools/gaoshi_shot.py [outdir]
+"""世志土木 headless check: python3 tools/gaoshi_shot.py [outdir]
 Walks title → select → map → race (scripted keys) → result, saves screenshots, prints page errors."""
 import sys, os, glob, asyncio, threading, http.server, functools
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
