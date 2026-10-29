@@ -50,10 +50,10 @@
 /* 06 世志猜歌王: sixth card, appended after kart. */
 .modeSplit{grid-template-columns:repeat(6,minmax(0,1fr))}
 .hitster{--accent:#8ac926;background:#15232d}
-.hitster .scene{background:url('assets/hitster-duo.webp') center bottom/min(84%,29svh) auto no-repeat}
-.hitster:after{background:linear-gradient(#0c111422,#120e0c10 40%,#120e0c80 100%)}
+.hitster .scene{background:url('assets/hitster-bg-tall.webp') center bottom/cover no-repeat}
+.hitster:after{background:linear-gradient(#0c111418,#120e0c00 60%,#120e0c40 100%)}
 @media(orientation:landscape){.hitster{justify-content:flex-start}.hitster .logoArea{margin-top:14px}}
-@media(orientation:portrait){.hitster{padding-left:42%}.hitster .scene{background-size:auto 90%;background-position:left 3% bottom}}
+@media(orientation:portrait){.hitster{padding-left:42%}.hitster .scene{background-image:url('assets/hitster-bg-wide.webp');background-position:center bottom}}
 .hitster .logoArea{filter:none}
 .hitsterLogo{width:100%;height:100%;object-fit:contain}
 @media(max-width:850px) and (orientation:portrait){.modeSplit{grid-template-columns:1fr;grid-template-rows:repeat(6,minmax(270px,1fr))}}
