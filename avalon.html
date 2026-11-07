@@ -2599,10 +2599,10 @@ $('#bSnd').addEventListener('click', () => { SFX.init(); const m = !SFX.muted; S
 /* PeerJS data channels only. The host owns rules; guests receive a public view
    plus their own private information. No canvas/video/screen stream is sent. */
 const NET_VERSION = 2;
-const NET = {mode:'solo', entry:'solo', hostRole:'display', narration:'voice', godProfile:null, editingGod:false, display:'remote', peer:null, host:null, links:new Map(), roster:[], myId:'p0', code:'', started:false, private:null, requests:new Map(), barriers:new Map(), serial:0, queue:Promise.resolve(), lastScene:Promise.resolve(), photos:new Map(), epoch:0};
+const NET = {mode:'solo', entry:'solo', hostRole:'display', narration:'voice', godProfile:null, editingGod:false, display:'remote', peer:null, host:null, links:new Map(), roster:[], myId:'p0', code:'', started:false, private:null, requests:new Map(), barriers:new Map(), serial:0, queue:Promise.resolve(), lastScene:Promise.resolve(), photos:new Map(), epoch:0, tokens:new Map(), away:new Map(), pst:new Map(), photoData:new Map(), rejoining:false, token:'', lastPong:0};
 const NET_PREFIX = 'aw-avalon-v2-';
 function netStatus(t) { $('#roomStatus').textContent=t; }
-function roomSend(c,m) { if(c && c.open) c.send(Object.assign({v:NET_VERSION},m)); }
+function roomSend(c,m) { if(!(c && c.open)) return false; try{ c.send(Object.assign({v:NET_VERSION},m)); return true; }catch(e){ console.warn('send failed',e); return false; } }
 function netBroadcast(m) { NET.links.forEach(c=>roomSend(c,m)); }
 function cleanProfile(p) {
   if(!p || typeof p.name!=='string' || !p.name.trim()) throw new Error('請先輸入名字');
@@ -2610,10 +2610,12 @@ function cleanProfile(p) {
   for(const k of ['skin','cloth','hairC']) if(typeof cfg[k]==='string' && /^#[0-9a-f]{6}$/i.test(cfg[k])) q[k]=cfg[k];
   for(const k of ['hair','hat','prop','face']) if(OPT[k].some(x=>x[0]===cfg[k])) q[k]=cfg[k];
   q.cape=!!cfg.cape; q.zoom=clamp(Number(cfg.zoom)||1.1,.7,1.7);
-  if(typeof cfg.photo==='string' && cfg.photo.length<450000 && /^data:image\/png;base64,/.test(cfg.photo)) q.photo=cfg.photo;
+  if(typeof cfg.photo==='string' && cfg.photo.length<120000 && /^data:image\/(png|webp);base64,/.test(cfg.photo)) q.photo=cfg.photo;
   return {name:p.name.trim().slice(0,8),cfg:q};
 }
-function packCfg(c) { const q=Object.assign({},c); delete q.src; q.photo=c.photo && c.photo.toDataURL ? c.photo.toDataURL('image/png') : null; return q; }
+function shrinkPhoto(src) { const w=src.naturalWidth||src.width||160, s=Math.min(160,w), o=document.createElement('canvas'); o.width=o.height=s; o.getContext('2d').drawImage(src,0,0,s,s); let u=o.toDataURL('image/webp',.8); if(!/^data:image\/webp/.test(u)){ o.width=o.height=128; o.getContext('2d').drawImage(src,0,0,128,128); u=o.toDataURL('image/png'); } return u; }
+function noPhoto(p) { return p && p.cfg ? Object.assign({},p,{cfg:Object.assign({},p.cfg,{photo:typeof p.cfg.photo==='string'?'@':null})}) : p; }
+function packCfg(c) { const q=Object.assign({},c); delete q.src; q.photo=c.photo && (c.photo.toDataURL||c.photo.naturalWidth) ? shrinkPhoto(c.photo) : (typeof c.photo==='string'?c.photo:null); return q; }
 function unpackCfg(c) { const q=Object.assign({},c); if(typeof q.photo==='string'){ const img=NET.photos.get(q.photo); q.photo=img||null; } return q; }
 async function preloadCfg(c) { if(!c || typeof c.photo!=='string')return; const im=new Image(); im.src=c.photo; try{await im.decode();NET.photos.set(c.photo,im);}catch(e){c.photo=null;} }
 function myProfile(){return cleanProfile({name:$('#inName').value||'騎士',cfg:packCfg(SETUP.cfg)});}
@@ -2703,8 +2705,8 @@ function renderRoleBoard(box,n,pv,lake){
   line('good','亞瑟陣營');line('evil','莫德雷德陣營');
   const row=mk('div','rb-row');row.appendChild(mk('b','','規則'));const w=mk('div','rb-chips');w.appendChild(mk('span','rb-chip rule'+(lake?'':' off')+fresh('lake'),lake?'湖中仙女':'湖中仙女（關）'));row.appendChild(w);box.appendChild(row);
 }
-function lobbyBroadcast(){ const d={roster:NET.roster,display:NET.display,narration:NET.narration,code:NET.code,size:+$('#roomSize').value,lake:$('#roomLake').checked,percival:$('#roomPercival').checked,fill:$('#fillBots').checked}; renderLobby(); netBroadcast({type:'lobby',data:d}); }
-function makePeer(id){ if(typeof Peer==='undefined')throw new Error('PeerJS 載入失敗，請確認網路後重新整理'); const peerOptions=window.AVALON_PEER_OPTIONS||{}; const p=id?new Peer(id,peerOptions):new Peer(peerOptions); NET.peer=p; p.on('error',e=>{ if(!NET.started){netStatus('連線失敗：'+(e.type==='peer-unavailable'?'找不到房間，請檢查代碼':e.type==='unavailable-id'?'房號重複，請離開後重新開房':e.message)); $('#goBtn').disabled=false;}else netFatal('連線發生問題：'+e.type); }); p.on('disconnected',()=>{if(!NET.failed){netStatus('訊號服務斷線，正在重新連線…'); try{p.reconnect();}catch(e){netFatal('無法重新連線，請重新開房。');}}}); return p; }
+function lobbyBroadcast(){ const d={roster:NET.roster.map(noPhoto),display:NET.display,narration:NET.narration,code:NET.code,size:+$('#roomSize').value,lake:$('#roomLake').checked,percival:$('#roomPercival').checked,fill:$('#fillBots').checked}; renderLobby(); netBroadcast({type:'lobby',data:d}); }
+function makePeer(id){ if(typeof Peer==='undefined')throw new Error('PeerJS 載入失敗，請確認網路後重新整理'); const peerOptions=window.AVALON_PEER_OPTIONS||{}; const p=id?new Peer(id,peerOptions):new Peer(peerOptions); NET.peer=p; p.on('error',e=>{ if(NET.rejoining)return; if(!NET.started){netStatus('連線失敗：'+(e.type==='peer-unavailable'?'找不到房間，請檢查代碼':e.type==='unavailable-id'?'房號重複，請離開後重新開房':e.message)); $('#goBtn').disabled=false;}else netFatal('連線發生問題：'+e.type); }); p.on('disconnected',()=>{if(!NET.failed&&!NET.rejoining){netStatus('訊號服務斷線，正在重新連線…'); try{p.reconnect();}catch(e){netFatal('無法重新連線，請重新開房。');}}}); return p; }
 async function enterMode(){
   if(NET.editingGod){finishGodEdit(true);return;}
   if(NET.editingPlayer){finishPlayerEdit(true);return;}
@@ -2717,26 +2719,32 @@ async function enterMode(){
       $('#roomSize').value=SETUP.n; $('#roomLake').checked=lakeOn(); $('#roomPercival').checked=percivalOn();
       const peer=makePeer(NET_PREFIX+NET.code); peer.on('open',()=>lobbyBroadcast());
       peer.on('connection',c=>{
-        let admitted=false; const timer=setTimeout(()=>{if(!admitted)c.close();},12000);
+        let admitted=false,pid=c.peer; const timer=setTimeout(()=>{if(!admitted)c.close();},12000);
         c.on('data',m=>{try{
           if(!m||m.v!==NET_VERSION)return;
+          c._seen=Date.now();
+          if(m.type==='ping'){roomSend(c,{type:'pong'});return;}
+          if(m.type==='rejoin'&&!admitted){
+            if(!NET.started||NET.failed||!NET.roster.some(x=>x.id===m.id)||!NET.tokens.get(m.id)||NET.tokens.get(m.id)!==m.token){roomSend(c,{type:'rejoin-fail'});setTimeout(()=>{try{c.close();}catch(e){}},400);return;}
+            admitted=true;clearTimeout(timer);pid=m.id;netRejoin(pid,c);return;
+          }
           if(m.type==='hello'&&!admitted){
             if(NET.started||NET.roster.length>=+$('#roomSize').value){roomSend(c,{type:'reject',message:'房間已開始或人數已滿'});return;}
-            const p=cleanProfile(m.profile); admitted=true;clearTimeout(timer); NET.links.set(c.peer,c); NET.roster.push(Object.assign({id:c.peer,ready:false},p)); roomSend(c,{type:'welcome',id:c.peer});lobbyBroadcast();
-          } else if(admitted&&m.type==='ready'&&!NET.started){NET.roster.find(x=>x.id===c.peer).ready=!!m.ready;lobbyBroadcast();}
-          else if(admitted&&m.type==='profile'&&!NET.started){const x=NET.roster.find(p=>p.id===c.peer);Object.assign(x,cleanProfile(m.profile),{ready:false});lobbyBroadcast();}
-          else if(admitted&&m.type==='reply')netReply(c.peer,m);
-          else if(admitted&&m.type==='scene-done'){const b=NET.barriers.get(m.id);if(b&&b.waiting.delete(c.peer)&&!b.waiting.size){clearTimeout(b.timer);b.resolve();NET.barriers.delete(m.id);}}
-          else if(admitted&&m.type==='emote'&&Number.isInteger(m.index)&&m.index>=0&&m.index<EMOS.length){const p=pl(c.peer);if(p){showEmo(p,m.index);}}
+            const p=cleanProfile(m.profile); admitted=true;clearTimeout(timer); const tk=Array.from(crypto.getRandomValues(new Uint32Array(3))).join('-');NET.tokens.set(c.peer,tk);NET.links.set(c.peer,c); NET.roster.push(Object.assign({id:c.peer,ready:false},p)); roomSend(c,{type:'welcome',id:c.peer,token:tk});lobbyBroadcast();
+          } else if(admitted&&m.type==='ready'&&!NET.started){NET.roster.find(x=>x.id===pid).ready=!!m.ready;lobbyBroadcast();}
+          else if(admitted&&m.type==='profile'&&!NET.started){const x=NET.roster.find(p=>p.id===pid);Object.assign(x,cleanProfile(m.profile),{ready:false});lobbyBroadcast();}
+          else if(admitted&&m.type==='reply')netReply(pid,m);
+          else if(admitted&&m.type==='scene-done'){const b=NET.barriers.get(m.id);if(b&&b.waiting.delete(pid)&&!b.waiting.size){clearTimeout(b.timer);b.resolve();NET.barriers.delete(m.id);}}
+          else if(admitted&&m.type==='emote'&&Number.isInteger(m.index)&&m.index>=0&&m.index<EMOS.length){const p=pl(pid);if(p){showEmo(p,m.index);}}
         }catch(e){roomSend(c,{type:'input-error',message:e.message});}});
-        c.on('close',()=>{clearTimeout(timer);if(!admitted)return; NET.links.delete(c.peer);if(NET.started)netFatal('有玩家離線，本局已停止。請全員重新加入房間。');else{NET.roster=NET.roster.filter(x=>x.id!==c.peer);lobbyBroadcast();}});
-        c.on('error',()=>{if(NET.started)netFatal('玩家連線中斷，請重新開房。');});
+        c.on('close',()=>{clearTimeout(timer);if(!admitted||NET.links.get(pid)!==c)return; if(NET.started)netAway(pid);else{NET.links.delete(pid);NET.roster=NET.roster.filter(x=>x.id!==pid);lobbyBroadcast();}});
+        c.on('error',()=>{if(admitted&&NET.started&&NET.links.get(pid)===c)netAway(pid);});
       });
     }else{
       const code=$('#joinCode').value.trim().toUpperCase();if(!/^\d{4}$/.test(code))throw new Error('請輸入 4 位房間代碼');
       NET.mode='guest'; NET.code=code; const peer=makePeer(); peer.on('open',()=>{const c=peer.connect(NET_PREFIX+code,{reliable:true,serialization:'json'}); NET.host=c;
         const timer=setTimeout(()=>{if(!NET.myId||NET.myId==='p0'){netStatus('連線逾時，請檢查房號與網路後離開重試。');c.close();}},20000);
-        c.on('open',()=>roomSend(c,{type:'hello',profile})); c.on('data',m=>{if(m&&m.type==='welcome')clearTimeout(timer);netReceive(m);});c.on('close',()=>{clearTimeout(timer);if(NET.started)netFatal('與房主的連線中斷，請重新加入新房間。');else netStatus('房間已關閉，請離開後重試。');}); c.on('error',()=>netStatus('無法連線到房間，請檢查網路。'));
+        c.on('open',()=>roomSend(c,{type:'hello',profile})); c.on('data',m=>{if(m&&m.type==='welcome')clearTimeout(timer);netReceive(m);});c.on('close',()=>{clearTimeout(timer);if(NET.started)guestLost(c);else netStatus('房間已關閉，請離開後重試。');}); c.on('error',()=>netStatus('無法連線到房間，請檢查網路。'));
       });
     }
   }catch(e){netStatus(e.message);$('#goBtn').disabled=false;}
@@ -2755,7 +2763,9 @@ async function netLaunch(){
   NET.started=true;$('#lobby').hidden=true;$('#netBadge').hidden=false;$('#netText').textContent='房間 '+NET.code+' · '+(NET.hostRole==='god'?'上帝主持':NET.display==='shared'?'大螢幕 · 純播放':'開房裝置 · 純播放');
   document.body.classList.add('host-display');document.body.classList.toggle('public-screen',NET.display==='shared');document.body.classList.toggle('god-host',NET.hostRole==='god');$('#bId').hidden=true;$('#bEmo').hidden=true;
   const id='launch-'+(++NET.serial);const barrier=netBarrier(id);
-  NET.links.forEach((c,pid)=>roomSend(c,{type:'start',id,roster:NET.roster,display:NET.display,godProfile:NET.godProfile,narration:NET.narration,opts:SETUP.opts,view:netView(pid)})); await barrier;
+  if(!NET.hb)NET.hb=setInterval(()=>{if(NET.failed)return;NET.links.forEach((c,pid)=>{if(Date.now()-(c._seen||0)>25000)netAway(pid);});},5000);
+  const photos=[];NET.roster.forEach(p=>{if(p.cfg&&typeof p.cfg.photo==='string')photos.push([p.id,p.cfg.photo]);});if(NET.godProfile&&NET.godProfile.cfg&&typeof NET.godProfile.cfg.photo==='string')photos.push(['god',NET.godProfile.cfg.photo]);
+  NET.links.forEach((c,pid)=>{photos.forEach(([pi,data])=>roomSend(c,{type:'photo',id:pi,data}));roomSend(c,{type:'start',id,roster:NET.roster.map(noPhoto),display:NET.display,godProfile:noPhoto(NET.godProfile),narration:NET.narration,opts:SETUP.opts,view:netView(pid)});}); await barrier;
 }
 function netBarrier(id){
   if(!NET.links.size)return Promise.resolve();
@@ -2777,29 +2787,111 @@ function validateReply(pid,prompt,value){
   return false;
 }
 function netAsk(pid,prompt){
-  if (!NET.links.get(pid)?.open) return Promise.reject(new Error('玩家已離線'));
-  const id='input-'+(++NET.serial); return new Promise((resolve,reject)=>{NET.requests.set(id,{pid,prompt,resolve,reject});roomSend(NET.links.get(pid),{type:'prompt',id,prompt,view:netView(pid)});});
+  const id='input-'+(++NET.serial);
+  return new Promise((resolve,reject)=>{
+    const req={id,pid,prompt,resolve,reject,timer:null}; NET.requests.set(id,req);
+    const c=NET.links.get(pid);
+    if(c&&c.open&&!NET.away.has(pid))roomSend(c,{type:'prompt',id,prompt,view:netView(pid)}); else netArm(req);
+  });
+}
+function netAutoValue(pid,p){
+  const g=S.G,ids=g.players.map(x=>x.id),me=g.players.find(x=>x.id===pid),shuf=a=>a.slice().sort(()=>Math.random()-.5);
+  if(p.kind==='mission')return me&&me.team==='evil'?'fail':'success';
+  if(p.kind==='team')return [pid].concat(shuf(ids.filter(x=>x!==pid))).slice(0,p.count);
+  if(p.kind==='lady')return shuf(ids.filter(x=>x!==pid&&!g.ladyHistory.some(h=>h.targetId===x)))[0];
+  if(p.kind==='assassinate'){const known=(privateInfo(g,pid).knownEvil||[]).map(x=>x.id);return shuf(ids.filter(x=>x!==pid&&!known.includes(x)))[0];}
+  return true; /* ready / notice / vote（同意） */
+}
+function netArm(req){
+  clearTimeout(req.timer); if(!NET.away.has(req.pid))NET.away.set(req.pid,{since:Date.now(),auto:false});
+  const a=NET.away.get(req.pid);
+  req.timer=setTimeout(()=>{
+    if(NET.failed||NET.requests.get(req.id)!==req)return; const aw=NET.away.get(req.pid); if(!aw)return;
+    aw.auto=true; NET.requests.delete(req.id); let v; try{v=netAutoValue(req.pid,req.prompt);}catch(e){req.reject(e);return;}
+    toast(nameOf(req.pid)+' 離線太久，暫由系統代為操作',3500); req.resolve(v);
+  },a.auto?1500:45000);
+}
+function netAway(pid){
+  if(!NET.started||NET.failed||NET.away.has(pid))return;
+  const c=NET.links.get(pid); NET.links.delete(pid); NET.away.set(pid,{since:Date.now(),auto:false});
+  try{c&&c.close();}catch(e){}
+  NET.barriers.forEach((b,id)=>{if(b.waiting.delete(pid)&&!b.waiting.size){clearTimeout(b.timer);b.resolve();NET.barriers.delete(id);}});
+  NET.requests.forEach(req=>{if(req.pid===pid)netArm(req);});
+  toast(nameOf(pid)+' 離線了，等待重新連線…',4000);
+}
+function netRejoin(pid,c){
+  const old=NET.links.get(pid); NET.links.set(pid,c); NET.away.delete(pid); c._seen=Date.now();
+  if(old&&old!==c){try{old.close();}catch(e){}}
+  roomSend(c,{type:'rejoined',view:netView(pid)});
+  NET.requests.forEach(req=>{if(req.pid===pid){clearTimeout(req.timer);roomSend(c,{type:'prompt',id:req.id,prompt:req.prompt,view:netView(pid)});}});
+  toast(nameOf(pid)+' 回來了',2500);
 }
 function netReply(pid,m){const p=NET.requests.get(m.id);if(!p||p.pid!==pid)return;if(!validateReply(pid,p.prompt,m.value)){roomSend(NET.links.get(pid),{type:'retry',id:m.id,prompt:p.prompt,view:netView(pid),message:'操作無效，請重新選擇'});return;}NET.requests.delete(m.id);p.resolve(m.value);}
 async function mountGuest(m){
   NET.started=true;NET.display=m.display;NET.roster=m.roster;NET.godProfile=m.godProfile||null;NET.narration=m.narration==='manual'?'manual':'voice';NET.lastNarrationId=0;S.narrationOff=false;SETUP.n=m.roster.length;Object.assign(SETUP.opts,m.opts);RT.speed=m.opts.fast?1.6:1;RT.lowq=!!m.opts.lowq;S.gentle=!!m.opts.gentle;RT.voice=NET.display==='remote'&&NET.narration==='voice';SFX.setMuted(!m.opts.sound);resize();
   $('#lobby').hidden=true;$('#setup').classList.add('off');$('#title').classList.add('off');if(S.preview){S.preview.dispose();S.preview=null;}
+  m.roster.forEach(x=>{x.cfg=Object.assign({},x.cfg);if(x.cfg.photo==='@')x.cfg.photo=NET.photoData.get(x.id)||null;});if(NET.godProfile){NET.godProfile.cfg=Object.assign({},NET.godProfile.cfg);if(NET.godProfile.cfg.photo==='@')NET.godProfile.cfg.photo=NET.photoData.get('god')||null;}
   await Promise.all(m.roster.map(x=>preloadCfg(x.cfg)));if(NET.godProfile)await preloadCfg(NET.godProfile.cfg);
   S.P=m.roster.map(p=>{const x=newPlayer(p.id,p.name,p.id===NET.myId,unpackCfg(p.cfg));x.remote=!p.bot&&!x.human;return x;});S.me=pl(NET.myId);S.seats=buildSeats(S.P.length);
   S.god=new Chibi(NET.godProfile ? unpackCfg(NET.godProfile.cfg) : {skin:SKIN[1],cloth:'#4a2f6b',hair:'long',hairC:HAIRC[4],hat:'hood',prop:'staff',cape:true,face:'cool'});scene.add(S.god.root);godPlace(S.god);S.god.sit=S.god.sitGoal=1;S.god.pose='table';
   S.P.forEach((p,i)=>{p.seatInfo=S.seats[i];p.ch.teleport(p.seatInfo.x,p.seatInfo.z,p.seatInfo.yaw);p.ch.sit=p.ch.sitGoal=1;});S.cards={};S.running=true;S.themeQ=-1;buildPips();netSetView(m.view);camMain();hud(true);
   if(m.display==='shared')document.body.classList.add('controller');
   $('#netBadge').hidden=false;$('#netText').textContent='房間 '+NET.code+' · '+(m.display==='shared'?'手機操作':'完整畫面');
+  NET.lastPong=Date.now();guestHeartbeat();
   roomSend(NET.host,{type:'scene-done',id:m.id});
+}
+function guestHeartbeat(){
+  if(NET.gHb)return;
+  NET.gHb=setInterval(()=>{if(NET.mode!=='guest'||!NET.started||NET.failed||NET.rejoining)return;roomSend(NET.host,{type:'ping'});if(Date.now()-NET.lastPong>16000)guestLost(NET.host);},4000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'||NET.mode!=='guest'||!NET.started||NET.failed||NET.rejoining)return;const t=Date.now();roomSend(NET.host,{type:'ping'});setTimeout(()=>{if(!NET.rejoining&&!NET.failed&&NET.lastPong<t)guestLost(NET.host);},5000);});
+}
+function guestLost(c){
+  if(NET.failed||NET.mode!=='guest'||!NET.started||NET.rejoining)return; if(c&&c!==NET.host)return;
+  try{c&&c.close();}catch(e){} guestRejoin();
+}
+async function guestRejoin(){
+  NET.rejoining=true; toast('連線中斷，正在重新連線…',150000);
+  const deadline=Date.now()+120000;
+  while(!NET.failed&&Date.now()<deadline){
+    const r=await guestTryRejoin();
+    if(r===true){NET.rejoining=false;NET.pst.forEach((v,k)=>{if(v==='sent')NET.pst.delete(k);});toast('已重新連線',2500);return;}
+    if(r==='fatal'){NET.rejoining=false;netFatal('這局已無法重新加入，請回到模式選擇。');return;}
+    await new Promise(res=>setTimeout(res,2000));
+  }
+  NET.rejoining=false; if(!NET.failed)netFatal('無法重新連線到房主，請重新加入房間。');
+}
+function guestTryRejoin(){
+  return new Promise(resolve=>{
+    let done=false,ok=false; const t=setTimeout(()=>fin(false),15000); const fin=v=>{if(done)return;done=true;clearTimeout(t);resolve(v);};
+    try{
+      if(NET.peer){try{NET.peer.destroy();}catch(e){}}
+      const peer=makePeer(); peer.on('error',()=>fin(false));
+      peer.on('open',()=>{
+        const c=peer.connect(NET_PREFIX+NET.code,{reliable:true,serialization:'json'});
+        c.on('open',()=>roomSend(c,{type:'rejoin',id:NET.myId,token:NET.token}));
+        c.on('data',m=>{
+          if(!m||m.v!==NET_VERSION)return;
+          if(m.type==='rejoined'){if(done)return;ok=true;NET.host=c;NET.lastPong=Date.now();netSetView(m.view);fin(true);return;}
+          if(m.type==='rejoin-fail'){fin('fatal');return;}
+          if(ok)netReceive(m);
+        });
+        c.on('close',()=>{if(!ok)fin(false);else guestLost(c);});
+        c.on('error',()=>{if(!ok)fin(false);});
+      });
+    }catch(e){fin(false);}
+  });
 }
 function netReceive(m){
   if(!m||m.v!==NET_VERSION)return;
+  NET.lastPong=Date.now();
+  if(m.type==='pong')return;
+  if(m.type==='photo'){if(typeof m.id==='string'&&typeof m.data==='string'&&m.data.length<200000)NET.photoData.set(m.id,m.data);return;}
   if(m.type==='abort'){netFatal(m.message);return;}
   if(m.type==='narration'){
     if(NET.mode!=='guest'||NET.display!=='remote'||NET.narration!=='voice'||S.narrationOff||!NET.started||!Number.isInteger(m.id)||m.id<=(NET.lastNarrationId||0)||typeof m.text!=='string'||m.text.length>4000)return;
     NET.lastNarrationId=m.id;NET.voiceQueue=(NET.voiceQueue||Promise.resolve()).then(()=>playRemoteNarration(m.text));return;
   }
-  if(m.type==='welcome'){NET.myId=m.id;editPlayer();return;}
+  if(m.type==='welcome'){NET.myId=m.id;NET.token=m.token||'';editPlayer();return;}
   if(m.type==='lobby'){renderLobby(m.data);return;}
   if(m.type==='reject'){netStatus(m.message+'。請離開後重新加入。');return;}
   if(m.type==='snapshot'){NET.latest=m.view;NET.private=m.view.private;return;}
@@ -2807,7 +2899,7 @@ function netReceive(m){
   if(m.type==='input-error'){toast(m.message);return;}
   if(m.type==='start')NET.queue=NET.queue.then(()=>mountGuest(m));
   if(m.type==='scene')NET.queue=NET.queue.then(async()=>{netSetView(m.view);await guestScene(m.kind,m.data);roomSend(NET.host,{type:'scene-done',id:m.id});});
-  if(m.type==='prompt'||m.type==='retry')NET.queue=NET.queue.then(async()=>{netSetView(m.view);if(m.message)toast(m.message);const value=await guestPrompt(m.prompt);$('#controllerTask').textContent='已送出，等待其他騎士';roomSend(NET.host,{type:'reply',id:m.id,value});});
+  if(m.type==='prompt'||m.type==='retry')NET.queue=NET.queue.then(async()=>{if(m.type==='prompt'&&NET.pst.has(m.id))return;NET.pst.set(m.id,'showing');netSetView(m.view);if(m.message)toast(m.message);const value=await guestPrompt(m.prompt);const sent=roomSend(NET.host,{type:'reply',id:m.id,value});$('#controllerTask').textContent=sent?'已送出，等待其他騎士':'連線中斷，重新連線後會再問一次';if(sent)NET.pst.set(m.id,'sent');else NET.pst.delete(m.id);});
   NET.queue=NET.queue.catch(e=>{console.error(e);netFatal(e.message);});
 }
 async function guestPrompt(p){
