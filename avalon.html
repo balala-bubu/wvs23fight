@@ -231,8 +231,12 @@ body.controller #stage,body.controller #tags,body.controller #vignette{visibilit
 #front .bigBtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}#front .big{font:inherit;text-align:left;background:linear-gradient(135deg,rgba(255,122,61,.22),rgba(79,163,255,.18));border:1px solid rgba(246,238,223,.16);border-radius:16px;padding:18px 18px 16px;color:#f6eedf;cursor:pointer;display:grid;gap:4px;transition:transform .12s,border-color .12s}#front .big:hover{transform:translateY(-2px);border-color:var(--gold)}#front .big b{font-size:28px;font-weight:900;letter-spacing:.06em}#front .big span{font-size:13px;color:#bfae95}#front .big.rmt{background:linear-gradient(135deg,rgba(242,193,78,.22),rgba(79,163,255,.18))}
 #front .ghost{font:inherit;background:transparent;border:1px solid #f6eedf29;border-radius:10px;color:#bfae95;cursor:pointer;padding:10px 18px}#front .joinLink{font-size:14px;border-style:dashed}#front .joinLink b{color:var(--gold);margin-left:4px}.joinNote{font-size:12px;color:#bfae95;line-height:1.6;margin:0}
 #modeHome{position:fixed;top:calc(14px + env(safe-area-inset-top));left:16px;font-size:12px;color:var(--muted);text-decoration:none;padding:6px 10px;background:#140f0c99;border:1px solid var(--line);border-radius:999px;z-index:2}
-#front .ruleRow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#front .ruleRow>span{width:3em;color:#bfae95;font-size:13px}#front .seg{display:flex;gap:5px;flex-wrap:wrap}#front .seg button{font:inherit;font-size:13px;padding:7px 10px;border:1px solid #f6eedf29;border-radius:8px;color:#bfae95;background:#ffffff08;cursor:pointer}#front .seg button[aria-pressed=true]{color:#21170e;background:var(--gold);border-color:var(--gold)}#scrJoin{max-width:360px}#frontJoinCode{font-family:ui-monospace,monospace;font-size:44px;text-align:center;letter-spacing:.25em;width:100%;color:var(--gold);padding:6px;background:#ffffff0f;border:1px solid var(--line);border-radius:12px}
+#front .ruleRow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}#front .ruleRow>span{width:4.4em;color:#bfae95;font-size:13px}#front .seg{display:flex;gap:5px;flex-wrap:wrap}#front .seg button{font:inherit;font-size:13px;padding:7px 10px;border:1px solid #f6eedf29;border-radius:8px;color:#bfae95;background:#ffffff08;cursor:pointer}#front .seg button[aria-pressed=true]{color:#21170e;background:var(--gold);border-color:var(--gold)}#scrJoin{max-width:360px}#frontJoinCode{font-family:ui-monospace,monospace;font-size:44px;text-align:center;letter-spacing:.25em;width:100%;color:var(--gold);padding:6px;background:#ffffff0f;border:1px solid var(--line);border-radius:12px}
 .host-seat{padding:14px;border:1px dashed #8b7041;border-radius:12px;background:#221f1b}.host-seat p{margin:8px 0;font-size:13px}.host-seat .hint{color:var(--muted);font-size:12px}.room-summary{display:grid;grid-template-columns:1fr 104px;gap:12px;align-items:center}#roomQR{width:104px;height:104px;display:block;border-radius:6px;background:white}#godNarrationField fieldset{border:1px solid var(--line);border-radius:12px;display:grid;gap:10px;padding:14px}#godNarrationField label{display:flex;gap:8px;align-items:center}body.god-editor #opts{display:none}
+.rules-panel{margin:12px 0;padding:4px 16px 2px;border:1px solid #43575b;border-radius:14px;background:#0f1b1e}.rules-panel .rl-head{padding:12px 0 0}.rl-head b{display:block;font-size:15px}.rl-head small{display:block;margin-top:2px;font-size:13px;color:var(--gold)}.cnt{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0 14px}.cnt button{min-height:46px;font:inherit;font-weight:900;font-size:17px;border:1.5px solid #43575b;border-radius:10px;background:#172326;color:var(--text);cursor:pointer;transition:background .15s,color .15s}.cnt button[aria-pressed=true]{background:var(--gold);border-color:var(--gold);color:#2a1c03}.cnt button:disabled{opacity:.35;cursor:not-allowed}.cnt button:focus-visible,.tgl input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.tgl{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid #f6eedf1f;cursor:pointer}.tglt{flex:1 1 auto;min-width:0}.tglt b{display:block;font-size:15px;color:var(--text)}.tglt small{display:block;margin-top:3px;font-size:12px;line-height:1.55;color:var(--muted);max-width:36ch}.tgl input{appearance:none;-webkit-appearance:none;flex:none;margin:0;width:50px;height:30px;border-radius:999px;background:#25363b;border:1.5px solid #43575b;position:relative;cursor:pointer;transition:background .2s,border-color .2s}.tgl input::after{content:'';position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#8d9d9a;transition:transform .2s,background .2s}.tgl input:checked{background:#5a4210;border-color:var(--gold)}.tgl input:checked::after{transform:translateX(20px);background:var(--gold)}
+#roleBoard,#ruleBoard{margin:12px 0;padding:14px 16px;border:1px solid #43575b;border-radius:14px;background:#142327}.rb-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}#roleBoard h3,#ruleBoard h3{margin:0;font-size:16px;color:var(--text)}.rb-sub{font-size:12px;color:var(--muted)}.rb-row{display:grid;grid-template-columns:5.6em 1fr;gap:8px;align-items:start;margin:9px 0}.rb-row>b{font-size:12px;font-weight:700;color:var(--muted);padding-top:6px}.rb-chips{display:flex;flex-wrap:wrap;gap:6px}.rb-chip{padding:5px 11px;border-radius:999px;font-size:14px;font-weight:700;border:1.5px solid}.rb-chip.good{color:var(--blue);border-color:#3a6f93;background:#12303f}.rb-chip.evil{color:var(--bad);border-color:#8a3338;background:#3a1618}.rb-chip.rule{color:var(--gold);border-color:#8b7041;background:#2b2412}.rb-chip.off{color:var(--muted);border:1.5px dashed #4d5e61;background:transparent}.rb-chip.fresh{animation:rbPop .5s}@keyframes rbPop{0%{transform:scale(.7);box-shadow:0 0 0 0 rgba(242,184,75,.7)}60%{transform:scale(1.12)}100%{transform:none;box-shadow:0 0 0 10px rgba(242,184,75,0)}}@media(prefers-reduced-motion:reduce){.rb-chip.fresh{animation:none}}
+#roleReveal{position:fixed;inset:0;z-index:9;display:grid;place-items:center;padding:18px;background:radial-gradient(ellipse at center,rgba(6,10,12,.55),rgba(6,10,12,.82));opacity:0;pointer-events:none;transition:opacity .5s}#roleReveal.on{opacity:1}.rr-card{width:min(560px,100%);text-align:center}.rr-card h2{margin:0;font-family:var(--font-display);font-weight:900;font-size:clamp(28px,7vw,44px);letter-spacing:.06em;color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.6),0 0 22px rgba(242,184,75,.4)}.rr-sub{margin:6px 0 18px;font-size:15px;color:#f6e7b5;text-shadow:0 2px 6px #000}.rr-team{margin:14px 0}.rr-team>h3{margin:0 0 8px;font-size:14px;letter-spacing:.2em}.rr-team.good>h3{color:var(--blue)}.rr-team.evil>h3{color:var(--bad)}.rr-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}.rr-chip{padding:9px 18px;border-radius:14px;font-family:var(--font-display);font-weight:900;font-size:clamp(18px,5vw,26px);border:2px solid;opacity:0;transform:translateY(14px) scale(.9);animation:rrIn .5s forwards}.rr-chip.good{color:#d8efff;border-color:var(--blue);background:rgba(18,48,63,.9);box-shadow:0 0 16px rgba(108,184,234,.35)}.rr-chip.evil{color:#ffd9da;border-color:var(--bad);background:rgba(58,22,24,.9);box-shadow:0 0 16px rgba(234,90,95,.35)}.rr-chip.off{color:var(--muted);border:2px dashed #55666a;background:rgba(15,27,30,.8);box-shadow:none}.rr-foot{margin-top:16px;font-size:14px;color:var(--text);text-shadow:0 2px 6px #000}.rr-foot b{color:var(--gold)}@keyframes rrIn{to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){.rr-chip{animation-duration:.01s;animation-delay:0s!important}}
 #godScript{position:fixed;z-index:7;left:16px;bottom:calc(65px + env(safe-area-inset-bottom));width:min(420px,calc(100vw - 32px));max-height:46vh;overflow:auto;padding:18px;background:#17111bef;border:1px solid #a483e6;border-radius:16px;box-shadow:0 8px 30px #0006}#godScript header{display:flex;justify-content:space-between;gap:12px;color:#cfbbf3;font-size:12px}#scriptText{font-size:16px;line-height:1.9;white-space:pre-wrap}#godScript .btn{width:100%}#godScript summary{font-size:12px;color:var(--muted);cursor:pointer;margin-top:12px}#scriptHistory{font-size:12px;color:#b6aaa6;line-height:1.8}#scriptHistory p{border-top:1px solid var(--line);padding-top:8px}
 body.public-screen .tag .pill{font-size:13.5px;padding:3px 10px}body.public-screen .tag .pill .b{font-size:11.5px}body.public-screen #banner p{font-size:15.5px}body.public-screen #goal{font-size:14px}body.public-screen #sub{font-size:16px}body.host-display #role{display:none!important}
 @media(orientation:portrait){#front.home{justify-content:space-between}#front.home .scr{width:min(540px,100%)}}@media(max-height:560px){#front.home{gap:10px}#front.home .title h1 img{height:clamp(70px,23vh,150px)}#front:not(.home) .title{display:none}#front .sheet{padding:10px 12px;gap:8px}#front .big{padding:12px}#front .big b{font-size:24px}}
@@ -275,7 +279,7 @@ body.avatar-editor #title{display:none}body.avatar-editor #setup{left:auto;right
 </div>
 
 <div id="emoPanel"></div>
-<div id="banner"><h2></h2><p></p></div>
+<div id="banner"><h2></h2><p></p></div><div id="roleReveal"></div>
 <div id="sub"></div>
 <div id="tally"><div class="side ok"><b>0</b><span>接受</span></div><div class="side no"><b>0</b><span>否決</span></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -292,9 +296,9 @@ body.avatar-editor #title{display:none}body.avatar-editor #setup{left:auto;right
 <div id="front" class="home"><a id="modeHome" href="index.html">← 模式首頁</a><div class="title"><h1><img class="avalon-logo" src="assets/avalon-logo.png" alt="阿Wa隆" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="logo-fallback" hidden>阿<span>Wa</span>隆</span></h1><p>AVALON</p></div>
 <div class="sheet scr" id="scrTitle"><div class="bigBtns"><button class="big" id="modeSolo"><b>一個人玩</b><span>對電腦，隨時練習與測試</span></button><button class="big" id="modeHost"><b>跟朋友玩</b><span>手機當操作器，或各自在家連線</span></button></div><button class="ghost joinLink" id="modeJoin">已經有房號了？<b>加入房間</b></button></div>
 <div class="sheet scr" id="scrParty" hidden><h2 class="scrH">跟朋友玩</h2><div class="bigBtns"><button class="big" id="sharedMode"><b>在同一個地方</b><span>這台當大螢幕，每人拿手機加入</span></button><button class="big rmt" id="remoteMode"><b>各自在家</b><span>每支手機各自顯示完整畫面並操作</span></button></div><button class="ghost joinLink" id="partyJoin">已經有房號了？<b>加入房間</b></button><button class="ghost" id="partyBack">返回</button></div>
-<div class="sheet scr" id="scrRules" hidden><h2 class="scrH" id="rulesHeading">設定規則</h2><div class="ruleRow"><span>人數</span><div class="seg" id="rulePlayers" role="group" aria-label="玩家人數"></div></div><div class="ruleRow"><span>仙女</span><div class="seg" id="ruleLake"><button data-lake="on" aria-pressed="false">開</button><button data-lake="off" aria-pressed="true">關</button></div></div><p id="rulesHint" class="joinNote"></p><button class="btn" id="rulesNext">下一步 →</button><button class="ghost" id="rulesBack">返回</button></div>
+<div class="sheet scr" id="scrRules" hidden><h2 class="scrH" id="rulesHeading">設定規則</h2><div class="rules-panel"><div class="rl-head"><b>幾個人玩</b><small id="ruleSplit"></small></div><div class="cnt" id="rulePlayers" role="group" aria-label="玩家人數"></div><label class="tgl"><span class="tglt"><b>湖中仙女</b><small>任務結束後，仙女持有人可以查驗一位玩家是好人還是壞人。7 人以上預設開啟。</small></span><input type="checkbox" id="ruleLakeSw" role="switch"></label><label class="tgl"><span class="tglt"><b>派西維爾</b><small>多一位好人，能看到梅林和莫甘娜，但分不出誰是誰。關閉時，改成一位普通忠臣。</small></span><input type="checkbox" id="rulePercivalSw" role="switch"></label></div><div id="ruleBoard" aria-live="polite"></div><p id="rulesHint" class="joinNote"></p><button class="btn" id="rulesNext">下一步 →</button><button class="ghost" id="rulesBack">返回</button></div>
 <div class="sheet scr" id="scrJoin" hidden><h2 class="scrH">加入房間</h2><label for="frontJoinCode">房號</label><input id="frontJoinCode" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="輸入 4 位房號"><p class="joinNote">先輸入房號，再建立自己的騎士。</p><button class="btn" id="joinNext">下一步：建立角色 →</button><button class="ghost" id="joinBack">返回</button></div></div>
-<div id="lobby" hidden><div class="lobby-card"><button class="chip" id="leaveRoom">← 離開房間</button><span class="eyebrow">AVALON / LOBBY</span><h2 id="lobbyTitle">騎士集結中</h2><p id="roomStatus" role="status" aria-live="polite"></p><div class="room-summary"><div class="room-code"><span>房間代碼</span><strong id="roomCode">····</strong><button class="chip" id="copyCode">複製</button></div><canvas id="roomQR" aria-label="掃碼加入房間"></canvas></div><div id="roster"></div><div id="hostControls"><label>開局人數 <select id="roomSize"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></label><label><input type="checkbox" id="fillBots" checked> 空位補電腦（測試用）</label><label><input type="checkbox" id="roomLake"> 湖中仙女</label><div class="host-seat"><b>播放／主持席</b><p id="hostSeatStatus"></p><p id="godSeatHint" class="hint"></p><div class="row"><button class="chip" id="takeGod">我來當上帝</button><button class="chip" id="editGod" hidden>調整上帝造型／播報</button></div></div><button class="btn" id="startRoom">全員準備，開始！</button></div><button class="chip" id="editPlayer" hidden>調整我的角色</button><button class="btn" id="readyRoom">準備好了</button><p class="hint">把上面的代碼傳給朋友；每位玩家都用自己的裝置操作。</p></div></div>
+<div id="lobby" hidden><div class="lobby-card"><button class="chip" id="leaveRoom">← 離開房間</button><span class="eyebrow">AVALON / LOBBY</span><h2 id="lobbyTitle">騎士集結中</h2><p id="roomStatus" role="status" aria-live="polite"></p><div class="room-summary"><div class="room-code"><span>房間代碼</span><strong id="roomCode">····</strong><button class="chip" id="copyCode">複製</button></div><canvas id="roomQR" aria-label="掃碼加入房間"></canvas></div><div id="roster"></div><div id="hostRules" class="rules-panel"><div class="rl-head"><b>幾個人玩</b><small id="lobbySplit"></small></div><div class="cnt" id="lobbyCount" role="group" aria-label="開局人數"></div><select id="roomSize" hidden><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select><label class="tgl"><span class="tglt"><b>湖中仙女</b><small>任務結束後，仙女持有人可以查驗一位玩家是好人還是壞人。7 人以上預設開啟。</small></span><input type="checkbox" id="roomLake" role="switch"></label><label class="tgl"><span class="tglt"><b>派西維爾</b><small>多一位好人，能看到梅林和莫甘娜，但分不出誰是誰。關閉時，改成一位普通忠臣。</small></span><input type="checkbox" id="roomPercival" role="switch" checked></label><label class="tgl"><span class="tglt"><b>空位補電腦</b><small>沒坐滿時由電腦補位，測試用。</small></span><input type="checkbox" id="fillBots" role="switch" checked></label></div><div id="roleBoard" aria-live="polite"></div><div id="hostControls"><div class="host-seat"><b>播放／主持席</b><p id="hostSeatStatus"></p><p id="godSeatHint" class="hint"></p><div class="row"><button class="chip" id="takeGod">我來當上帝</button><button class="chip" id="editGod" hidden>調整上帝造型／播報</button></div></div><button class="btn" id="startRoom">全員準備，開始！</button></div><button class="chip" id="editPlayer" hidden>調整我的角色</button><button class="btn" id="readyRoom">準備好了</button><p class="hint">把上面的代碼傳給朋友；每位玩家都用自己的裝置操作。</p></div></div>
 <div id="controllerPanel"><span class="eyebrow">YOUR PHONE. YOUR KNIGHT.</span><div class="knight-seal" aria-hidden="true">♜</div><h2 id="controllerName"></h2><p id="controllerTask">等待遊戲開場</p><div class="controller-score"><span>好人任務 <b id="phoneGood">0</b></span><span>壞人任務 <b id="phoneEvil">0</b></span></div><small>看大螢幕，輪到你時在手機選擇。<br>按住右上角可查看身分與同夥。</small></div><div id="netBadge" hidden><span id="netText"></span><button class="chip" id="netExit">離開</button></div>
 <div id="avatarPreviewArea" hidden role="region" tabindex="0" aria-label="角色預覽：左右拖曳旋轉，或使用左右方向鍵"></div><div id="avatarTools" hidden><span>左右拖曳看造型</span><button class="chip" id="avatarLeft" type="button" aria-label="向左旋轉">↶</button><button class="chip" id="avatarReset" type="button">正面</button><button class="chip" id="avatarRight" type="button" aria-label="向右旋轉">↷</button><button class="chip" id="avatarMotion" type="button" aria-pressed="false">手機轉動</button></div><div id="setup" class="off"><div class="card" id="setupCard"><button class="chip" id="backModes" type="button">← 選擇模式</button><h2 id="setupHeading">打造你的騎士</h2><div id="godNarrationField" hidden><p>你是主持人，不會參加任務，也不占玩家名額。</p><fieldset><legend>怎麼播報？</legend><label><input type="radio" name="godNarration" value="voice" checked> 系統語音</label><label><input type="radio" name="godNarration" value="manual"> 自己唸（顯示逐字稿）</label></fieldset></div><div id="joinField" hidden><label for="joinCode">好友的房間代碼</label><input id="joinCode" maxlength="4" autocomplete="off" placeholder="例如 1234" spellcheck="false" style="text-transform:uppercase"></div>
   <div class="field"><label for="inName">你的名字</label><input id="inName" type="text" maxlength="8" value="我" autocomplete="off"></div>
@@ -388,7 +392,7 @@ function finishMission(game) {
  * {type:'mission', card:'success'|'fail'}, {type:'assassinate', targetId},
  * {type:'lady', targetId}. Actions are authorized against the acting playerId.
  */
-function createGame(players, { random = Math.random, lake = true } = {}) {
+function createGame(players, { random = Math.random, lake = true, percival = true } = {}) {
   if (!Array.isArray(players) || players.length < 5 || players.length > 10) fail('A game requires 5–10 players');
   const ids = new Set();
   for (const p of players) {
@@ -397,7 +401,8 @@ function createGame(players, { random = Math.random, lake = true } = {}) {
   }
   if (typeof random !== 'function') fail('random must be a function');
   const n = players.length, evilRoles = EVIL_FOR[n];
-  const roles = shuffle(['Merlin', 'Percival', ...Array(n - evilRoles.length - 2).fill('Loyal'), ...evilRoles], random);
+  const usePercival = percival !== false;
+  const roles = shuffle(['Merlin', ...(usePercival ? ['Percival'] : []), ...Array(n - evilRoles.length - (usePercival ? 2 : 1)).fill('Loyal'), ...evilRoles], random);
   const roster = players.map((p, i) => ({ id: p.id, name: p.name, role: roles[i], team: ROLE_INFO[roles[i]].team, ready: false }));
   const initialLeaderId = roster[Math.floor(random() * n)].id;
   const useLake = Boolean(lake) && n >= 5;
@@ -405,7 +410,7 @@ function createGame(players, { random = Math.random, lake = true } = {}) {
     players: roster, phase: 'reveal', leaderId: initialLeaderId, currentQuest: 0, proposalNumber: 0,
     proposedTeam: null, rejectionCount: 0, ballots: {}, lastTeamVote: null, missionCards: {}, missionResults: [],
     goodMissions: 0, evilMissions: 0, winner: null, endReason: null,
-    lake: useLake, ladyHolderId: useLake ? roster[(playerIndex({ players: roster }, initialLeaderId) + 1) % n].id : null,
+    percival: usePercival, lake: useLake, ladyHolderId: useLake ? roster[(playerIndex({ players: roster }, initialLeaderId) + 1) % n].id : null,
     ladyHistory: [], ladyResults: {},
   };
 }
@@ -436,7 +441,7 @@ function publicState(game) {
     lastTeamVote: game.lastTeamVote ? { approved: game.lastTeamVote.approved, proposalNumber: game.lastTeamVote.proposalNumber, votes: game.lastTeamVote.votes.map(v => ({ id: v.id, approve: v.approve })) } : null,
     missionResults: game.missionResults.map(r => ({ quest: r.quest, success: r.success, failCount: r.failCount, team: [...r.team] })),
     goodMissions: game.goodMissions, evilMissions: game.evilMissions, winner: game.winner, endReason: game.endReason,
-    lake: game.lake, ladyHolderId: game.ladyHolderId, ladyHistory: game.ladyHistory.map(x => ({ holderId: x.holderId, targetId: x.targetId })),
+    percival: game.percival !== false, lake: game.lake, ladyHolderId: game.ladyHolderId, ladyHistory: game.ladyHistory.map(x => ({ holderId: x.holderId, targetId: x.targetId })),
   };
 }
 function applyAction(game, playerId, action) {
@@ -1277,8 +1282,9 @@ function updateTags() {
 
 /* ---------- 設定畫面 ---------- */
 const CPU_NAMES = ['小麥', '阿福', '布丁', '摩卡', '糯米', '肉鬆', '可可', '芋圓', '豆花'];
+const percivalOn = () => SETUP.opts.percival !== false;
 const lakeOn = () => (SETUP.opts.lake === null || SETUP.opts.lake === undefined ? SETUP.n >= 7 : !!SETUP.opts.lake);
-const SETUP = { cfg: null, n: 5, opts: { sound: true, voice: false, gentle: false, fast: false, lowq: false, lake: null } };
+const SETUP = { cfg: null, n: 5, opts: { sound: true, voice: false, gentle: false, fast: false, lowq: false, lake: null, percival: true } };
 const SAVE_KEY = 'awaalon.test.v1';
 function loadSaved() {
   try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); return s && typeof s === 'object' ? s : null; } catch (e) { return null; }
@@ -1630,6 +1636,7 @@ async function finale(good) {
    規則引擎來自 handoff 的 server/avalon.mjs（好人也可投失敗）
    ============================================================ */
 const S = { P: [], me: null, G: null, seats: [], god: null, preview: null, hist: { votes: [], missions: [] }, cards: {}, onPick: null, tagsHidden: false, tagOnly: null, themeQ: -1, gentle: false, running: false, cur: null };
+function roleListFor(n, percival) { const evil = EVIL_FOR[n] || []; return ['Merlin', ...(percival ? ['Percival'] : []), ...Array(Math.max(0, n - evil.length - (percival ? 2 : 1))).fill('Loyal'), ...evil]; }
 const ROLE_ZH = { Merlin: '梅林', Percival: '派西維爾', Loyal: '亞瑟的忠臣', Assassin: '刺客', Morgana: '莫甘娜', Mordred: '莫德雷德', Oberon: '奧伯倫' };
 const QUIPS = {
   think: ['嗯…', '讓我想想', '唔唔…', '選誰好呢'],
@@ -1740,7 +1747,7 @@ async function beginGame() {
   S.seats = buildSeats(n);
   S.god = new Chibi(NET.godProfile ? unpackCfg(NET.godProfile.cfg) : { skin: SKIN[1], cloth: '#4a2f6b', hair: 'long', hairC: HAIRC[4], hat: 'hood', prop: 'staff', cape: true, face: 'cool' });
   scene.add(S.god.root); godPlace(S.god); S.god.sit = 1; S.god.sitGoal = 1; S.god.pose = 'table';
-  S.G = createGame(S.P.map(p => ({ id: p.id, name: p.name })), { lake: lakeOn() });
+  S.G = createGame(S.P.map(p => ({ id: p.id, name: p.name })), { lake: lakeOn(), percival: percivalOn() });
   S.P.forEach(p => { const x=S.G.players.find(x=>x.id===p.id);p.role=x.role;p.team=x.team; });
   S.hist = { votes: [], missions: [] }; S.cards = {}; S.themeQ = -1; S.running = true;
   S.P.forEach((p, i) => { p.seatInfo = S.seats[i]; p.at = 'seat'; p.ch.sit = 0; p.ch.sitGoal = 0; p.ch.teleport(p.seatInfo.side * 3.9, 19 + i * 0.6, 0); });
@@ -1775,6 +1782,25 @@ function updateHUD() {
 }
 
 /* ---------- 開場運鏡 ---------- */
+function showRoleReveal(g) {
+  const el = $('#roleReveal'); el.textContent = '';
+  const n = g.players.length, pv = g.percival !== false, list = roleListFor(n, pv), cnt = {};
+  list.forEach(r => { cnt[r] = (cnt[r] || 0) + 1; });
+  const goodN = list.filter(r => ROLE_INFO[r].team === 'good').length, evilN = n - goodN;
+  const card = mk('div', 'rr-card'); card.appendChild(mk('h2', '', '今晚登場的角色')); card.appendChild(mk('p', 'rr-sub', n + ' 人 · 亞瑟陣營 ' + goodN + ' · 莫德雷德陣營 ' + evilN));
+  let k = 0;
+  const team = (t, label) => {
+    const sec = mk('div', 'rr-team ' + t); sec.appendChild(mk('h3', '', label)); const row = mk('div', 'rr-chips');
+    Object.keys(cnt).filter(r => ROLE_INFO[r].team === t).forEach(r => { const c = mk('span', 'rr-chip ' + t, ROLE_ZH[r] + (cnt[r] > 1 ? ' ×' + cnt[r] : '')); c.style.animationDelay = (0.5 + 0.4 * k++) + 's'; row.appendChild(c); });
+    if (t === 'good' && !pv) { const c = mk('span', 'rr-chip off', '派西維爾（本局關閉）'); c.style.animationDelay = (0.5 + 0.4 * k++) + 's'; row.appendChild(c); }
+    sec.appendChild(row); card.appendChild(sec);
+  };
+  team('good', '亞瑟陣營'); team('evil', '莫德雷德陣營');
+  const foot = mk('p', 'rr-foot'); foot.innerHTML = '湖中仙女：<b>' + (g.lake ? '開' : '關') + '</b>' + (pv ? '' : ' · 沒有派西維爾，多一位亞瑟的忠臣'); card.appendChild(foot);
+  el.appendChild(card); el.classList.add('on');
+  return 0.5 + 0.4 * k;
+}
+const hideRoleReveal = () => $('#roleReveal').classList.remove('on');
 async function intro() {
   hud(false); S.P.forEach(p => { p.tag.style.display = ''; });
   const g = S.G;
@@ -1787,12 +1813,14 @@ async function intro() {
   const right = S.P.filter(p => p.seatInfo.side > 0).sort((a, b) => b.seatInfo.z - a.seatInfo.z);
   for (const p of left) { camTo(new V3(5.4 * PF(), 4.2 + PF(), p.seatInfo.z + 1.6), new V3(-2.3, 2.1, p.seatInfo.z), 3.2, 38); p.ch.emote('wave', 0.9); SFX.blip(); await wait(0.75); }
   for (const p of right) { camTo(new V3(-5.4 * PF(), 4.2 + PF(), p.seatInfo.z + 1.6), new V3(2.3, 2.1, p.seatInfo.z), 3.2, 38); p.ch.emote('wave', 0.9); SFX.blip(); await wait(0.75); }
-  const roles = {}; const introRoles = ['Merlin','Percival',...Array(g.players.length - EVIL_FOR[g.players.length].length - 2).fill('Loyal'),...EVIL_FOR[g.players.length]]; introRoles.forEach(r => { roles[r] = (roles[r] || 0) + 1; });
+  const pvOn = g.percival !== false, shown = roleListFor(g.players.length, pvOn), roles = {}; shown.forEach(r => { roles[r] = (roles[r] || 0) + 1; });
   const list = Object.keys(roles).map(r => ROLE_ZH[r] + (roles[r] > 1 ? '×' + roles[r] : '')).join('、');
   camTo(new V3(0, 24, 5), new V3(0, 0, -0.5), 1.6, 40);
-  banner('本局目標', '好人完成 3 次任務；壞人讓 3 次任務失敗，或刺殺梅林', 0);
-  subtitle('本局角色：' + list, 0);
-  await wait(5.2); subtitle(''); bannerOff();
+  const revealT = showRoleReveal(g);
+  subtitle('好人完成 3 次任務；壞人讓 3 次任務失敗，或刺殺梅林', 0);
+  SFX.chime && SFX.chime();
+  await Promise.all([wait(Math.max(6.5, revealT + 3.5)), hostNarrate('本局角色', '本局共 ' + g.players.length + ' 人，登場的角色有：' + list + '。' + (pvOn ? '' : '這一局沒有派西維爾，改為多一位亞瑟的忠臣。'))]);
+  hideRoleReveal(); subtitle(''); bannerOff();
   camMain(1.8); hud(true); await wait(0.8);
 }
 
@@ -1909,7 +1937,7 @@ async function night() {
   await Promise.all(S.P.filter(p => p.remote).map(p => netAsk(p.id, { kind: 'ready' })));
   S.P.forEach(p => { act(p.id, { type: 'ready' }); });
   await netScene('night');
-  await hostNarrate('夜晚 · 確認資訊', '現在請在自己的手機確認角色資訊。壞人確認看得到的同夥；梅林確認能辨認的壞人；派西維爾確認兩位梅林候選人。奧伯倫不認識同夥。請只看自己的手機，保持安靜，不要說出秘密。');
+  await hostNarrate('夜晚 · 確認資訊', '現在請在自己的手機確認角色資訊。壞人確認看得到的同夥；梅林確認能辨認的壞人；' + (S.G.percival !== false ? '派西維爾確認兩位梅林候選人。' : '') + '奧伯倫不認識同夥。請只看自己的手機，保持安靜，不要說出秘密。');
   if (NET.mode === 'host') { banner('夜晚確認身分', '請各自查看手機，記住身分與同夥', 0); await wait(7.5); bannerOff(); } else await nightConfirm();
   subtitle('大家請閉眼。', 0); await wait(1.6);
   await hostNarrate('天亮', '所有人確認完畢，請收起秘密資訊。天亮了，大家可以開始討論；不要直接亮出自己的身分。');
@@ -2607,9 +2635,13 @@ function showRules(entry,display){
   $('#rulesNext').textContent=entry==='solo'?'下一步：建立角色 →':'下一步：建立房間 →';
   syncFrontRules();
 }
+function cntBtn(n,on,fn,dis){const b=mk('button','',String(n));b.type='button';b.setAttribute('aria-pressed',on?'true':'false');b.setAttribute('aria-label',n+' 人');b.disabled=!!dis;b.onclick=fn;return b;}
+function splitText(n){const e=(EVIL_FOR[n]||[]).length;return '好人 '+(n-e)+' 人，壞人 '+e+' 人';}
 function syncFrontRules(){
-  const row=$('#rulePlayers');row.textContent='';for(let n=5;n<=10;n++){const b=chip(n+' 人',()=>{SETUP.n=n;syncFrontRules();saveSaved();});b.setAttribute('aria-pressed',n===SETUP.n?'true':'false');row.appendChild(b);}
-  document.querySelectorAll('#ruleLake button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.lake==='on')===lakeOn())));
+  const n=SETUP.n,row=$('#rulePlayers');row.textContent='';
+  for(let k=5;k<=10;k++)row.appendChild(cntBtn(k,k===n,()=>{SETUP.n=k;syncFrontRules();saveSaved();}));
+  $('#ruleSplit').textContent=splitText(n);$('#ruleLakeSw').checked=lakeOn();$('#rulePercivalSw').checked=percivalOn();
+  renderRoleBoard($('#ruleBoard'),n,percivalOn(),lakeOn());
 }
 function editPlayer(){
   if(NET.mode!=='guest'||NET.started)return;NET.editingPlayer=true;roomSend(NET.host,{type:'ready',ready:false});$('#front').hidden=true;$('#front').style.display='none';$('#lobby').hidden=true;$('#setup').classList.remove('off');$('#title').classList.add('off');
@@ -2628,7 +2660,8 @@ function bindEntry(){
   $('#sharedMode').onclick=()=>showRules('host','shared');$('#remoteMode').onclick=()=>showRules('host','remote');$('#partyBack').onclick=()=>showFrontPane('scrTitle');$('#joinBack').onclick=()=>showFrontPane('scrTitle');
   $('#rulesBack').onclick=()=>showFrontPane(NET.entry==='solo'?'scrTitle':'scrParty');
   $('#rulesNext').onclick=()=>{if(NET.entry==='solo')chooseMode('solo',NET.display);else{SFX.init();enterMode();}};
-  document.querySelectorAll('#ruleLake button').forEach(b=>b.onclick=()=>{SETUP.opts.lake=b.dataset.lake==='on';syncFrontRules();saveSaved();});
+  $('#ruleLakeSw').onchange=e=>{SETUP.opts.lake=e.target.checked;syncFrontRules();saveSaved();};
+  $('#rulePercivalSw').onchange=e=>{SETUP.opts.percival=e.target.checked;syncFrontRules();saveSaved();};
   $('#joinNext').onclick=()=>{const code=$('#frontJoinCode').value.trim();if(!/^\d{4}$/.test(code)){toast('請輸入 4 位房號');return;}$('#joinCode').value=code;NET.entry='join';enterMode();};
   $('#frontJoinCode').onkeydown=e=>{if(e.key==='Enter')$('#joinNext').click();};$('#editPlayer').onclick=editPlayer;
 }
@@ -2642,16 +2675,35 @@ function netFatal(message){
   S.running=false; for(const req of NET.requests.values()) req.reject(new Error(message)); NET.requests.clear();
 }
 function renderLobby(data){
-  if(data){NET.roster=data.roster; NET.display=data.display; NET.narration=data.narration==='manual'?'manual':'voice'; NET.code=data.code; $('#roomSize').value=data.size; $('#roomLake').checked=data.lake; $('#fillBots').checked=data.fill;}
+  if(data){NET.roster=data.roster; NET.display=data.display; NET.narration=data.narration==='manual'?'manual':'voice'; NET.code=data.code; $('#roomSize').value=data.size; $('#roomLake').checked=data.lake; $('#roomPercival').checked=data.percival!==false; $('#fillBots').checked=data.fill;}
   if(!NET.editingPlayer){$('#setup').classList.add('off');$('#title').classList.add('off');$('#lobby').hidden=false;} $('#roomCode').textContent=NET.code;
   $('#lobbyTitle').textContent=NET.display==='shared'?'在同一個地方':'各自在家';
-  $('#hostControls').hidden=NET.mode!=='host'; $('#readyRoom').hidden=NET.mode==='host';$('#editPlayer').hidden=NET.mode!=='guest';drawRoomQR();
+  $('#hostControls').hidden=NET.mode!=='host';$('#hostRules').hidden=NET.mode!=='host'; $('#readyRoom').hidden=NET.mode==='host';$('#editPlayer').hidden=NET.mode!=='guest';drawRoomQR();
   const me=NET.roster.find(p=>p.id===NET.myId); $('#readyRoom').textContent=me&&me.ready?'已準備 ✓（點此取消）':'準備好了';
   const box=$('#roster'); box.textContent=''; NET.roster.forEach((p,i)=>{const row=mk('div','roster-row'); row.appendChild(mk('b','',String(i+1).padStart(2,'0'))); row.appendChild(mk('span','',p.name+(p.id===NET.myId?'（你）':''))); row.appendChild(mk('small','',p.bot?'電腦':p.ready?'準備 ✓':'選擇中')); box.appendChild(row);});
   if(NET.mode==='host') { const humans=NET.roster.filter(p=>!p.bot); const size=+$('#roomSize').value; $('#startRoom').disabled=NET.started || !humans.length || humans.length>size || !humans.every(p=>p.ready) || (!$('#fillBots').checked&&humans.length!==size); netStatus(`已入座 ${humans.length} / ${size} · ${$('#fillBots').checked?'空位補電腦':'等待真人到齊'}`); hostRoleSummary(); }
   else netStatus('連線成功，準備好後等待房主開場。');
+  renderLobbyRules();
 }
-function lobbyBroadcast(){ const d={roster:NET.roster,display:NET.display,narration:NET.narration,code:NET.code,size:+$('#roomSize').value,lake:$('#roomLake').checked,fill:$('#fillBots').checked}; renderLobby(); netBroadcast({type:'lobby',data:d}); }
+function renderLobbyRules(){
+  const sel=$('#roomSize'),n=+sel.value||5,pv=$('#roomPercival').checked,lake=$('#roomLake').checked,humans=NET.roster.filter(p=>!p.bot).length;
+  const box=$('#lobbyCount');if(box){box.textContent='';for(let k=5;k<=10;k++)box.appendChild(cntBtn(k,k===n,()=>{sel.value=String(k);lobbyBroadcast();},k<humans));}
+  const sp=$('#lobbySplit');if(sp)sp.textContent=splitText(n);
+  renderRoleBoard($('#roleBoard'),n,pv,lake);
+}
+function renderRoleBoard(box,n,pv,lake){
+  if(!box)return; const list=roleListFor(n,pv),cnt={};list.forEach(r=>{cnt[r]=(cnt[r]||0)+1;});
+  let prev=null;try{prev=JSON.parse(box.dataset.prev||'null');}catch(e){}
+  const now=Object.assign({},cnt,{lake:lake?1:0});box.dataset.prev=JSON.stringify(now);box.textContent='';
+  const fresh=k=>prev&&prev[k]!==now[k]?' fresh':'';
+  const head=mk('div','rb-head');head.appendChild(mk('h3','','本局角色'));head.appendChild(mk('span','rb-sub',n+' 人，'+splitText(n)));box.appendChild(head);
+  const line=(team,label)=>{const row=mk('div','rb-row');row.appendChild(mk('b','',label));const w=mk('div','rb-chips');
+    Object.keys(cnt).filter(r=>ROLE_INFO[r].team===team).forEach(r=>w.appendChild(mk('span','rb-chip '+team+fresh(r),ROLE_ZH[r]+(cnt[r]>1?' ×'+cnt[r]:''))));
+    if(team==='good'&&!pv)w.appendChild(mk('span','rb-chip off'+fresh('Percival'),'派西維爾（關）'));row.appendChild(w);box.appendChild(row);};
+  line('good','亞瑟陣營');line('evil','莫德雷德陣營');
+  const row=mk('div','rb-row');row.appendChild(mk('b','','規則'));const w=mk('div','rb-chips');w.appendChild(mk('span','rb-chip rule'+(lake?'':' off')+fresh('lake'),lake?'湖中仙女':'湖中仙女（關）'));row.appendChild(w);box.appendChild(row);
+}
+function lobbyBroadcast(){ const d={roster:NET.roster,display:NET.display,narration:NET.narration,code:NET.code,size:+$('#roomSize').value,lake:$('#roomLake').checked,percival:$('#roomPercival').checked,fill:$('#fillBots').checked}; renderLobby(); netBroadcast({type:'lobby',data:d}); }
 function makePeer(id){ if(typeof Peer==='undefined')throw new Error('PeerJS 載入失敗，請確認網路後重新整理'); const peerOptions=window.AVALON_PEER_OPTIONS||{}; const p=id?new Peer(id,peerOptions):new Peer(peerOptions); NET.peer=p; p.on('error',e=>{ if(!NET.started){netStatus('連線失敗：'+(e.type==='peer-unavailable'?'找不到房間，請檢查代碼':e.type==='unavailable-id'?'房號重複，請離開後重新開房':e.message)); $('#goBtn').disabled=false;}else netFatal('連線發生問題：'+e.type); }); p.on('disconnected',()=>{if(!NET.failed){netStatus('訊號服務斷線，正在重新連線…'); try{p.reconnect();}catch(e){netFatal('無法重新連線，請重新開房。');}}}); return p; }
 async function enterMode(){
   if(NET.editingGod){finishGodEdit(true);return;}
@@ -2662,7 +2714,7 @@ async function enterMode(){
     const profile=NET.entry==='host'?null:myProfile();
     if(NET.entry==='host'){
       NET.mode='host'; NET.code=String(1000+crypto.getRandomValues(new Uint32Array(1))[0]%9000); NET.myId='host'; NET.roster=[];
-      $('#roomSize').value=SETUP.n; $('#roomLake').checked=lakeOn();
+      $('#roomSize').value=SETUP.n; $('#roomLake').checked=lakeOn(); $('#roomPercival').checked=percivalOn();
       const peer=makePeer(NET_PREFIX+NET.code); peer.on('open',()=>lobbyBroadcast());
       peer.on('connection',c=>{
         let admitted=false; const timer=setTimeout(()=>{if(!admitted)c.close();},12000);
@@ -2795,10 +2847,10 @@ bindEntry();$('#backModes').onclick=()=>{if(NET.editingGod)finishGodEdit(false);
 $('#leaveRoom').onclick=()=>location.reload();$('#netExit').onclick=()=>location.reload();
 $('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(NET.code);toast('房間代碼已複製');}catch(e){toast('房間代碼：'+NET.code,6000);}};
 $('#readyRoom').onclick=()=>{SFX.init();primeRemoteNarration();const me=NET.roster.find(x=>x.id===NET.myId);roomSend(NET.host,{type:'ready',ready:!(me&&me.ready)});};
-for(const id of ['roomSize','fillBots','roomLake'])$('#'+id).onchange=()=>{if(!NET.started)lobbyBroadcast();};
+for(const id of ['roomSize','fillBots','roomLake','roomPercival'])$('#'+id).onchange=()=>{if(!NET.started)lobbyBroadcast();};
 $('#startRoom').onclick=async()=>{
   if(NET.started||$('#startRoom').disabled)return;NET.started=true;$('#startRoom').disabled=true;
-  SETUP.n=+$('#roomSize').value;SETUP.opts.lake=$('#roomLake').checked;
+  SETUP.n=+$('#roomSize').value;SETUP.opts.lake=$('#roomLake').checked;SETUP.opts.percival=$('#roomPercival').checked;
   const bots=shuf(CPU_NAMES);while(NET.roster.length<SETUP.n){const i=NET.roster.length;NET.roster.push({id:'cpu-'+i,name:bots.pop(),cfg:packCfg(randomCfg()),bot:true,ready:true});}
   await Promise.all(NET.roster.map(x=>preloadCfg(x.cfg)));if(NET.godProfile)await preloadCfg(NET.godProfile.cfg);beginGame().catch(e=>netFatal(e.message));
 };
