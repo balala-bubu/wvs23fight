@@ -26,12 +26,14 @@ async def main():
   await ctx.route('https://fonts.googleapis.com/**',lambda r:r.fulfill(body='',content_type='text/css'))
   async def page():
    p=await ctx.new_page();p.on('pageerror',lambda e:errors.append(str(e)));await p.goto(url+'/avalon.html');await p.wait_for_function('!!window.__AW');return p
-  hub=await ctx.new_page();await hub.goto(url+'/');assert await hub.locator('main > a.mode').count()==3;await hub.screenshot(path='/workspace/work/preview-hub.png');await hub.set_viewport_size({'width':390,'height':844});assert await hub.evaluate('document.documentElement.scrollWidth<=innerWidth');await hub.screenshot(path='/workspace/work/preview-hub-phone.png');await hub.close()
+  hub=await ctx.new_page();await hub.goto(url+'/');assert await hub.locator('main > a.mode').count()>=3;await hub.screenshot(path='/workspace/work/preview-hub.png');await hub.set_viewport_size({'width':390,'height':844});assert await hub.evaluate('document.documentElement.scrollWidth<=innerWidth');await hub.screenshot(path='/workspace/work/preview-hub-phone.png');await hub.close()
   async def heard(p):return await p.evaluate("__spoken.filter(t=>t.trim())")
   for display,mode in [('remote','voice'),('shared','voice'),('remote','manual')]:
-   host=await page();await host.click('#modeHost');await host.click('#remoteMode' if display=='remote' else '#sharedMode');await host.click('#rulesNext');await host.wait_for_function('NET.peer?.open');code=await host.evaluate('NET.code');phones=[]
+   host=await page();await host.evaluate('localStorage.clear()');await host.reload();await host.wait_for_function('!!window.__AW');await host.click('#modeHost');await host.click('#remoteMode' if display=='remote' else '#sharedMode');await host.click('#rulesNext');await host.wait_for_function('NET.peer?.open');code=await host.evaluate('NET.code');phones=[]
    for name in ['甲','乙']:
-    p=await page();await p.click('#modeJoin');await p.fill('#frontJoinCode',code);await p.click('#joinNext');await p.wait_for_function('NET.editingPlayer');await p.fill('#inName',name);await p.click('#goBtn');await p.wait_for_function('!NET.editingPlayer');await p.click('#readyRoom');phones.append(p)
+    p=await page()
+    if not await p.is_visible('#frontJoinCode'):await p.click('#modeJoin')
+    await p.fill('#frontJoinCode',code);await p.click('#joinNext');await p.wait_for_function('NET.editingPlayer');await p.fill('#inName',name);await p.click('#goBtn');await p.wait_for_function('!NET.editingPlayer');await p.click('#readyRoom');phones.append(p)
    await host.wait_for_function('NET.roster.length===2&&NET.roster.every(p=>p.ready)')
    await host.evaluate("""(mode)=>{NET.narration=mode;lobbyBroadcast();beginGame=async()=>{S.G=createGame(NET.roster.map(p=>({id:p.id,name:p.name})),{lake:false});S.hist={votes:[],missions:[]};S.P=[];S.running=true;S.narrationOff=false;RT.voice=NET.narration==='voice';await netLaunch();};}""",mode)
    await host.click('#startRoom')

@@ -1,7 +1,8 @@
 """阿 Wa 隆連線回歸測試（模擬資料通道，非真實 WebRTC）：
 1. 照片縮小、訊息都小於上限，且開局後每支手機都看得到所有人的照片臉。
 2. 手機中途斷線 → 遊戲不中止，重新連線後補送當下的提問。
-3. 斷線太久 → 系統代為操作，遊戲不卡住。
+3. 整頁重新載入後輸入同一房號 → 回到原座位。
+4. 斷線太久 → 系統代為操作，遊戲不卡住。
 執行：python3 tools/avalon_reconnect_test.py
 """
 import asyncio, functools, http.server, pathlib, threading, json
@@ -65,7 +66,8 @@ async def main():
         phones = []
         for name in ['甲', '乙']:
             p = await page()
-            await p.click('#modeJoin')
+            if not await p.is_visible('#frontJoinCode'):
+                await p.click('#modeJoin')
             await p.fill('#frontJoinCode', code)
             await p.click('#joinNext')
             await p.wait_for_function('NET.editingPlayer')
@@ -109,6 +111,23 @@ async def main():
         assert not await host.evaluate('NET.failed') and not await a.evaluate('NET.failed')
         print('PASS reconnect: dropped phone rejoined and got the pending question')
 
+        # --- 整頁被系統重新載入 → 輸入同一房號自動回座 ---
+        await a.evaluate('saveSeat()')  # 同一個 context 的兩頁共用 localStorage，所以明確存 a 的座位
+        await host.evaluate("(id)=>{window.__ans2V=undefined;netAsk(id,{kind:'notice',text:'重載'}).then(v=>{window.__ans2V=v;});}", ida)
+        await a.reload()
+        await a.wait_for_function('!!window.__AW')
+        assert await a.evaluate("document.getElementById('frontJoinCode').value") == code, 'room code should be prefilled'
+        await a.click('#joinNext')
+        await a.wait_for_function('(id)=>S.running&&NET.myId===id', arg=ida)
+        await a.get_by_role('button', name='知道了', exact=True).click()
+        await host.wait_for_function('window.__ans2V===true')
+        ok = await a.evaluate("(()=>{const x=S.P.find(q=>q.name==='甲');return !!x&&x.ch.cfg.photo instanceof HTMLImageElement;})()")
+        assert ok, 'photo face missing after reload'
+        assert not await host.evaluate('NET.failed') and not await host.evaluate('(id)=>NET.away.has(id)', ida)
+        n_before = 2
+        assert await host.evaluate('NET.roster.filter(x=>!x.bot).length') == n_before, 'reload must not create a new seat'
+        print('PASS reload: page reloaded, same room code returned to the same seat with face and pending question')
+
         # --- 離線太久 → 系統代為操作 ---
         idb = await b.evaluate('NET.myId')
         await b.close()
@@ -122,7 +141,8 @@ async def main():
         assert not await host.evaluate('NET.failed')
         print('PASS fallback: offline seat is played automatically, game continues')
 
-        assert not errors, errors
+        real = [e for e in errors if 'Execution context was destroyed' not in e]  # 重新載入瞬間的模擬連線呼叫，屬測試雜訊
+        assert not real, real
         await browser.close()
     srv.shutdown()
 

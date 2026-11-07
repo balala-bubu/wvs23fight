@@ -2601,6 +2601,19 @@ $('#bSnd').addEventListener('click', () => { SFX.init(); const m = !SFX.muted; S
 const NET_VERSION = 2;
 const NET = {mode:'solo', entry:'solo', hostRole:'display', narration:'voice', godProfile:null, editingGod:false, display:'remote', peer:null, host:null, links:new Map(), roster:[], myId:'p0', code:'', started:false, private:null, requests:new Map(), barriers:new Map(), serial:0, queue:Promise.resolve(), lastScene:Promise.resolve(), photos:new Map(), epoch:0, tokens:new Map(), away:new Map(), pst:new Map(), photoData:new Map(), rejoining:false, token:'', lastPong:0};
 const NET_PREFIX = 'aw-avalon-v2-';
+/* 座位記憶：手機整頁被系統重新載入後，輸入同一房號即可回到原座位 */
+const SEAT_KEY='aw-avalon-seat';
+const TAB_ID=(()=>{try{let t=sessionStorage.getItem('aw-tab');if(!t){t=Math.random().toString(36).slice(2);sessionStorage.setItem('aw-tab',t);}return t;}catch(e){return 'x';}})();
+function seatLive(){try{if(NET.myId)localStorage.setItem(SEAT_KEY+'-live-'+NET.myId,JSON.stringify({t:Date.now(),tab:TAB_ID}));}catch(e){}}
+function saveSeat(){try{localStorage.setItem(SEAT_KEY,JSON.stringify({code:NET.code,id:NET.myId,token:NET.token,ts:Date.now()}));seatLive();}catch(e){}}
+function loadSeat(code){try{const x=JSON.parse(localStorage.getItem(SEAT_KEY)||'null');if(!(x&&x.code===code&&x.id&&x.token&&Date.now()-x.ts<6*3600e3))return null;
+  const lv=JSON.parse(localStorage.getItem(SEAT_KEY+'-live-'+x.id)||'null');if(lv&&lv.tab!==TAB_ID&&Date.now()-lv.t<9000)return null; /* 另一個分頁正在用這個座位，不搶 */
+  return x;}catch(e){}return null;}
+function clearSeat(){try{localStorage.removeItem(SEAT_KEY);}catch(e){}}
+/* 連線中繼：預設用 PeerJS 內建的 STUN/TURN；若設定 window.AVALON_TURN_URL（Metered 後台給的 credentials 網址），會多加一組可走 80/443 的備援中繼 */
+const ICE_BASE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:['turn:eu-0.turn.peerjs.com:3478','turn:us-0.turn.peerjs.com:3478'],username:'peerjs',credential:'peerjsp'}];
+const ICE_READY=(async()=>{let extra=[];const u=window.AVALON_TURN_URL;if(u){try{const ctl=new AbortController();const tm=setTimeout(()=>ctl.abort(),4000);const r=await fetch(u,{signal:ctl.signal});clearTimeout(tm);if(r.ok){const j=await r.json();if(Array.isArray(j))extra=j;}}catch(e){console.warn('TURN 設定讀取失敗，改用預設中繼',e);}}
+  window.AVALON_PEER_OPTIONS=Object.assign({},window.AVALON_PEER_OPTIONS,{config:{iceServers:ICE_BASE.concat(extra)}});})();
 function netStatus(t) { $('#roomStatus').textContent=t; }
 function roomSend(c,m) { if(!(c && c.open)) return false; try{ c.send(Object.assign({v:NET_VERSION},m)); return true; }catch(e){ console.warn('send failed',e); return false; } }
 function netBroadcast(m) { NET.links.forEach(c=>roomSend(c,m)); }
@@ -2708,6 +2721,7 @@ function renderRoleBoard(box,n,pv,lake){
 function lobbyBroadcast(){ const d={roster:NET.roster.map(noPhoto),display:NET.display,narration:NET.narration,code:NET.code,size:+$('#roomSize').value,lake:$('#roomLake').checked,percival:$('#roomPercival').checked,fill:$('#fillBots').checked}; renderLobby(); netBroadcast({type:'lobby',data:d}); }
 function makePeer(id){ if(typeof Peer==='undefined')throw new Error('PeerJS 載入失敗，請確認網路後重新整理'); const peerOptions=window.AVALON_PEER_OPTIONS||{}; const p=id?new Peer(id,peerOptions):new Peer(peerOptions); NET.peer=p; p.on('error',e=>{ if(NET.rejoining)return; if(!NET.started){netStatus('連線失敗：'+(e.type==='peer-unavailable'?'找不到房間，請檢查代碼':e.type==='unavailable-id'?'房號重複，請離開後重新開房':e.message)); $('#goBtn').disabled=false;}else netFatal('連線發生問題：'+e.type); }); p.on('disconnected',()=>{if(!NET.failed&&!NET.rejoining){netStatus('訊號服務斷線，正在重新連線…'); try{p.reconnect();}catch(e){netFatal('無法重新連線，請重新開房。');}}}); return p; }
 async function enterMode(){
+  await ICE_READY;
   if(NET.editingGod){finishGodEdit(true);return;}
   if(NET.editingPlayer){finishPlayerEdit(true);return;}
   if(NET.entry==='solo'){NET.mode='solo'; NET.myId='p0'; beginGame(); return;}
@@ -2725,8 +2739,8 @@ async function enterMode(){
           c._seen=Date.now();
           if(m.type==='ping'){roomSend(c,{type:'pong'});return;}
           if(m.type==='rejoin'&&!admitted){
-            if(!NET.started||NET.failed||!NET.roster.some(x=>x.id===m.id)||!NET.tokens.get(m.id)||NET.tokens.get(m.id)!==m.token){roomSend(c,{type:'rejoin-fail'});setTimeout(()=>{try{c.close();}catch(e){}},400);return;}
-            admitted=true;clearTimeout(timer);pid=m.id;netRejoin(pid,c);return;
+            if(!NET.started||NET.failed||!NET.roster.some(x=>x.id===m.id)||!NET.tokens.get(m.id)||NET.tokens.get(m.id)!==m.token){roomSend(c,{type:'rejoin-fail'});return;}
+            admitted=true;clearTimeout(timer);pid=m.id;netRejoin(pid,c,!!m.fresh);return;
           }
           if(m.type==='hello'&&!admitted){
             if(NET.started||NET.roster.length>=+$('#roomSize').value){roomSend(c,{type:'reject',message:'房間已開始或人數已滿'});return;}
@@ -2744,7 +2758,7 @@ async function enterMode(){
       const code=$('#joinCode').value.trim().toUpperCase();if(!/^\d{4}$/.test(code))throw new Error('請輸入 4 位房間代碼');
       NET.mode='guest'; NET.code=code; const peer=makePeer(); peer.on('open',()=>{const c=peer.connect(NET_PREFIX+code,{reliable:true,serialization:'json'}); NET.host=c;
         const timer=setTimeout(()=>{if(!NET.myId||NET.myId==='p0'){netStatus('連線逾時，請檢查房號與網路後離開重試。');c.close();}},20000);
-        c.on('open',()=>roomSend(c,{type:'hello',profile})); c.on('data',m=>{if(m&&m.type==='welcome')clearTimeout(timer);netReceive(m);});c.on('close',()=>{clearTimeout(timer);if(NET.started)guestLost(c);else netStatus('房間已關閉，請離開後重試。');}); c.on('error',()=>netStatus('無法連線到房間，請檢查網路。'));
+        c.on('open',()=>{const seat=loadSeat(code);roomSend(c,seat?{type:'rejoin',id:seat.id,token:seat.token,fresh:true}:{type:'hello',profile});}); c.on('data',m=>{if(m&&(m.type==='welcome'||m.type==='rejoined'))clearTimeout(timer);netReceive(m);});c.on('close',()=>{clearTimeout(timer);if(NET.started)guestLost(c);else netStatus('房間已關閉，請離開後重試。');}); c.on('error',()=>netStatus('無法連線到房間，請檢查網路。'));
       });
     }
   }catch(e){netStatus(e.message);$('#goBtn').disabled=false;}
@@ -2759,13 +2773,17 @@ function netView(id){
 }
 function netSnapshot(){if(!NET.started)return; NET.links.forEach((c,id)=>roomSend(c,{type:'snapshot',view:netView(id)}));}
 function netSetView(view){NET.private=view.private;S.G=Object.assign({ballots:{},missionCards:{},ladyResults:{}},view.state);S.hist=view.history;S.P.forEach(p=>{const x=S.G.players.find(x=>x.id===p.id);p.team=x.team;p.role=x.role;});updateHUD();}
+function netSendStart(pid,c,id){
+  NET.roster.forEach(p=>{if(p.cfg&&typeof p.cfg.photo==='string')roomSend(c,{type:'photo',id:p.id,data:p.cfg.photo});});
+  if(NET.godProfile&&NET.godProfile.cfg&&typeof NET.godProfile.cfg.photo==='string')roomSend(c,{type:'photo',id:'god',data:NET.godProfile.cfg.photo});
+  roomSend(c,{type:'start',id,roster:NET.roster.map(noPhoto),display:NET.display,godProfile:noPhoto(NET.godProfile),narration:NET.narration,opts:SETUP.opts,view:netView(pid)});
+}
 async function netLaunch(){
   NET.started=true;$('#lobby').hidden=true;$('#netBadge').hidden=false;$('#netText').textContent='房間 '+NET.code+' · '+(NET.hostRole==='god'?'上帝主持':NET.display==='shared'?'大螢幕 · 純播放':'開房裝置 · 純播放');
   document.body.classList.add('host-display');document.body.classList.toggle('public-screen',NET.display==='shared');document.body.classList.toggle('god-host',NET.hostRole==='god');$('#bId').hidden=true;$('#bEmo').hidden=true;
   const id='launch-'+(++NET.serial);const barrier=netBarrier(id);
   if(!NET.hb)NET.hb=setInterval(()=>{if(NET.failed)return;NET.links.forEach((c,pid)=>{if(Date.now()-(c._seen||0)>25000)netAway(pid);});},5000);
-  const photos=[];NET.roster.forEach(p=>{if(p.cfg&&typeof p.cfg.photo==='string')photos.push([p.id,p.cfg.photo]);});if(NET.godProfile&&NET.godProfile.cfg&&typeof NET.godProfile.cfg.photo==='string')photos.push(['god',NET.godProfile.cfg.photo]);
-  NET.links.forEach((c,pid)=>{photos.forEach(([pi,data])=>roomSend(c,{type:'photo',id:pi,data}));roomSend(c,{type:'start',id,roster:NET.roster.map(noPhoto),display:NET.display,godProfile:noPhoto(NET.godProfile),narration:NET.narration,opts:SETUP.opts,view:netView(pid)});}); await barrier;
+  NET.links.forEach((c,pid)=>netSendStart(pid,c,id)); await barrier;
 }
 function netBarrier(id){
   if(!NET.links.size)return Promise.resolve();
@@ -2819,10 +2837,11 @@ function netAway(pid){
   NET.requests.forEach(req=>{if(req.pid===pid)netArm(req);});
   toast(nameOf(pid)+' 離線了，等待重新連線…',4000);
 }
-function netRejoin(pid,c){
+function netRejoin(pid,c,fresh){
   const old=NET.links.get(pid); NET.links.set(pid,c); NET.away.delete(pid); c._seen=Date.now();
   if(old&&old!==c){try{old.close();}catch(e){}}
   roomSend(c,{type:'rejoined',view:netView(pid)});
+  if(fresh)netSendStart(pid,c,'rejoin-'+(++NET.serial));
   NET.requests.forEach(req=>{if(req.pid===pid){clearTimeout(req.timer);roomSend(c,{type:'prompt',id:req.id,prompt:req.prompt,view:netView(pid)});}});
   toast(nameOf(pid)+' 回來了',2500);
 }
@@ -2842,7 +2861,7 @@ async function mountGuest(m){
 }
 function guestHeartbeat(){
   if(NET.gHb)return;
-  NET.gHb=setInterval(()=>{if(NET.mode!=='guest'||!NET.started||NET.failed||NET.rejoining)return;roomSend(NET.host,{type:'ping'});if(Date.now()-NET.lastPong>16000)guestLost(NET.host);},4000);
+  NET.gHb=setInterval(()=>{if(NET.mode!=='guest'||!NET.started||NET.failed||NET.rejoining)return;seatLive();roomSend(NET.host,{type:'ping'});if(Date.now()-NET.lastPong>16000)guestLost(NET.host);},4000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'||NET.mode!=='guest'||!NET.started||NET.failed||NET.rejoining)return;const t=Date.now();roomSend(NET.host,{type:'ping'});setTimeout(()=>{if(!NET.rejoining&&!NET.failed&&NET.lastPong<t)guestLost(NET.host);},5000);});
 }
 function guestLost(c){
@@ -2891,7 +2910,9 @@ function netReceive(m){
     if(NET.mode!=='guest'||NET.display!=='remote'||NET.narration!=='voice'||S.narrationOff||!NET.started||!Number.isInteger(m.id)||m.id<=(NET.lastNarrationId||0)||typeof m.text!=='string'||m.text.length>4000)return;
     NET.lastNarrationId=m.id;NET.voiceQueue=(NET.voiceQueue||Promise.resolve()).then(()=>playRemoteNarration(m.text));return;
   }
-  if(m.type==='welcome'){NET.myId=m.id;NET.token=m.token||'';editPlayer();return;}
+  if(m.type==='welcome'){NET.myId=m.id;NET.token=m.token||'';saveSeat();editPlayer();return;}
+  if(m.type==='rejoined'){if(NET.started)return;const seat=loadSeat(NET.code);if(seat){NET.myId=seat.id;NET.token=seat.token;}return;}
+  if(m.type==='rejoin-fail'){if(NET.started||NET.rejoining)return;clearSeat();try{roomSend(NET.host,{type:'hello',profile:myProfile()});}catch(e){netStatus('無法回到原座位，請離開後重新加入。');}return;}
   if(m.type==='lobby'){renderLobby(m.data);return;}
   if(m.type==='reject'){netStatus(m.message+'。請離開後重新加入。');return;}
   if(m.type==='snapshot'){NET.latest=m.view;NET.private=m.view.private;return;}
@@ -2913,6 +2934,7 @@ async function guestPrompt(p){
   return humanChoice({title:p.kind==='lady'?'湖中仙女：查驗誰？':'你是刺客：誰是梅林？',hint:p.kind==='lady'?'只有你會看到陣營結果。':'刺中梅林，壞人逆轉獲勝。',choices:candidates.map(x=>({t:x.name,cls:'',v:x.id})),go:'確認選擇'});
 }
 async function guestScene(kind,data){
+  if(kind==='ending')clearSeat(); /* 本局結束，不再保留座位 */
   const g=S.G; sheetOff();
   const task={intro:'騎士入座，遊戲即將開始',night:'請私下確認你的身分',proposal:nameOf(g.leaderId)+' 正在選擇隊員',vote:'請在手機投下你的選票',tally:'選票揭曉，請看大螢幕',mission:'任務隊員正在秘密決定', 'mission-result':'任務結果揭曉，請看大螢幕',lady:'湖中仙女正在查驗',assassination:'最後一擊：刺客正在選擇',execution:'刺殺結果，請看大螢幕',ending:'本局結束 · 準備揭曉身分'}; $('#controllerTask').textContent=task[kind]||'等待其他騎士';
   if(kind==='intro'){await cine(intro);return;}
@@ -2936,7 +2958,7 @@ async function guestScene(kind,data){
   if(kind==='ending'){await doEnding();return;}
 }
 bindEntry();$('#backModes').onclick=()=>{if(NET.editingGod)finishGodEdit(false);else if(NET.editingPlayer)finishPlayerEdit(false);else{showModes();showFrontPane(NET.entry==='join'?'scrJoin':'scrRules');}};
-$('#leaveRoom').onclick=()=>location.reload();$('#netExit').onclick=()=>location.reload();
+$('#leaveRoom').onclick=()=>{clearSeat();location.reload();};$('#netExit').onclick=()=>{clearSeat();location.reload();};
 $('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(NET.code);toast('房間代碼已複製');}catch(e){toast('房間代碼：'+NET.code,6000);}};
 $('#readyRoom').onclick=()=>{SFX.init();primeRemoteNarration();const me=NET.roster.find(x=>x.id===NET.myId);roomSend(NET.host,{type:'ready',ready:!(me&&me.ready)});};
 for(const id of ['roomSize','fillBots','roomLake','roomPercival'])$('#'+id).onchange=()=>{if(!NET.started)lobbyBroadcast();};
@@ -3063,7 +3085,8 @@ addEventListener('resize',()=>{if(avatarEditorVisible())requestAnimationFrame(()
 buildSetup(); resize();
 buildHall();
 initPreview();
-{const room=new URLSearchParams(location.search).get('room');if(room&&/^\d{4}$/.test(room)){showFrontPane('scrJoin');$('#frontJoinCode').value=room;}}
+{const room=new URLSearchParams(location.search).get('room');if(room&&/^\d{4}$/.test(room)){showFrontPane('scrJoin');$('#frontJoinCode').value=room;}
+ else{try{const x=loadSeat((JSON.parse(localStorage.getItem(SEAT_KEY)||'null')||{}).code);if(x&&/^\d{4}$/.test(x.code)){$('#frontJoinCode').value=x.code;if(Date.now()-x.ts<30*60e3){showFrontPane('scrJoin');toast('偵測到上次的座位（房號 '+x.code+'），按「下一步」即可回座',6000);}}}catch(e){}}}
 requestAnimationFrame(frame);
 setTimeout(() => $('#boot').classList.add('off'), 300);
 async function advance(sec, step) { step = step || 1 / 15; for (let t = 0; t < sec; t += step) { tick(step); await new Promise(r => setTimeout(r, 0)); } renderer.render(scene, camera); }
